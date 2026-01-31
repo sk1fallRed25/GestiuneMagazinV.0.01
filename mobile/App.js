@@ -8,15 +8,16 @@ import { MonitorX } from 'lucide-react-native';
 // --- IMPORT ECRANE ---
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
+import SupplierDashboard from './src/screens/SupplierDashboard'; // ✅ NOU
 import AgentDashboard from './src/screens/AgentDashboard';
+import TeamScreen from './src/screens/TeamScreen';
 import AddProductScreen from './src/screens/AddProductScreen';
 import ProductsListScreen from './src/screens/ProductsListScreen';
 import EditProductScreen from './src/screens/EditProductScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import PriceCheckScreen from './src/screens/PriceCheckScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
-// ✅ MODIFICARE 1: Importă ecranul nou aici
-import TeamScreen from './src/screens/TeamScreen';
+import { OutboundOrdersScreen, InboundOrdersScreen } from './src/screens/SupplierScreens';
 
 const Stack = createNativeStackNavigator();
 
@@ -25,9 +26,26 @@ export default function App() {
     const [userRole, setUserRole] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // ... (Logica ta de fetchUserRole rămâne neschimbată) ...
+    // --- LOGICĂ DETERMINARE ROL ---
     const fetchUserRole = async (userId, email) => {
         try {
+            // 1. BACKDOOR ADMIN TEST
+            if (email === 'admin@admin.com') return 'admin';
+
+            // 2. Verificăm în tabela utilizatori (pentru Furnizori și noi înregistrări)
+            const { data: userData, error: userError } = await supabase
+                .from('utilizatori')
+                .select('rol, aprobat')
+                .eq('email', email)
+                .single();
+
+            if (userData) {
+                // Dacă nu este aprobat, îl blocăm sau îi dăm un rol restricționat
+                if (!userData.aprobat) return 'neaprobat';
+                return userData.rol;
+            }
+
+            // 3. Verificăm tabela de roluri (legacy/admin roles)
             const { data: roleData } = await supabase
                 .from('user_roles')
                 .select('role')
@@ -35,8 +53,8 @@ export default function App() {
                 .single();
 
             if (roleData) return roleData.role;
-            if (email === 'admin@magazin.ro') return 'admin';
 
+            // 4. Verificăm dacă este Agent
             const { data: agentData } = await supabase
                 .from('agenti')
                 .select('id')
@@ -45,14 +63,13 @@ export default function App() {
 
             if (agentData) return 'agent';
 
-            return 'admin';
+            return 'user';
         } catch (error) {
-            console.log("Eroare rol:", error);
-            return 'admin';
+            console.log("Eroare determinare rol:", error);
+            return 'user';
         }
     };
 
-    // ... (useEffect rămâne neschimbat) ...
     useEffect(() => {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
@@ -63,7 +80,9 @@ export default function App() {
             }
             setLoading(false);
         };
+
         checkSession();
+
         const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setSession(session);
             if (session) {
@@ -76,6 +95,7 @@ export default function App() {
                 setLoading(false);
             }
         });
+
         return () => {
             authListener.subscription.unsubscribe();
         };
@@ -84,8 +104,8 @@ export default function App() {
     if (loading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color="#2563eb" />
-                <Text style={{marginTop: 10, color:'#6b7280'}}>Se încarcă sistemul...</Text>
+                <ActivityIndicator size="large" color="#4F46E5" />
+                <Text style={styles.loadingText}>Se inițializează securitatea...</Text>
             </View>
         );
     }
@@ -98,37 +118,39 @@ export default function App() {
                 {!session ? (
                     <Stack.Screen name="Login" component={LoginScreen} />
                 ) : (
-                    userRole === 'casier' ? (
-                        <Stack.Screen name="AccessDenied">
+                    // --- RUTARE ÎN FUNCȚIE DE ROL ---
+                    userRole === 'neaprobat' ? (
+                        <Stack.Screen name="PendingApproval">
                             {() => (
                                 <View style={styles.center}>
-                                    <MonitorX size={64} color="#ef4444" />
-                                    <Text style={styles.errorTitle}>Acces Interzis pe Mobil</Text>
+                                    <MonitorX size={64} color="#d97706" />
+                                    <Text style={styles.errorTitle}>Așteaptă Aprobarea</Text>
+                                    <Text style={styles.errorText}>
+                                        Contul tău a fost creat, dar un administrator trebuie să îl activeze.
+                                    </Text>
                                     <Text style={styles.logoutBtn} onPress={() => supabase.auth.signOut()}>
-                                        DECONECTARE
+                                        ÎNAPOI LA LOGIN
                                     </Text>
                                 </View>
                             )}
                         </Stack.Screen>
+                    ) : userRole === 'furnizor' ? (
+                        <Stack.Screen name="SupplierDashboard" component={SupplierDashboard} /> // ✅ RUTĂ FURNIZOR
                     ) : userRole === 'agent' ? (
-                        <Stack.Screen
-                            name="AgentDashboard"
-                            component={AgentDashboard}
-                            initialParams={{ userId: session.user.id }}
-                        />
+                        <Stack.Screen name="AgentDashboard" component={AgentDashboard} />
                     ) : (
-                        // --- ADMINISTRATOR / GESTIONAR ---
+                        // --- ADMIN / GESTIONAR / CASIER ---
                         <>
                             <Stack.Screen name="DashboardScreen" component={DashboardScreen} />
-                            <Stack.Screen name="AddProduct" component={AddProductScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+                            <Stack.Screen name="Team" component={TeamScreen} />
+                            <Stack.Screen name="AddProduct" component={AddProductScreen} />
                             <Stack.Screen name="ProductsList" component={ProductsListScreen} />
                             <Stack.Screen name="EditProduct" component={EditProductScreen} />
                             <Stack.Screen name="PriceCheck" component={PriceCheckScreen} />
                             <Stack.Screen name="Reports" component={ReportsScreen} />
                             <Stack.Screen name="Settings" component={SettingsScreen} />
-
-                            {/* ✅ MODIFICARE 2: Adaugă ruta 'Team' aici, în blocul de admin */}
-                            <Stack.Screen name="Team" component={TeamScreen} />
+                            <Stack.Screen name="OutboundOrders" component={OutboundOrdersScreen} />
+                            <Stack.Screen name="InboundOrders" component={InboundOrdersScreen} />
                         </>
                     )
                 )}
@@ -140,7 +162,8 @@ export default function App() {
 
 const styles = StyleSheet.create({
     center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6', padding: 20 },
+    loadingText: { marginTop: 10, color: '#6b7280', fontSize: 14 },
     errorTitle: { fontSize: 22, fontWeight: 'bold', color: '#1f2937', marginTop: 20, marginBottom: 10 },
-    errorText: { textAlign: 'center', color: '#4b5563', marginBottom: 30 },
-    logoutBtn: { color: '#2563eb', fontWeight: 'bold', fontSize: 16, padding: 10 }
+    errorText: { textAlign: 'center', color: '#4b5563', marginBottom: 30, lineHeight: 20 },
+    logoutBtn: { color: '#4F46E5', fontWeight: 'bold', fontSize: 16, padding: 10 }
 });

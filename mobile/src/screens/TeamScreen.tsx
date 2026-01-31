@@ -1,319 +1,207 @@
 import React, { useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, FlatList, SafeAreaView, ActivityIndicator,
-    TouchableOpacity, Modal, TextInput, Alert, Platform, KeyboardAvoidingView, ScrollView
+    View, Text, StyleSheet, SafeAreaView, ActivityIndicator,
+    TouchableOpacity, Modal, Alert, Platform, ScrollView
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, User, Phone, Briefcase, Plus, X, Trash2, Mail } from 'lucide-react-native';
+import {
+    ArrowLeft, User, XCircle, Shield, Briefcase, Truck,
+    Building2, Hash, MapPin, Store, Clock
+} from 'lucide-react-native';
 
-// Model adaptat exact la tabela ta 'Utilizatori'
 type Utilizator = {
     id: number;
     nume: string;
     email: string;
     rol: string;
-    telefon?: string; // Poate fi null la început
-    aprobat: boolean; // Folosim 'aprobat' în loc de 'activ'
+    aprobat: boolean;
+    tip_cont: 'angajat' | 'furnizor';
+    nume_firma?: string;
+    cui?: string;
+    adresa_firma?: string;
+    cod_magazin?: string;
 };
 
+const AVAILABLE_ROLES = [
+    { label: 'Admin', value: 'admin', icon: <Shield size={18} color="white"/>, color: '#dc2626' },
+    { label: 'Gestionar', value: 'gestionar', icon: <Briefcase size={18} color="white"/>, color: '#2563eb' },
+    { label: 'Casier', value: 'casier', icon: <User size={18} color="white"/>, color: '#059669' },
+    { label: 'Agent', value: 'agent', icon: <User size={18} color="white"/>, color: '#d97706' },
+    { label: 'Furnizor', value: 'furnizor', icon: <Truck size={18} color="white"/>, color: '#7c3aed' },
+];
+
 export default function TeamScreen({ navigation }: any) {
-    const [team, setTeam] = useState<Utilizator[]>([]);
+    const [activeUsers, setActiveUsers] = useState<Utilizator[]>([]);
+    const [pendingUsers, setPendingUsers] = useState<Utilizator[]>([]);
     const [loading, setLoading] = useState(true);
-
-    // State Formular
     const [modalVisible, setModalVisible] = useState(false);
-    const [newNume, setNewNume] = useState('');
-    const [newEmail, setNewEmail] = useState(''); // Necesar pentru tabela ta
-    const [newRol, setNewRol] = useState('');
-    const [newTelefon, setNewTelefon] = useState('');
+    const [selectedUser, setSelectedUser] = useState<Utilizator | null>(null);
+    const [selectedRole, setSelectedRole] = useState<string>('');
 
-    // 1. Fetch Date
     const fetchTeam = async () => {
         try {
-            // ATENȚIE: Verifică dacă tabela ta începe cu literă mare sau mică în Supabase
-            // În poza ta apare 'Utilizatori' (cu U mare)
+            setLoading(true);
             const { data, error } = await supabase
-                .from('Utilizatori')
+                .from('utilizatori')
                 .select('*')
-                .eq('aprobat', true) // Luăm doar userii aprobați (echivalent activi)
-                .order('id', { ascending: true });
+                .order('id', { ascending: false });
 
-            if (error) {
-                // Fallback: Dacă dă eroare, încercăm cu litera mică 'utilizatori'
-                console.log("Încercare cu litera mică...", error.message);
-                const retry = await supabase
-                    .from('utilizatori')
-                    .select('*')
-                    .eq('aprobat', true);
-
-                if (retry.data) setTeam(retry.data as Utilizator[]);
-            } else if (data) {
-                setTeam(data as Utilizator[]);
+            if (error) throw error;
+            if (data) {
+                setActiveUsers(data.filter((u: Utilizator) => u.aprobat === true));
+                setPendingUsers(data.filter((u: Utilizator) => u.aprobat === false));
             }
-        } catch (err) {
-            console.log(err);
+        } catch (err: any) {
+            console.log('Eroare fetch:', err.message);
         } finally {
             setLoading(false);
         }
     };
 
-    // 2. Adăugare Membru (User Nou)
-    const addMember = async () => {
-        if (!newNume || !newEmail || !newRol) {
-            Alert.alert('Lipsesc date', 'Numele, Email-ul și Rolul sunt obligatorii.');
+    const approveUser = async () => {
+        if (!selectedUser || !selectedRole) {
+            Alert.alert("Atenție", "Selectați un rol pentru aprobare.");
             return;
         }
-
         try {
-            // Inserăm în tabela Utilizatori
-            // OBS: Punem o parolă default '123456' pentru că probabil coloana e NOT NULL
-            const table = 'Utilizatori'; // Sau 'utilizatori'
-
-            const payload = {
-                nume: newNume,
-                email: newEmail,
-                rol: newRol,
-                telefon: newTelefon,
-                parola: '123456', // Parolă temporară
-                aprobat: true,
-                data_inregistrare: new Date().toISOString()
-            };
-
-            const { error } = await supabase.from(table).insert([payload]);
-
+            const { error } = await supabase
+                .from('utilizatori')
+                .update({ aprobat: true, rol: selectedRole })
+                .eq('id', selectedUser.id);
             if (error) throw error;
-
-            Alert.alert('Succes', 'Utilizator creat! Parola implicită: 123456');
             setModalVisible(false);
-            resetForm();
-            fetchTeam(); // Refresh manual
-        } catch (error: any) {
-            Alert.alert('Eroare', error.message);
+            fetchTeam();
+        } catch (err: any) {
+            Alert.alert("Eroare", err.message);
         }
-    };
-
-    // 3. Dezactivare (Soft Delete)
-    const deactivateMember = async (id: number) => {
-        Alert.alert(
-            "Confirmare",
-            "Ești sigur că vrei să dezactivezi acest membru?",
-            [
-                { text: "Nu", style: "cancel" },
-                {
-                    text: "Da",
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            // Setăm aprobat = false
-                            const { error } = await supabase
-                                .from('Utilizatori') // Verifică litera mare/mică
-                                .update({ aprobat: false })
-                                .eq('id', id);
-
-                            if (error) throw error;
-                            fetchTeam();
-                        } catch (err: any) {
-                            Alert.alert("Eroare", err.message);
-                        }
-                    }
-                }
-            ]
-        );
-    };
-
-    const resetForm = () => {
-        setNewNume('');
-        setNewEmail('');
-        setNewRol('');
-        setNewTelefon('');
     };
 
     useEffect(() => {
         fetchTeam();
+        const channel = supabase.channel('team-updates').on('postgres_changes', { event: '*', schema: 'public', table: 'utilizatori' }, fetchTeam).subscribe();
+        return () => { supabase.removeChannel(channel); };
     }, []);
 
-    // Randare Card Angajat
-    const renderItem = ({ item }: { item: Utilizator }) => (
-        <View style={styles.card}>
-            <View style={styles.avatarContainer}>
-                <Text style={styles.avatarText}>
-                    {item.nume ? item.nume.charAt(0).toUpperCase() : 'U'}
-                </Text>
-            </View>
-
-            <View style={styles.infoContainer}>
-                <Text style={styles.name}>{item.nume}</Text>
-
-                <View style={styles.rowInfo}>
-                    <Briefcase size={14} color="#6B7280" />
-                    <Text style={styles.role}>{item.rol}</Text>
+    const renderPendingItem = (item: Utilizator) => {
+        const isFurnizor = item.tip_cont === 'furnizor';
+        return (
+            <View key={item.id} style={[styles.card, styles.pendingCard, isFurnizor && styles.furnizorPendingBorder]}>
+                <View style={styles.infoContainer}>
+                    <View style={styles.cardHeader}>
+                        <Text style={[styles.name, { color: isFurnizor ? '#7c3aed' : '#d97706' }]}>{item.nume || 'Utilizator Nou'}</Text>
+                        <View style={[styles.typeBadge, { backgroundColor: isFurnizor ? '#7c3aed' : '#d97706' }]}>
+                            <Text style={styles.typeBadgeText}>{isFurnizor ? 'FURNIZOR' : 'ANGAJAT'}</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.subText}>{item.email}</Text>
+                    {isFurnizor && (
+                        <View style={styles.detailsBox}>
+                            <View style={styles.detailRow}><Building2 size={12} color="#6b7280"/><Text style={styles.detailText}>{item.nume_firma}</Text></View>
+                            <View style={styles.detailRow}><Hash size={12} color="#6b7280"/><Text style={styles.detailText}>CUI: {item.cui}</Text></View>
+                        </View>
+                    )}
                 </View>
-
-                {item.email ? (
-                    <View style={styles.rowInfo}>
-                        <Mail size={14} color="#6B7280" />
-                        <Text style={styles.detailsText}>{item.email}</Text>
-                    </View>
-                ) : null}
-
-                {item.telefon ? (
-                    <View style={styles.rowInfo}>
-                        <Phone size={14} color="#6B7280" />
-                        <Text style={styles.detailsText}>{item.telefon}</Text>
-                    </View>
-                ) : null}
+                <TouchableOpacity onPress={() => { setSelectedUser(item); setModalVisible(true); }} style={[styles.approveBtn, isFurnizor && {backgroundColor:'#7c3aed'}]}>
+                    <Text style={styles.approveText}>Aprobă</Text>
+                </TouchableOpacity>
             </View>
-
-            <TouchableOpacity onPress={() => deactivateMember(item.id)} style={styles.deleteBtn}>
-                <Trash2 size={20} color="#EF4444" />
-            </TouchableOpacity>
-        </View>
-    );
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <ArrowLeft size={24} color="#1F2937" />
-                </TouchableOpacity>
-                <Text style={styles.title}>Echipa</Text>
-                <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addBtn}>
-                    <Plus size={24} color="#FFF" />
-                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.goBack()}><ArrowLeft size={24} color="#111827" /></TouchableOpacity>
+                <Text style={styles.title}>Gestiune Acces</Text>
+                <View style={{width: 24}} />
             </View>
 
-            {loading ? (
-                <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 50 }} />
-            ) : (
-                <FlatList
-                    data={team}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={renderItem}
-                    contentContainerStyle={styles.listContent}
-                    ListEmptyComponent={
-                        <Text style={styles.emptyText}>Nu există utilizatori activi.</Text>
-                    }
-                />
-            )}
-
-            {/* Modal Adăugare */}
-            <Modal
-                animationType="slide"
-                transparent={true}
-                visible={modalVisible}
-                onRequestClose={() => setModalVisible(false)}
-            >
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === "ios" ? "padding" : "height"}
-                    style={styles.modalOverlay}
-                >
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Adaugă Coleg</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
-                                <X size={24} color="#6B7280" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <ScrollView>
-                            <Text style={styles.label}>Nume</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Ex: Ion Popescu"
-                                value={newNume}
-                                onChangeText={setNewNume}
-                            />
-
-                            <Text style={styles.label}>Email (Login)</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Ex: ion@test.com"
-                                value={newEmail}
-                                onChangeText={setNewEmail}
-                                autoCapitalize="none"
-                                keyboardType="email-address"
-                            />
-
-                            <Text style={styles.label}>Rol</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Ex: vanzatori / gestionari"
-                                value={newRol}
-                                onChangeText={setNewRol}
-                                autoCapitalize="none"
-                            />
-
-                            <Text style={styles.label}>Telefon (Opțional)</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="07xx xxx xxx"
-                                value={newTelefon}
-                                onChangeText={setNewTelefon}
-                                keyboardType="phone-pad"
-                            />
-
-                            <TouchableOpacity style={styles.saveBtn} onPress={addMember}>
-                                <Text style={styles.saveBtnText}>Salvează Utilizator</Text>
-                            </TouchableOpacity>
-
-                            <Text style={styles.hintText}>* Parola implicită va fi: 123456</Text>
-                        </ScrollView>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+                {/* SECȚIUNEA CERERI - MEREU VIZIBILĂ */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>⚠️ Cereri în Așteptare</Text>
+                    <View style={styles.pendingBoxContainer}>
+                        {pendingUsers.length > 0 ? (
+                            pendingUsers.map(u => renderPendingItem(u))
+                        ) : (
+                            <View style={styles.emptyPendingState}>
+                                <Clock size={32} color="#9ca3af" />
+                                <Text style={styles.emptyPendingText}>Nu există cereri noi momentan.</Text>
+                            </View>
+                        )}
                     </View>
-                </KeyboardAvoidingView>
+                </View>
+
+                {/* SECȚIUNEA ECHIPĂ ACTIVĂ */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>✅ Utilizatori Activi</Text>
+                    {activeUsers.map(item => (
+                        <View key={item.id} style={styles.card}>
+                            <View style={styles.avatar}><Text style={styles.avatarText}>{item.nume?.[0] || 'U'}</Text></View>
+                            <View style={styles.infoContainer}>
+                                <Text style={styles.name}>{item.nume}</Text>
+                                <Text style={styles.subText}>{item.rol.toUpperCase()}</Text>
+                            </View>
+                        </View>
+                    ))}
+                </View>
+            </ScrollView>
+
+            {/* MODAL ROL */}
+            <Modal visible={modalVisible} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Selectează Rolul</Text>
+                        <View style={styles.rolesGrid}>
+                            {AVAILABLE_ROLES.map(r => (
+                                <TouchableOpacity key={r.value} onPress={() => setSelectedRole(r.value)} style={[styles.roleBtn, {backgroundColor: selectedRole === r.value ? r.color : '#f3f4f6'}]}>
+                                    <Text style={{color: selectedRole === r.value ? 'white' : '#374151'}}>{r.label}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.btnCancel}><Text>Închide</Text></TouchableOpacity>
+                            <TouchableOpacity onPress={approveUser} style={styles.btnConfirm}><Text style={{color:'white'}}>Confirmă</Text></TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
             </Modal>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F9FAFB' },
-    header: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        padding: 20, backgroundColor: '#FFF', paddingTop: Platform.OS === 'android' ? 40 : 20
-    },
-    backBtn: { padding: 5 },
-    title: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
-    addBtn: { backgroundColor: '#4F46E5', padding: 8, borderRadius: 8 },
-
-    listContent: { padding: 16 },
-    emptyText: { textAlign: 'center', marginTop: 50, color: '#9CA3AF' },
-
-    card: {
-        backgroundColor: '#FFF', borderRadius: 12, padding: 16, marginBottom: 12,
-        flexDirection: 'row', alignItems: 'center',
-        shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05, shadowRadius: 2, elevation: 2,
-    },
-    avatarContainer: {
-        width: 48, height: 48, borderRadius: 24, backgroundColor: '#EEF2FF',
-        justifyContent: 'center', alignItems: 'center', marginRight: 16
-    },
-    avatarText: { fontSize: 20, fontWeight: 'bold', color: '#4F46E5' },
-    infoContainer: { flex: 1 },
-    name: { fontSize: 16, fontWeight: '600', color: '#111827', marginBottom: 4 },
-    rowInfo: { flexDirection: 'row', alignItems: 'center', marginTop: 3 },
-    role: { fontSize: 13, color: '#4B5563', marginLeft: 6, fontWeight:'500' },
-    detailsText: { fontSize: 13, color: '#6B7280', marginLeft: 6 },
-    deleteBtn: { padding: 8 },
-
-    modalOverlay: {
-        flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end'
-    },
-    modalContent: {
-        backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '70%'
-    },
-    modalHeader: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20
-    },
-    modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
-    label: { fontSize: 14, fontWeight:'600', color:'#374151', marginBottom:5, marginTop: 10},
-    input: {
-        backgroundColor: '#F3F4F6', borderRadius: 8, padding: 12,
-        fontSize: 16, color: '#1F2937'
-    },
-    saveBtn: {
-        backgroundColor: '#4F46E5', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 25
-    },
-    saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
-    hintText: { textAlign:'center', marginTop: 10, color:'#9CA3AF', fontSize: 12 }
+    container: { flex: 1, backgroundColor: '#f9fafb' },
+    header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, backgroundColor: 'white', borderBottomWidth: 1, borderColor: '#e5e7eb', paddingTop: Platform.OS === 'ios' ? 50 : 20 },
+    title: { fontSize: 18, fontWeight: 'bold' },
+    scrollContent: { padding: 16 },
+    section: { marginBottom: 24 },
+    sectionTitle: { fontSize: 14, fontWeight: 'bold', color: '#6b7280', marginBottom: 12, textTransform: 'uppercase' },
+    pendingBoxContainer: { backgroundColor: '#f3f4f6', borderRadius: 12, padding: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: '#d1d5db' },
+    emptyPendingState: { padding: 32, alignItems: 'center' },
+    emptyPendingText: { marginTop: 8, color: '#9ca3af', fontSize: 14 },
+    card: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', padding: 12, borderRadius: 10, marginBottom: 8, elevation: 1 },
+    pendingCard: { borderLeftWidth: 4, borderLeftColor: '#d97706', backgroundColor: '#fffbeb' },
+    furnizorPendingBorder: { borderLeftColor: '#7c3aed', backgroundColor: '#faf5ff' },
+    infoContainer: { flex: 1, marginLeft: 12 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between' },
+    name: { fontSize: 15, fontWeight: 'bold' },
+    subText: { fontSize: 12, color: '#6b7280' },
+    typeBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+    typeBadgeText: { color: 'white', fontSize: 9, fontWeight: 'bold' },
+    detailsBox: { marginTop: 4 },
+    detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+    detailText: { fontSize: 11, marginLeft: 4, color: '#4b5563' },
+    approveBtn: { backgroundColor: '#d97706', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
+    approveText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+    avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#e0e7ff', justifyContent: 'center', alignItems: 'center' },
+    avatarText: { color: '#4338ca', fontWeight: 'bold' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+    modalContent: { backgroundColor: 'white', borderRadius: 16, padding: 20 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
+    rolesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+    roleBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8, minWidth: '45%', alignItems: 'center' },
+    modalActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
+    btnCancel: { flex: 1, padding: 12, alignItems: 'center', backgroundColor: '#f3f4f6', borderRadius: 8 },
+    btnConfirm: { flex: 1, padding: 12, alignItems: 'center', backgroundColor: '#10b981', borderRadius: 8 }
 });
