@@ -14,7 +14,9 @@ import ProductsListScreen from './src/screens/ProductsListScreen';
 import EditProductScreen from './src/screens/EditProductScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import PriceCheckScreen from './src/screens/PriceCheckScreen';
-import ReportsScreen from './src/screens/ReportsScreen'; // <--- NOU
+import ReportsScreen from './src/screens/ReportsScreen';
+// ✅ MODIFICARE 1: Importă ecranul nou aici
+import TeamScreen from './src/screens/TeamScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -23,10 +25,9 @@ export default function App() {
     const [userRole, setUserRole] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // --- LOGICĂ DETERMINARE ROL ---
+    // ... (Logica ta de fetchUserRole rămâne neschimbată) ...
     const fetchUserRole = async (userId, email) => {
         try {
-            // 1. Verificăm tabela de permisiuni (user_roles)
             const { data: roleData } = await supabase
                 .from('user_roles')
                 .select('role')
@@ -34,11 +35,8 @@ export default function App() {
                 .single();
 
             if (roleData) return roleData.role;
-
-            // 2. Fallback: Super Admin hardcodat
             if (email === 'admin@magazin.ro') return 'admin';
 
-            // 3. Verificăm dacă e Agent
             const { data: agentData } = await supabase
                 .from('agenti')
                 .select('id')
@@ -47,19 +45,17 @@ export default function App() {
 
             if (agentData) return 'agent';
 
-            // Implicit: Admin (pentru teste ușoare)
             return 'admin';
         } catch (error) {
             console.log("Eroare rol:", error);
-            return 'admin'; // Fallback safe
+            return 'admin';
         }
     };
 
-    // --- ASCULTĂTOR SESIUNE ---
+    // ... (useEffect rămâne neschimbat) ...
     useEffect(() => {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-
             if (session) {
                 setSession(session);
                 const role = await fetchUserRole(session.user.id, session.user.email);
@@ -67,9 +63,7 @@ export default function App() {
             }
             setLoading(false);
         };
-
         checkSession();
-
         const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setSession(session);
             if (session) {
@@ -82,13 +76,11 @@ export default function App() {
                 setLoading(false);
             }
         });
-
         return () => {
             authListener.subscription.unsubscribe();
         };
     }, []);
 
-    // --- LOADING SCREEN ---
     if (loading) {
         return (
             <View style={styles.center}>
@@ -98,27 +90,20 @@ export default function App() {
         );
     }
 
-    // --- NAVIGATOR PRINCIPAL ---
     return (
         <NavigationContainer>
             <StatusBar barStyle="dark-content" backgroundColor="#f3f4f6" />
             <Stack.Navigator screenOptions={{ headerShown: false }}>
 
-                {/* A. UTILIZATOR NELOGAT */}
                 {!session ? (
                     <Stack.Screen name="Login" component={LoginScreen} />
                 ) : (
-                    /* B. UTILIZATOR LOGAT - VERIFICĂM ROLUL */
                     userRole === 'casier' ? (
-                        // --- CASIER (ACCES BLOCAT PE MOBIL) ---
                         <Stack.Screen name="AccessDenied">
                             {() => (
                                 <View style={styles.center}>
                                     <MonitorX size={64} color="#ef4444" />
                                     <Text style={styles.errorTitle}>Acces Interzis pe Mobil</Text>
-                                    <Text style={styles.errorText}>
-                                        Conturile de casier pot fi folosite doar pe PC (Casa de Marcat).
-                                    </Text>
                                     <Text style={styles.logoutBtn} onPress={() => supabase.auth.signOut()}>
                                         DECONECTARE
                                     </Text>
@@ -126,7 +111,6 @@ export default function App() {
                             )}
                         </Stack.Screen>
                     ) : userRole === 'agent' ? (
-                        // --- AGENT DE VÂNZĂRI ---
                         <Stack.Screen
                             name="AgentDashboard"
                             component={AgentDashboard}
@@ -135,30 +119,16 @@ export default function App() {
                     ) : (
                         // --- ADMINISTRATOR / GESTIONAR ---
                         <>
-                            {/* 1. Meniul Principal */}
                             <Stack.Screen name="DashboardScreen" component={DashboardScreen} />
-
-                            {/* 2. Modul Adăugare (Scanner) */}
-                            <Stack.Screen
-                                name="AddProduct"
-                                component={AddProductScreen}
-                                options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-                            />
-
-                            {/* 3. Modul Gestiune Stoc (Listă) */}
+                            <Stack.Screen name="AddProduct" component={AddProductScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
                             <Stack.Screen name="ProductsList" component={ProductsListScreen} />
-
-                            {/* 4. Modul Editare Produs */}
                             <Stack.Screen name="EditProduct" component={EditProductScreen} />
-
-                            {/* 5. Modul Verificator Preț */}
                             <Stack.Screen name="PriceCheck" component={PriceCheckScreen} />
-
-                            {/* 6. Modul Rapoarte */}
                             <Stack.Screen name="Reports" component={ReportsScreen} />
-
-                            {/* 7. Setări Cont */}
                             <Stack.Screen name="Settings" component={SettingsScreen} />
+
+                            {/* ✅ MODIFICARE 2: Adaugă ruta 'Team' aici, în blocul de admin */}
+                            <Stack.Screen name="Team" component={TeamScreen} />
                         </>
                     )
                 )}

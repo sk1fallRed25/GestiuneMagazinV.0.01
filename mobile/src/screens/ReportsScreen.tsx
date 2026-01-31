@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, SafeAreaView, RefreshControl, ActivityIndicator, TouchableOpacity
 } from 'react-native';
+// Asigură-te că importul supabase este corect
 import { supabase } from '../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft, Calendar, TrendingUp, Award, DollarSign } from 'lucide-react-native';
@@ -34,16 +35,15 @@ export default function ReportsScreen({ navigation }: any) {
             startWeek.setDate(now.getDate() - 6);
             startWeek.setHours(0,0,0,0);
 
-            // Luăm TOATE comenzile din acest an
+            // ⚠️ CORECTURĂ: Tabela este 'bonuri', iar coloana este 'total'
             const { data, error } = await supabase
-                .from('comenzi')
-                .select('created_at, total_plata')
+                .from('bonuri')
+                .select('created_at, total')
                 .gte('created_at', startYear.toISOString())
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
 
-            // Dacă nu sunt date (după ce ai șters tot), punem 0 peste tot
             if (!data || data.length === 0) {
                 setStats({ todayTotal: 0, weekTotal: 0, monthlyStats: [] });
                 setLoading(false);
@@ -58,7 +58,8 @@ export default function ReportsScreen({ navigation }: any) {
 
             data.forEach((item: any) => {
                 const date = new Date(item.created_at);
-                const val = parseFloat(item.total_plata);
+                // ⚠️ CORECTURĂ: Supabase trimite numeric direct, dar ne asigurăm
+                const val = Number(item.total);
 
                 // A. Azi
                 if (date >= startToday) sumToday += val;
@@ -76,11 +77,12 @@ export default function ReportsScreen({ navigation }: any) {
                 const monthIndex = parseInt(key);
                 const total = monthsMap[monthIndex];
 
-                // Calcul medie zilnică
+                // Calcul medie zilnică logică
                 const isCurrentMonth = monthIndex === now.getMonth();
                 const daysInMonth = new Date(now.getFullYear(), monthIndex + 1, 0).getDate();
                 const daysPassed = isCurrentMonth ? now.getDate() : daysInMonth;
-                const dailyAverage = daysPassed > 0 ? total / daysPassed : 0;
+                // Evităm împărțirea la 0
+                const dailyAverage = daysPassed > 0 ? total / daysPassed : total;
 
                 const monthName = new Date(now.getFullYear(), monthIndex, 1)
                     .toLocaleDateString('ro-RO', { month: 'long' });
@@ -98,7 +100,7 @@ export default function ReportsScreen({ navigation }: any) {
             monthlyStatsArray.forEach(m => { if (m.average > maxAvg) maxAvg = m.average; });
             monthlyStatsArray.forEach(m => { if (m.average === maxAvg && maxAvg > 0) m.isBest = true; });
 
-            // Sortăm invers cronologic (cea mai recentă sus)
+            // Sortăm invers cronologic
             monthlyStatsArray.reverse();
 
             setStats({
@@ -108,38 +110,37 @@ export default function ReportsScreen({ navigation }: any) {
             });
 
         } catch (err) {
-            console.log(err);
+            console.log("Eroare la fetch:", err);
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
     };
 
-    // 1. Încărcare inițială când intrăm pe ecran
+    // 1. Încărcare inițială
     useFocusEffect(
         useCallback(() => {
             fetchReports();
         }, [])
     );
 
-    // 2. REALTIME LISTENER (PARTEA MAGICĂ)
-    // Ascultă tabelul 'comenzi'. Când apare un INSERT nou, recalculează totul.
+    // 2. REALTIME LISTENER
     useEffect(() => {
         console.log("📡 Se conectează la canalul de vânzări live...");
 
         const channel = supabase
-            .channel('public:comenzi') // Canal unic
+            .channel('public:bonuri') // Nume canal arbitrar
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'comenzi' },
+                // ⚠️ CORECTURĂ: Ascultăm tabela 'bonuri'
+                { event: 'INSERT', schema: 'public', table: 'bonuri' },
                 (payload) => {
                     console.log('💰 VÂNZARE NOUĂ!', payload.new);
-                    // Reîmprospătăm datele imediat
                     fetchReports();
                 }
             )
             .subscribe((status) => {
-                if (status === 'SUBSCRIBED') console.log('✅ Conectat la fluxul de bani!');
+                if (status === 'SUBSCRIBED') console.log('✅ Conectat la fluxul de bani (Bonuri)!');
             });
 
         return () => { supabase.removeChannel(channel); };
@@ -164,7 +165,7 @@ export default function ReportsScreen({ navigation }: any) {
                     <>
                         <View style={styles.liveIndicator}>
                             <View style={styles.dot} />
-                            <Text style={styles.liveText}>Sistem conectat în timp real</Text>
+                            <Text style={styles.liveText}>Sistem conectat la Casa de Marcat</Text>
                         </View>
 
                         {/* 1. RAPORT AZI & 7 ZILE */}
@@ -196,7 +197,7 @@ export default function ReportsScreen({ navigation }: any) {
                                 <View style={{padding: 30, alignItems:'center'}}>
                                     <DollarSign size={40} color="#e5e7eb" />
                                     <Text style={{textAlign:'center', color:'#9ca3af', marginTop:10}}>
-                                        Nu există vânzări înregistrate. {"\n"}Totul este curat.
+                                        Nu există bonuri emise anul acesta.
                                     </Text>
                                 </View>
                             ) : (

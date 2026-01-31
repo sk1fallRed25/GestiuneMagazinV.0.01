@@ -43,22 +43,23 @@ export default function DashboardScreen({ navigation }: any) {
             subtitle: "Check Rapid",
             icon: <Search size={28} color="#059669" />,
             bg: "#d1fae5",
-            route: "PriceCheck" // Conectat la PriceCheckScreen
+            route: "PriceCheck"
         },
         {
             title: "Rapoarte",
             subtitle: "Vânzări Azi",
             icon: <BarChart3 size={28} color="#7c3aed" />,
             bg: "#ede9fe",
-            route: "Reports"    // Conectat la ReportsScreen
+            route: "Reports"
         },
+        // ✅ MODIFICARE AICI: Am conectat ruta 'Team'
         {
             title: "Echipa",
             subtitle: "Utilizatori",
             icon: <Users size={28} color="#db2777" />,
             bg: "#fce7f3",
-            route: null,
-            action: () => Alert.alert("Info", "Gestionarea utilizatorilor este disponibilă doar în panoul Web.")
+            route: "Team", // <--- Acum navighează la ecranul TeamScreen
+            // Am șters proprietatea 'action' cu alerta
         },
         {
             title: "Setări",
@@ -92,7 +93,7 @@ export default function DashboardScreen({ navigation }: any) {
                     <TouchableOpacity
                         key={index}
                         style={styles.card}
-                        onPress={() => item.route ? navigation.navigate(item.route) : item.action && item.action()}
+                        onPress={() => item.route ? navigation.navigate(item.route) : null}
                     >
                         <View style={[styles.iconCircle, { backgroundColor: item.bg }]}>
                             {item.icon}
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderBottomWidth: 1,
         borderColor: '#f3f4f6',
-        marginTop: 25 // Spațiu pentru Notch/Status Bar
+        marginTop: 25
     },
     welcomeText: { color: '#6b7280', fontSize: 14 },
     userText: { color: '#111827', fontSize: 20, fontWeight: 'bold', textTransform: 'capitalize' },
@@ -128,14 +129,14 @@ const styles = StyleSheet.create({
     // Grid Style
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', padding: 15, justifyContent: 'space-between' },
     card: {
-        width: '48%', // Două coloane
+        width: '48%',
         backgroundColor: 'white',
         padding: 20,
         borderRadius: 20,
         marginBottom: 15,
         alignItems: 'center',
-        elevation: 2, // Umbră Android
-        shadowColor: '#000', // Umbră iOS
+        elevation: 2,
+        shadowColor: '#000',
         shadowOpacity: 0.05,
         shadowRadius: 5
     },
