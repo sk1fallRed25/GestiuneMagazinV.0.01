@@ -1,14 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js'
 
-// @ts-ignore - Vite va înlocui aceste variabile la build
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-// @ts-ignore - Vite va înlocui aceste variabile la build
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = 'https://iwlmlhhjzqnwlfoittot.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3bG1saGhqenFud2xmb2l0dG90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4OTI4NDQsImV4cCI6MjA4MTQ2ODg0NH0.pXVaMZ6WNCzxo8JDbPPgc-tgNhTi_FCY_8s7J5RIsIw' // <--- Aceeași cheie
 
-// Verificare de siguranță
-if (!supabaseUrl || !supabaseKey) {
-    console.error('Lipsesc variabilele de mediu VITE_SUPABASE_URL sau VITE_SUPABASE_ANON_KEY din fișierul .env');
-}
-
-// Creăm clientul Supabase (pe web folosește automat localStorage, nu e nevoie de configurare extra)
-export const supabase = createClient(supabaseUrl || '', supabaseKey || '');
+export const supabase = createClient(supabaseUrl, supabaseAnonKey)
