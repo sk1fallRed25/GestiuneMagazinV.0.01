@@ -1,0 +1,15 @@
+# Dependențe (NU le vrem pe GitHub)
+node_modules/
+mobile/node_modules/
+
+# Fișiere de build (se generează automat)
+dist/
+dist-electron/
+mobile/.expo/
+mobile/web-build/
+
+# Configurații locale și secrete
+.env
+.idea/
+.vscode/
+*.log
