@@ -4,24 +4,20 @@ import {
     ActivityIndicator, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { Save, ArrowLeft, Trash2 } from 'lucide-react-native';
+import { Save, ArrowLeft } from 'lucide-react-native';
 
 export default function EditProductScreen({ route, navigation }: any) {
-    // Primim produsul selectat prin parametri
     const { product } = route.params;
 
     const [loading, setLoading] = useState(false);
     const [nume, setNume] = useState(product.nume);
     const [pret, setPret] = useState(product.pret_vanzare?.toString() || '');
-    const [stoc, setStoc] = useState(product.stoc_curent?.toString() || '');
-    const [categorie, setCategorie] = useState(product.categorie_principala || 'General');
+
+    // FOLOSIM stoc_magazin
+    const [stocMagazin, setStocMagazin] = useState(product.stoc_magazin?.toString() || '0');
+    const [stocDepozit, setStocDepozit] = useState(product.stoc_depozit?.toString() || '0');
 
     const handleUpdate = async () => {
-        if (!nume || !pret || !stoc) {
-            Alert.alert("Eroare", "Toate câmpurile sunt obligatorii.");
-            return;
-        }
-
         setLoading(true);
         try {
             const { error } = await supabase
@@ -29,93 +25,60 @@ export default function EditProductScreen({ route, navigation }: any) {
                 .update({
                     nume: nume,
                     pret_vanzare: parseFloat(pret),
-                    stoc_curent: parseInt(stoc),
-                    stoc_depozit: parseInt(stoc), // Păstrăm sincronizat
-                    categorie_principala: categorie
+                    stoc_magazin: parseInt(stocMagazin), // <--- UPDATE CORECT
+                    stoc_depozit: parseInt(stocDepozit)
                 })
                 .eq('id', product.id);
 
             if (error) throw error;
-
-            Alert.alert("Succes", "Produsul a fost actualizat!", [
-                { text: "OK", onPress: () => navigation.goBack() }
-            ]);
+            navigation.goBack();
         } catch (err: any) {
-            Alert.alert("Eroare Actualizare", err.message);
+            Alert.alert("Eroare", err.message);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDelete = () => {
-        Alert.alert("Ștergere Produs", "Ești sigur că vrei să îl ștergi definitiv?", [
-            { text: "Nu", style: "cancel" },
-            {
-                text: "Da, Șterge",
-                style: 'destructive',
-                onPress: async () => {
-                    const { error } = await supabase.from('produse').delete().eq('id', product.id);
-                    if (!error) navigation.goBack();
-                    else Alert.alert("Eroare", error.message);
-                }
-            }
-        ]);
-    };
-
     return (
         <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={{flexDirection:'row', alignItems:'center'}}>
-                        <ArrowLeft color="#374151" size={24} />
-                        <Text style={styles.headerTitle}> Editare Produs</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
-                        <Trash2 color="#ef4444" size={24} />
-                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.goBack()}><ArrowLeft color="#374151" size={24} /></TouchableOpacity>
+                    <Text style={styles.headerTitle}>Editare Stocuri</Text>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.formContainer}>
-                    <Text style={styles.prodId}>COD BARE: {product.cod_bare}</Text>
+                    <Text style={styles.prodId}>Produs: {product.nume}</Text>
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Nume Produs</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={nume}
-                            onChangeText={setNume}
-                        />
+                        <Text style={styles.label}>Preț Vânzare (RON)</Text>
+                        <TextInput style={styles.input} value={pret} onChangeText={setPret} keyboardType="numeric" />
                     </View>
 
-                    <View style={styles.row}>
-                        <View style={[styles.inputGroup, { flex: 1 }]}>
-                            <Text style={styles.label}>Preț (RON)</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={pret}
-                                onChangeText={setPret}
-                                keyboardType="numeric"
-                            />
-                        </View>
-                        <View style={[styles.inputGroup, { flex: 1 }]}>
-                            <Text style={styles.label}>Stoc Curent</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={stoc}
-                                onChangeText={setStoc}
-                                keyboardType="numeric"
-                            />
-                        </View>
-                    </View>
+                    <View style={styles.stockSection}>
+                        <Text style={styles.sectionTitle}>Gestiune Stocuri</Text>
 
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Categorie</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={categorie}
-                            onChangeText={setCategorie}
-                        />
+                        <View style={styles.row}>
+                            <View style={{flex:1}}>
+                                <Text style={[styles.label, {color:'#1e40af'}]}>🏠 Raft (Magazin)</Text>
+                                <TextInput
+                                    style={[styles.input, {backgroundColor:'#dbeafe', borderColor:'#93c5fd'}]}
+                                    value={stocMagazin}
+                                    onChangeText={setStocMagazin}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+
+                            <View style={{flex:1}}>
+                                <Text style={[styles.label, {color:'#92400e'}]}>🏭 Depozit (Spate)</Text>
+                                <TextInput
+                                    style={[styles.input, {backgroundColor:'#fef3c7', borderColor:'#fcd34d'}]}
+                                    value={stocDepozit}
+                                    onChangeText={setStocDepozit}
+                                    keyboardType="numeric"
+                                />
+                            </View>
+                        </View>
                     </View>
 
                     <TouchableOpacity style={styles.saveButton} onPress={handleUpdate} disabled={loading}>
@@ -126,7 +89,6 @@ export default function EditProductScreen({ route, navigation }: any) {
                             </>
                         )}
                     </TouchableOpacity>
-
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -135,15 +97,16 @@ export default function EditProductScreen({ route, navigation }: any) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f3f4f6' },
-    header: { padding: 20, backgroundColor: 'white', flexDirection:'row', justifyContent:'space-between', alignItems:'center', borderBottomWidth: 1, borderColor: '#e5e7eb', paddingTop: Platform.OS === 'android' ? 40 : 20 },
-    headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1f2937', marginLeft: 10 },
-    deleteBtn: { padding: 5 },
+    header: { padding: 20, backgroundColor: 'white', flexDirection:'row', alignItems:'center', paddingTop: 40 },
+    headerTitle: { fontSize: 20, fontWeight: 'bold', marginLeft: 15 },
     formContainer: { padding: 20 },
-    prodId: { textAlign: 'center', color: '#9ca3af', marginBottom: 20, fontSize: 14, fontWeight:'bold', letterSpacing:1 },
+    prodId: { textAlign: 'center', fontSize: 18, fontWeight:'bold', marginBottom: 20 },
     inputGroup: { marginBottom: 20 },
     label: { fontSize: 12, fontWeight: 'bold', color: '#6b7280', marginBottom: 5, textTransform: 'uppercase' },
     input: { backgroundColor: 'white', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 16 },
     row: { flexDirection: 'row', gap: 15 },
-    saveButton: { backgroundColor: '#2563eb', padding: 18, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, marginTop: 20, elevation: 3 },
+    stockSection: { backgroundColor:'white', padding:15, borderRadius:12, marginBottom:20 },
+    sectionTitle: { fontWeight:'bold', marginBottom:15, fontSize:16 },
+    saveButton: { backgroundColor: '#2563eb', padding: 18, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, elevation: 3 },
     saveText: { color: 'white', fontSize: 18, fontWeight: 'bold' }
 });
