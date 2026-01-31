@@ -1,202 +1,158 @@
-import React, { useEffect, useState } from 'react';
-import { supabase } from './supabaseClient';
-import { toast } from 'react-hot-toast';
-import { Edit, Trash2, TrendingUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { useProduse, Produs } from './core/hooks/useProduse';
+import { Edit, Trash2, Plus, Search, Package, AlertCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-// --- TIPURI DATE ---
-interface Produs {
-    id: number;
-    nume: string;
-    cod_bare: string;
-    unitate_masura: string;
-    pret_vanzare_fara_tva: number;
-    tva_procent: number;
-    pret_achizitie: number;
-    stoc_depozit: number;
-    stoc_magazin: number;
-    stoc_minim_depozit: number;
-    stoc_minim_magazin: number;
-    prag_optim: number;
-    furnizor_id: number | null;
-    sales_velocity?: number; // NOU: Câmp pentru viteza de vânzare
-}
-interface Furnizor { id: number; nume_firma: string; }
-interface ProduseProps { userRole: string; }
+export default function Produse({ userRole }: { userRole: string }) {
+    const { produse, loading, stergeProdus } = useProduse();
+    const [searchTerm, setSearchTerm] = useState('');
 
-const initialFormData: Omit<Produs, 'id'> = {
-    nume: '', cod_bare: '', unitate_masura: 'buc', 
-    pret_vanzare_fara_tva: 0, tva_procent: 21,
-    pret_achizitie: 0, stoc_depozit: 0, stoc_magazin: 0, 
-    stoc_minim_depozit: 5, stoc_minim_magazin: 3, prag_optim: 10, furnizor_id: null
-};
+    // Filtrare produse după nume sau cod de bare
+    const produseFiltrate = produse.filter(p =>
+        p.nume.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.cod_bare && p.cod_bare.includes(searchTerm))
+    );
 
-export default function Produse({ userRole }: ProduseProps) {
-    const [produse, setProduse] = useState<Produs[]>([]);
-    const [furnizori, setFurnizori] = useState<Furnizor[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingProduct, setEditingProduct] = useState<Produs | null>(null);
-    const [formData, setFormData] = useState(initialFormData);
-    const [pretVanzareFinal, setPretVanzareFinal] = useState(0);
-
-    const fetchProduse = async () => {
-        setLoading(true);
-        const { data: produseData, error } = await supabase.from('produse').select('*').order('nume', { ascending: true });
-        
-        if (error) {
-            toast.error(error.message);
-            setLoading(false);
-            return;
+    const handleDelete = async (id: number) => {
+        if (confirm('Sigur dorești să ștergi acest produs?')) {
+            const { error } = await stergeProdus(id);
+            if (error) {
+                toast.error('Eroare la ștergere: ' + error.message);
+            } else {
+                toast.success('Produs șters cu succes!');
+            }
         }
-
-        if (produseData && userRole === 'admin') {
-            const produseCuViteza = await Promise.all(produseData.map(async (p) => {
-                const { data: velocity, error: rpcError } = await supabase.rpc('get_sales_velocity', { p_produs_id: p.id });
-                if (rpcError) console.error(`Eroare la calcul viteză pentru ${p.nume}:`, rpcError);
-                return { ...p, sales_velocity: velocity || 0 };
-            }));
-            setProduse(produseCuViteza as Produs[]);
-        } else {
-            setProduse(produseData as Produs[] || []);
-        }
-        setLoading(false);
     };
 
-    const fetchFurnizori = async () => {
-        const { data } = await supabase.from('furnizori').select('id, nume_firma');
-        if (data) setFurnizori(data);
-    };
-
-    useEffect(() => {
-        fetchProduse();
-        if (userRole === 'admin') {
-            fetchFurnizori();
-        }
-    }, [userRole]);
-
-    useEffect(() => {
-        const tvaMultiplier = 1 + (formData.tva_procent / 100);
-        const pretFaraTVA = pretVanzareFinal > 0 ? pretVanzareFinal / tvaMultiplier : 0;
-        setFormData(prev => ({ ...prev, pret_vanzare_fara_tva: pretFaraTVA }));
-    }, [pretVanzareFinal, formData.tva_procent]);
-
-    const handleOpenModalForEdit = (produs: Produs) => {
-        setEditingProduct(produs);
-        const { id, ...rest } = produs;
-        setFormData(rest);
-        const pretFinal = produs.pret_vanzare_fara_tva * (1 + produs.tva_procent / 100);
-        setPretVanzareFinal(pretFinal);
-        setIsModalOpen(true);
-    };
-
-    const handleOpenModalForNew = () => {
-        setEditingProduct(null);
-        setFormData(initialFormData);
-        setPretVanzareFinal(0);
-        setIsModalOpen(true);
-    };
-
-    const handleSave = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!formData.nume) return toast.error("Numele produsului este obligatoriu!");
-
-        let promise;
-        if (editingProduct) {
-            promise = supabase.from('produse').update(formData).eq('id', editingProduct.id).then();
-        } else {
-            promise = supabase.from('produse').insert([formData]).then();
-        }
-
-        // @ts-ignore
-        toast.promise(promise, {
-            loading: `Se ${editingProduct ? 'modifică' : 'salvează'} produsul...`,
-            success: () => {
-                setIsModalOpen(false);
-                fetchProduse();
-                return `Produs ${editingProduct ? 'modificat' : 'salvat'}!`;
-            },
-            error: (err) => `Eroare: ${err.message}`
-        });
-    };
-
-    const handleDelete = (id: number) => {
-        toast((t) => (
-            <div className="p-2">
-                <p className="mb-2 font-bold">Sigur ștergi acest produs?</p>
-                <div className="flex gap-2">
-                    <button className="w-full bg-red-600 text-white px-3 py-1 rounded-md text-sm" onClick={() => {
-                        const promise = supabase.from('produse').delete().eq('id', id).then();
-                        // @ts-ignore
-                        toast.promise(promise, {
-                            loading: 'Se șterge...',
-                            success: () => { fetchProduse(); return 'Produs șters!'; },
-                            error: (err) => `Eroare: ${err.message}`
-                        });
-                        toast.dismiss(t.id);
-                    }}>Da, șterge</button>
-                    <button className="w-full bg-gray-200 px-3 py-1 rounded-md text-sm" onClick={() => toast.dismiss(t.id)}>Anulează</button>
-                </div>
-            </div>
-        ));
-    };
-
-    const isAdmin = userRole === 'admin';
+    if (loading) return <div className="p-8 text-center text-gray-500">Se încarcă produsele...</div>;
 
     return (
-        <div className="p-4 md:p-6 bg-gray-100 min-h-screen">
-            <div className="max-w-7xl mx-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <div><h1 className="text-2xl font-bold">Produse & Stoc</h1><p className="text-sm text-gray-500">{isAdmin ? 'Analiză și predicții stocuri' : 'Gestionează inventarul'}</p></div>
-                    {isAdmin && <button onClick={handleOpenModalForNew} className="bg-green-600 text-white px-4 py-2 rounded-lg shadow-sm">+ Produs Nou</button>}
+        <div className="p-8 max-w-7xl mx-auto">
+            {/* --- HEADER PAGINĂ --- */}
+            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800">Produse & Stoc</h1>
+                    <p className="text-gray-500 mt-1">Gestionează inventarul din Depozit și Magazin</p>
                 </div>
 
-                {loading ? <p>Se încarcă...</p> : (
-                    <div className="bg-white shadow-md rounded-lg overflow-hidden border">
-                        <table className="w-full text-left border-collapse">
-                            <thead className="bg-gray-50 border-b"><tr className="text-xs font-semibold text-gray-500 uppercase">
-                                <th className="py-3 px-4">Produs</th>
-                                <th className="py-3 px-4 text-right">Preț Final</th>
-                                {isAdmin ? <>
-                                    <th className="py-3 px-4 text-center">Stoc Total</th>
-                                    <th className="py-3 px-4 text-center">Vânzări 30z</th>
-                                    <th className="py-3 px-4 text-center">Zile Stoc Est.</th>
-                                </> : <>
-                                    <th className="py-3 px-4 text-center">Stoc Depozit</th>
-                                    <th className="py-3 px-4 text-center">Stoc Magazin</th>
-                                </>}
-                                {isAdmin && <th className="py-3 px-4 text-right">Acțiuni</th>}
-                            </tr></thead>
-                            <tbody className="divide-y">
-                            {produse.map((p) => {
-                                const stocTotal = p.stoc_depozit + p.stoc_magazin;
-                                const vitezaZilnica = (p.sales_velocity || 0) / 30;
-                                const zileStoc = vitezaZilnica > 0 ? Math.floor(stocTotal / vitezaZilnica) : Infinity;
+                <button className="flex items-center gap-2 bg-green-600 text-white px-6 py-2.5 rounded-xl hover:bg-green-700 transition shadow-lg shadow-green-500/30 font-medium">
+                    <Plus size={20} />
+                    Produs Nou
+                </button>
+            </div>
+
+            {/* --- SEARCH BAR --- */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 flex items-center gap-3">
+                <Search className="text-gray-400" size={20} />
+                <input
+                    type="text"
+                    placeholder="Caută după nume sau cod de bare..."
+                    className="flex-1 outline-none text-gray-700 placeholder-gray-400"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+
+            {/* --- TABEL PRODUSE --- */}
+            <div className="bg-white rounded-2xl shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_10px_20px_-2px_rgba(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                        <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
+                            <th className="px-6 py-4">Produs</th>
+                            <th className="px-6 py-4 text-center">Preț Final</th>
+                            <th className="px-6 py-4 text-center bg-gray-100/50">Stoc Total</th> {/* Evidențiat ușor */}
+                            <th className="px-6 py-4 text-center text-blue-600">Depozit</th> {/* Culoare distinctă */}
+                            <th className="px-6 py-4 text-center text-purple-600">Magazin</th> {/* Culoare distinctă */}
+                            <th className="px-6 py-4 text-center">Unitate</th>
+                            <th className="px-6 py-4 text-right">Acțiuni</th>
+                        </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 text-sm text-gray-700">
+                        {produseFiltrate.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
+                                    Nu s-au găsit produse.
+                                </td>
+                            </tr>
+                        ) : (
+                            produseFiltrate.map((produs) => {
+                                // Calculăm stocul total (dacă nu vine deja calculat din bază)
+                                // Presupunem că produsul are câmpurile stoc_depozit și stoc_magazin (sau stoc_curent pt magazin)
+                                // Ajustează numele câmpurilor dacă în baza ta sunt diferite (ex: stoc_curent vs stoc_magazin)
+                                const stocDepozit = produs.stoc_depozit || 0;
+                                const stocMagazin = produs.stoc_magazin || produs.stoc_curent || 0;
+                                const stocTotal = stocDepozit + stocMagazin;
+
                                 return (
-                                <tr key={p.id} className="hover:bg-gray-50">
-                                    <td className="py-3 px-4 font-medium">{p.nume}</td>
-                                    <td className="py-3 px-4 text-right font-bold text-blue-600">{(p.pret_vanzare_fara_tva * (1 + p.tva_procent / 100)).toFixed(2)}</td>
-                                    {isAdmin ? <>
-                                        <td className="py-3 px-4 text-center font-bold text-lg">{stocTotal}</td>
-                                        <td className="py-3 px-4 text-center font-semibold text-purple-600 flex items-center justify-center gap-1"><TrendingUp size={14}/> {p.sales_velocity}</td>
-                                        <td className="py-3 px-4 text-center"><span className={`font-bold text-lg ${zileStoc <= 7 ? 'text-red-500' : zileStoc <= 14 ? 'text-yellow-600' : 'text-green-600'}`}>{zileStoc === Infinity ? '∞' : zileStoc}</span></td>
-                                    </> : <>
-                                        <td className="py-3 px-4 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${p.stoc_depozit <= p.stoc_minim_depozit ? 'bg-yellow-100' : ''}`}>{p.stoc_depozit}</span></td>
-                                        <td className="py-3 px-4 text-center"><span className={`px-2 py-1 rounded text-xs font-bold ${p.stoc_magazin <= p.stoc_minim_magazin ? 'bg-red-100' : ''}`}>{p.stoc_magazin}</span></td>
-                                    </>}
-                                    {isAdmin && <td className="py-3 px-4 text-right">
-                                        <div className="flex gap-2 justify-end">
-                                            <button onClick={() => handleOpenModalForEdit(p)} className="p-1"><Edit size={16}/></button>
-                                            <button onClick={() => handleDelete(p.id)} className="p-1"><Trash2 size={16}/></button>
-                                        </div>
-                                    </td>}
-                                </tr>
-                            )})}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-                {/* Modalul va fi adăugat aici */}
+                                    <tr key={produs.id} className="hover:bg-gray-50/80 transition-colors group">
+                                        {/* NUME PRODUS */}
+                                        <td className="px-6 py-4 font-medium text-gray-800">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                                                    <Package size={16} />
+                                                </div>
+                                                <div>
+                                                    <p>{produs.nume}</p>
+                                                    <p className="text-xs text-gray-400 font-mono">{produs.cod_bare}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+
+                                        {/* PREȚ */}
+                                        <td className="px-6 py-4 text-center font-bold text-gray-800">
+                                            {produs.pret_vanzare?.toFixed(2)} <span className="text-xs font-normal text-gray-400">RON</span>
+                                        </td>
+
+                                        {/* STOC TOTAL */}
+                                        <td className="px-6 py-4 text-center bg-gray-50/50">
+                                                <span className={`font-bold text-base ${stocTotal === 0 ? 'text-red-500' : 'text-gray-800'}`}>
+                                                    {stocTotal}
+                                                </span>
+                                        </td>
+
+                                        {/* STOC DEPOZIT */}
+                                        <td className="px-6 py-4 text-center">
+                                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${stocDepozit > 0 ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-300'}`}>
+                                                    {stocDepozit}
+                                                </span>
+                                        </td>
+
+                                        {/* STOC MAGAZIN */}
+                                        <td className="px-6 py-4 text-center">
+                                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${stocMagazin > 0 ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-red-50 text-red-600 border border-red-100 flex items-center justify-center gap-1 w-fit mx-auto'}`}>
+                                                    {stocMagazin === 0 && <AlertCircle size={10} />}
+                                                    {stocMagazin}
+                                                </span>
+                                        </td>
+
+                                        {/* UNITATE DE MĂSURĂ */}
+                                        <td className="px-6 py-4 text-center text-gray-500 capitalize">
+                                            {produs.unitate_masura || 'buc'}
+                                        </td>
+
+                                        {/* ACȚIUNI */}
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                                    <Edit size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(produs.id)}
+                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })
+                        )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    )
+    );
 }
