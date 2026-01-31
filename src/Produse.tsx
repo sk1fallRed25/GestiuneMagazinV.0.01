@@ -1,34 +1,93 @@
-import React, { useState } from 'react';
-import { useProduse, Produs } from './core/hooks/useProduse';
-import { Edit, Trash2, Plus, Search, Package, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from './supabaseClient';
+import { Edit, Trash2, Plus, Search, Package, AlertCircle, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Produse({ userRole }: { userRole: string }) {
-    const { produse, loading, stergeProdus } = useProduse();
+    const [produse, setProduse] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Filtrare produse după nume sau cod de bare
+    // --- 1. FUNCȚIA DE ÎNCĂRCARE DATE ---
+    const fetchProduse = async () => {
+        try {
+            const { data, error } = await supabase
+                .from('produse')
+                .select('*')
+                .order('nume', { ascending: true });
+
+            if (error) throw error;
+            setProduse(data || []);
+        } catch (error: any) {
+            toast.error('Eroare la încărcare: ' + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- 2. ACTIVARE REAL-TIME (PARTEA MAGICĂ) ---
+    useEffect(() => {
+        fetchProduse(); // Încărcare inițială
+
+        // Ne abonăm la orice modificare în tabelul 'produse'
+        const channel = supabase
+            .channel('produse-live-table')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'produse' }, (payload) => {
+
+                // Cazul 1: Produs nou adăugat -> Îl punem primul în listă
+                if (payload.eventType === 'INSERT') {
+                    setProduse((prev) => [payload.new, ...prev]);
+                    // Opțional: toast.success(`Produs nou: ${payload.new.nume}`);
+                }
+
+                // Cazul 2: Produs modificat (ex: schimbare stoc) -> Îl actualizăm în listă
+                else if (payload.eventType === 'UPDATE') {
+                    setProduse((prev) => prev.map((item) =>
+                        item.id === payload.new.id ? payload.new : item
+                    ));
+                }
+
+                // Cazul 3: Produs șters -> Îl scoatem din listă
+                else if (payload.eventType === 'DELETE') {
+                    setProduse((prev) => prev.filter((item) => item.id !== payload.old.id));
+                }
+            })
+            .subscribe();
+
+        // Curățenie la ieșirea din pagină
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
+    // --- 3. FUNCȚIA DE ȘTERGERE ---
+    const handleDelete = async (id: number) => {
+        if (confirm('Sigur dorești să ștergi acest produs?')) {
+            const { error } = await supabase.from('produse').delete().eq('id', id);
+            if (error) {
+                toast.error('Eroare la ștergere: ' + error.message);
+            } else {
+                toast.success('Produs șters!');
+                // Nu e nevoie să reîncărcăm lista manual, se ocupă Realtime-ul de mai sus!
+            }
+        }
+    };
+
+    // Filtrare produse după search
     const produseFiltrate = produse.filter(p =>
         p.nume.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.cod_bare && p.cod_bare.includes(searchTerm))
     );
 
-    const handleDelete = async (id: number) => {
-        if (confirm('Sigur dorești să ștergi acest produs?')) {
-            const { error } = await stergeProdus(id);
-            if (error) {
-                toast.error('Eroare la ștergere: ' + error.message);
-            } else {
-                toast.success('Produs șters cu succes!');
-            }
-        }
-    };
-
-    if (loading) return <div className="p-8 text-center text-gray-500">Se încarcă produsele...</div>;
+    if (loading) return (
+        <div className="flex items-center justify-center h-full text-gray-500 gap-2">
+            <RefreshCw className="animate-spin" /> Se încarcă inventarul...
+        </div>
+    );
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
-            {/* --- HEADER PAGINĂ --- */}
+            {/* --- HEADER --- */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">Produse & Stoc</h1>
@@ -61,9 +120,9 @@ export default function Produse({ userRole }: { userRole: string }) {
                         <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
                             <th className="px-6 py-4">Produs</th>
                             <th className="px-6 py-4 text-center">Preț Final</th>
-                            <th className="px-6 py-4 text-center bg-gray-100/50">Stoc Total</th> {/* Evidențiat ușor */}
-                            <th className="px-6 py-4 text-center text-blue-600">Depozit</th> {/* Culoare distinctă */}
-                            <th className="px-6 py-4 text-center text-purple-600">Magazin</th> {/* Culoare distinctă */}
+                            <th className="px-6 py-4 text-center text-gray-500">Stoc Total</th>
+                            <th className="px-6 py-4 text-center text-blue-600">Depozit</th>
+                            <th className="px-6 py-4 text-center text-purple-600">Magazin</th>
                             <th className="px-6 py-4 text-center">Unitate</th>
                             <th className="px-6 py-4 text-right">Acțiuni</th>
                         </tr>
@@ -77,11 +136,9 @@ export default function Produse({ userRole }: { userRole: string }) {
                             </tr>
                         ) : (
                             produseFiltrate.map((produs) => {
-                                // Calculăm stocul total (dacă nu vine deja calculat din bază)
-                                // Presupunem că produsul are câmpurile stoc_depozit și stoc_magazin (sau stoc_curent pt magazin)
-                                // Ajustează numele câmpurilor dacă în baza ta sunt diferite (ex: stoc_curent vs stoc_magazin)
+                                // Calculăm stocul total (Asigură-te că numele coloanelor sunt corecte cu baza ta)
                                 const stocDepozit = produs.stoc_depozit || 0;
-                                const stocMagazin = produs.stoc_magazin || produs.stoc_curent || 0;
+                                const stocMagazin = produs.stoc_magazin || 0;
                                 const stocTotal = stocDepozit + stocMagazin;
 
                                 return (
@@ -89,11 +146,11 @@ export default function Produse({ userRole }: { userRole: string }) {
                                         {/* NUME PRODUS */}
                                         <td className="px-6 py-4 font-medium text-gray-800">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
-                                                    <Package size={16} />
+                                                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                                                    <Package size={18} />
                                                 </div>
                                                 <div>
-                                                    <p>{produs.nume}</p>
+                                                    <p className="font-bold">{produs.nume}</p>
                                                     <p className="text-xs text-gray-400 font-mono">{produs.cod_bare}</p>
                                                 </div>
                                             </div>
@@ -105,35 +162,35 @@ export default function Produse({ userRole }: { userRole: string }) {
                                         </td>
 
                                         {/* STOC TOTAL */}
-                                        <td className="px-6 py-4 text-center bg-gray-50/50">
+                                        <td className="px-6 py-4 text-center">
                                                 <span className={`font-bold text-base ${stocTotal === 0 ? 'text-red-500' : 'text-gray-800'}`}>
                                                     {stocTotal}
                                                 </span>
                                         </td>
 
-                                        {/* STOC DEPOZIT */}
+                                        {/* STOC DEPOZIT (ALBASTRU) */}
                                         <td className="px-6 py-4 text-center">
-                                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${stocDepozit > 0 ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-gray-300'}`}>
+                                                <span className={`px-3 py-1 rounded-lg text-xs font-bold ${stocDepozit > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'text-gray-300 bg-gray-50'}`}>
                                                     {stocDepozit}
                                                 </span>
                                         </td>
 
-                                        {/* STOC MAGAZIN */}
+                                        {/* STOC MAGAZIN (MOV / ROȘU DACĂ E GOL) */}
                                         <td className="px-6 py-4 text-center">
-                                                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${stocMagazin > 0 ? 'bg-purple-50 text-purple-700 border border-purple-100' : 'bg-red-50 text-red-600 border border-red-100 flex items-center justify-center gap-1 w-fit mx-auto'}`}>
+                                                <span className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center justify-center gap-1 w-fit mx-auto ${stocMagazin > 0 ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
                                                     {stocMagazin === 0 && <AlertCircle size={10} />}
                                                     {stocMagazin}
                                                 </span>
                                         </td>
 
-                                        {/* UNITATE DE MĂSURĂ */}
+                                        {/* UNITATE */}
                                         <td className="px-6 py-4 text-center text-gray-500 capitalize">
                                             {produs.unitate_masura || 'buc'}
                                         </td>
 
                                         {/* ACȚIUNI */}
                                         <td className="px-6 py-4 text-right">
-                                            <div className="flex items-center justify-end gap-2">
+                                            <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                                                 <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
                                                     <Edit size={16} />
                                                 </button>
