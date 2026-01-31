@@ -1,197 +1,145 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, TouchableOpacity, Modal, Alert,
-    ActivityIndicator, SafeAreaView, StatusBar, Platform
+    View, Text, StyleSheet, TouchableOpacity, SafeAreaView, StatusBar, ScrollView, Alert
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
-import { Scan, LogOut, Package, X, Zap } from 'lucide-react-native';
+import {
+    LogOut, Package, Zap, BarChart3, Users, Settings, Search
+} from 'lucide-react-native';
 
-// !!! IMPORTANT: Aici preluăm { navigation } ca să putem schimba pagina
 export default function DashboardScreen({ navigation }: any) {
-    const [permission, requestPermission] = useCameraPermissions();
-    const [scanned, setScanned] = useState(false);
-    const [showScanner, setShowScanner] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [productData, setProductData] = useState<any>(null);
+    const [userEmail, setUserEmail] = useState('');
 
-    // --- LOGICA DE SCANARE (Verificare Stoc) ---
-    const handleBarCodeScanned = async ({ data }: { data: string }) => {
-        setScanned(true);
-        setShowScanner(false);
-        setLoading(true);
-        setProductData(null);
-
-        try {
-            const { data: produs, error } = await supabase
-                .from('produse')
-                .select('*')
-                .eq('cod_bare', data)
-                .single();
-
-            if (error || !produs) {
-                Alert.alert(
-                    "Produs Necunoscut",
-                    `Codul ${data} nu există.\nVrei să îl adaugi?`,
-                    [
-                        { text: "Nu", style: "cancel" },
-                        {
-                            text: "Da, Adaugă",
-                            // Dacă userul vrea să adauge, îl trimitem pe pagina nouă
-                            onPress: () => navigation.navigate('AddProduct')
-                        }
-                    ]
-                );
-            } else {
-                setProductData(produs);
-            }
-        } catch (err: any) {
-            Alert.alert("Eroare", err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Preluăm emailul utilizatorului la încărcare
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            setUserEmail(data.user?.email || 'Admin');
+        });
+    }, []);
 
     const handleLogout = async () => {
         const { error } = await supabase.auth.signOut();
         if (error) Alert.alert("Eroare", error.message);
     };
 
-    if (!permission) return <View style={styles.center}><ActivityIndicator /></View>;
-    if (!permission.granted) {
-        return (
-            <View style={styles.center}>
-                <Text style={styles.permText}>Acces necesar la cameră.</Text>
-                <TouchableOpacity style={styles.btnPerm} onPress={requestPermission}>
-                    <Text style={styles.btnText}>Oferă Permisiune</Text>
-                </TouchableOpacity>
-            </View>
-        );
-    }
+    // --- CONFIGURAREA MENIULUI ---
+    const MENU_ITEMS = [
+        {
+            title: "Adăugare Rapidă",
+            subtitle: "Scanare & Intrare",
+            icon: <Zap size={28} color="#d97706" />,
+            bg: "#fef3c7",
+            route: "AddProduct"
+        },
+        {
+            title: "Gestiune Stoc",
+            subtitle: "Listă & Editare",
+            icon: <Package size={28} color="#2563eb" />,
+            bg: "#dbeafe",
+            route: "ProductsList"
+        },
+        {
+            title: "Verificator Preț",
+            subtitle: "Check Rapid",
+            icon: <Search size={28} color="#059669" />,
+            bg: "#d1fae5",
+            route: "PriceCheck" // Conectat la PriceCheckScreen
+        },
+        {
+            title: "Rapoarte",
+            subtitle: "Vânzări Azi",
+            icon: <BarChart3 size={28} color="#7c3aed" />,
+            bg: "#ede9fe",
+            route: "Reports"    // Conectat la ReportsScreen
+        },
+        {
+            title: "Echipa",
+            subtitle: "Utilizatori",
+            icon: <Users size={28} color="#db2777" />,
+            bg: "#fce7f3",
+            route: null,
+            action: () => Alert.alert("Info", "Gestionarea utilizatorilor este disponibilă doar în panoul Web.")
+        },
+        {
+            title: "Setări",
+            subtitle: "Cont & App",
+            icon: <Settings size={28} color="#4b5563" />,
+            bg: "#f3f4f6",
+            route: "Settings"
+        }
+    ];
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" backgroundColor="#f3f4f6" />
+            <StatusBar barStyle="dark-content" backgroundColor="white" />
 
-            {/* HEADER */}
+            {/* HEADER CU SALUT ȘI LOGOUT */}
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.headerTitle}>Panou Gestiune</Text>
-                    <Text style={styles.headerSubtitle}>Admin / Gestionar</Text>
+                    <Text style={styles.welcomeText}>Bine ai venit,</Text>
+                    <Text style={styles.userText}>
+                        {userEmail.split('@')[0]}
+                    </Text>
                 </View>
                 <TouchableOpacity onPress={handleLogout} style={styles.logoutBtn}>
-                    <LogOut color="#ef4444" size={24} />
+                    <LogOut size={22} color="#ef4444" />
                 </TouchableOpacity>
             </View>
 
-            <View style={styles.content}>
-
-                {/* GRILA DE ACȚIUNI */}
-                <View style={styles.grid}>
-                    {/* Buton Verificare Stoc */}
-                    <TouchableOpacity style={styles.card} onPress={() => { setScanned(false); setShowScanner(true); }}>
-                        <View style={[styles.iconCircle, { backgroundColor: '#dbeafe' }]}>
-                            <Scan size={32} color="#2563eb" />
-                        </View>
-                        <Text style={styles.cardText}>Verificare Stoc</Text>
-                        <Text style={styles.cardSubText}>Scanează cod</Text>
-                    </TouchableOpacity>
-
-                    {/* Buton Adăugare Rapidă (ACTIVAT) */}
+            {/* GRILA DE MENIU */}
+            <ScrollView contentContainerStyle={styles.gridContainer}>
+                {MENU_ITEMS.map((item, index) => (
                     <TouchableOpacity
+                        key={index}
                         style={styles.card}
-                        onPress={() => navigation.navigate('AddProduct')}
+                        onPress={() => item.route ? navigation.navigate(item.route) : item.action && item.action()}
                     >
-                        <View style={[styles.iconCircle, { backgroundColor: '#fef3c7' }]}>
-                            <Zap size={32} color="#d97706" />
+                        <View style={[styles.iconCircle, { backgroundColor: item.bg }]}>
+                            {item.icon}
                         </View>
-                        <Text style={styles.cardText}>Adăugare Rapidă</Text>
-                        <Text style={styles.cardSubText}>Intrare Marfă</Text>
+                        <Text style={styles.cardTitle}>{item.title}</Text>
+                        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
                     </TouchableOpacity>
-                </View>
+                ))}
+            </ScrollView>
 
-                {/* LOADING */}
-                {loading && <ActivityIndicator size="large" color="#2563eb" style={{ marginVertical: 30 }} />}
-
-                {/* REZULTAT PRODUS */}
-                {productData && !loading && (
-                    <View style={styles.resultCard}>
-                        <View style={styles.resultHeader}>
-                            <Package size={24} color="#4b5563" />
-                            <Text style={styles.resultTitle}>Rezultat Scanare</Text>
-                        </View>
-                        <View style={styles.divider} />
-                        <Text style={styles.productName}>{productData.nume}</Text>
-
-                        <View style={styles.statsRow}>
-                            <View style={styles.statBox}>
-                                <Text style={styles.statLabel}>Stoc Curent</Text>
-                                <Text style={[styles.statValue, productData.stoc_curent <= productData.stoc_minim_depozit ? styles.textRed : styles.textGreen]}>
-                                    {productData.stoc_curent} <Text style={{fontSize:12, color:'gray'}}>{productData.unitate_masura}</Text>
-                                </Text>
-                            </View>
-                            <View style={styles.statBox}>
-                                <Text style={styles.statLabel}>Preț</Text>
-                                <Text style={styles.statValue}>{productData.pret_vanzare} <Text style={{fontSize:12, color:'gray'}}>RON</Text></Text>
-                            </View>
-                        </View>
-                    </View>
-                )}
-            </View>
-
-            {/* MODAL CAMERĂ SCANARE */}
-            <Modal visible={showScanner} animationType="slide" presentationStyle="fullScreen">
-                <View style={styles.cameraContainer}>
-                    <CameraView
-                        style={StyleSheet.absoluteFillObject}
-                        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-                        barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "qr", "upc_a"] }}
-                    />
-                    <View style={styles.overlay}>
-                        <Text style={styles.overlayText}>Încadrează codul</Text>
-                        <View style={styles.scanFrame} />
-                        <TouchableOpacity style={styles.closeBtn} onPress={() => setShowScanner(false)}>
-                            <X color="white" size={24} />
-                            <Text style={styles.closeText}>Închide Camera</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f3f4f6', paddingTop: Platform.OS === 'android' ? 30 : 0 },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-    header: { padding: 20, backgroundColor: 'white', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-    headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#111827' },
-    headerSubtitle: { fontSize: 13, color: '#6b7280', fontWeight: '600' },
-    logoutBtn: { padding: 8, backgroundColor: '#fee2e2', borderRadius: 8 },
-    content: { padding: 20 },
-    grid: { flexDirection: 'row', gap: 15, marginBottom: 20 },
-    card: { flex: 1, backgroundColor: 'white', padding: 15, borderRadius: 16, alignItems: 'center', justifyContent: 'center', elevation: 2 },
-    iconCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-    cardText: { fontSize: 14, fontWeight: 'bold', color: '#1f2937', textAlign: 'center' },
-    cardSubText: { fontSize: 11, color: '#9ca3af', textAlign: 'center', marginTop: 2 },
-    resultCard: { backgroundColor: 'white', borderRadius: 16, padding: 20, elevation: 4 },
-    resultHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-    resultTitle: { fontSize: 16, fontWeight: 'bold', color: '#4b5563' },
-    divider: { height: 1, backgroundColor: '#e5e7eb', marginBottom: 15 },
-    productName: { fontSize: 20, fontWeight: 'bold', color: '#111827', marginBottom: 20, textAlign: 'center' },
-    statsRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
-    statBox: { flex: 1, backgroundColor: '#f9fafb', padding: 12, borderRadius: 10, alignItems: 'center' },
-    statLabel: { fontSize: 11, color: '#6b7280', marginBottom: 4, textTransform: 'uppercase', fontWeight: 'bold' },
-    statValue: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
-    textGreen: { color: '#059669' },
-    textRed: { color: '#dc2626' },
-    permText: { fontSize: 16, textAlign: 'center', marginBottom: 20, color: '#374151' },
-    btnPerm: { backgroundColor: '#2563eb', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 8 },
-    btnText: { color: 'white', fontWeight: 'bold' },
-    cameraContainer: { flex: 1, backgroundColor: 'black' },
-    overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
-    overlayText: { color: 'white', fontSize: 16, fontWeight: 'bold', marginBottom: 30 },
-    scanFrame: { width: 260, height: 260, borderWidth: 2, borderColor: '#fff', borderRadius: 20 },
-    closeBtn: { position: 'absolute', bottom: 60, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#dc2626', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30 },
-    closeText: { color: 'white', fontWeight: 'bold', fontSize: 16 }
+    container: { flex: 1, backgroundColor: '#f9fafb' },
+
+    // Header Style
+    header: {
+        padding: 25,
+        backgroundColor: 'white',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderColor: '#f3f4f6',
+        marginTop: 25 // Spațiu pentru Notch/Status Bar
+    },
+    welcomeText: { color: '#6b7280', fontSize: 14 },
+    userText: { color: '#111827', fontSize: 20, fontWeight: 'bold', textTransform: 'capitalize' },
+    logoutBtn: { padding: 10, backgroundColor: '#fee2e2', borderRadius: 12 },
+
+    // Grid Style
+    gridContainer: { flexDirection: 'row', flexWrap: 'wrap', padding: 15, justifyContent: 'space-between' },
+    card: {
+        width: '48%', // Două coloane
+        backgroundColor: 'white',
+        padding: 20,
+        borderRadius: 20,
+        marginBottom: 15,
+        alignItems: 'center',
+        elevation: 2, // Umbră Android
+        shadowColor: '#000', // Umbră iOS
+        shadowOpacity: 0.05,
+        shadowRadius: 5
+    },
+    iconCircle: { width: 55, height: 55, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
+    cardTitle: { fontSize: 15, fontWeight: 'bold', color: '#1f2937', marginBottom: 3 },
+    cardSubtitle: { fontSize: 11, color: '#9ca3af' }
 });
