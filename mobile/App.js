@@ -1,169 +1,92 @@
 import React, { useState, useEffect } from 'react';
+import { View, ActivityIndicator, LogBox } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, ActivityIndicator, StyleSheet, StatusBar } from 'react-native';
 import { supabase } from './src/lib/supabase';
-import { MonitorX } from 'lucide-react-native';
 
-// --- IMPORT ECRANE ---
+// --- ECRANE AUTENTIFICARE ---
 import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
+
+// --- DASHBOARD PRINCIPAL ---
 import DashboardScreen from './src/screens/DashboardScreen';
-import SupplierDashboard from './src/screens/SupplierDashboard'; // ✅ NOU
-import AgentDashboard from './src/screens/AgentDashboard';
-import TeamScreen from './src/screens/TeamScreen';
-import AddProductScreen from './src/screens/AddProductScreen';
+
+// --- MODULE GESTIONAR (OPERATIVE) ---
+import InventoryReceipt from './src/screens/InventoryReceipt';
+import StockCheckScreen from './src/screens/StockCheckScreen';
+import ScrapScreen from './src/screens/ScrapScreen';
+import InventoryAuditScreen from './src/screens/InventoryAuditScreen';
 import ProductsListScreen from './src/screens/ProductsListScreen';
-import EditProductScreen from './src/screens/EditProductScreen';
-import SettingsScreen from './src/screens/SettingsScreen';
-import PriceCheckScreen from './src/screens/PriceCheckScreen';
+
+// --- MODULE ADMINISTRATOR (MANAGEMENT) ---
+import TeamScreen from './src/screens/TeamScreen';
+import SupplierScreens from './src/screens/SupplierScreens';
 import ReportsScreen from './src/screens/ReportsScreen';
-import { OutboundOrdersScreen, InboundOrdersScreen } from './src/screens/SupplierScreens';
+import SettingsScreen from './src/screens/SettingsScreen';
+import AdminLogsScreen from './src/screens/AdminLogsScreen'; // <--- ECRANUL NOU
 
 const Stack = createNativeStackNavigator();
 
+// Ignorăm avertismentele minore de UI
+LogBox.ignoreLogs(['new NativeEventEmitter']);
+
 export default function App() {
     const [session, setSession] = useState(null);
-    const [userRole, setUserRole] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // --- LOGICĂ DETERMINARE ROL ---
-    const fetchUserRole = async (userId, email) => {
-        try {
-            // 1. BACKDOOR ADMIN TEST
-            if (email === 'admin@admin.com') return 'admin';
-
-            // 2. Verificăm în tabela utilizatori (pentru Furnizori și noi înregistrări)
-            const { data: userData, error: userError } = await supabase
-                .from('utilizatori')
-                .select('rol, aprobat')
-                .eq('email', email)
-                .single();
-
-            if (userData) {
-                // Dacă nu este aprobat, îl blocăm sau îi dăm un rol restricționat
-                if (!userData.aprobat) return 'neaprobat';
-                return userData.rol;
-            }
-
-            // 3. Verificăm tabela de roluri (legacy/admin roles)
-            const { data: roleData } = await supabase
-                .from('user_roles')
-                .select('role')
-                .eq('user_id', userId)
-                .single();
-
-            if (roleData) return roleData.role;
-
-            // 4. Verificăm dacă este Agent
-            const { data: agentData } = await supabase
-                .from('agenti')
-                .select('id')
-                .eq('email', email)
-                .single();
-
-            if (agentData) return 'agent';
-
-            return 'user';
-        } catch (error) {
-            console.log("Eroare determinare rol:", error);
-            return 'user';
-        }
-    };
-
     useEffect(() => {
-        const checkSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                setSession(session);
-                const role = await fetchUserRole(session.user.id, session.user.email);
-                setUserRole(role);
-            }
-            setLoading(false);
-        };
-
-        checkSession();
-
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        // Verificăm sesiunea curentă
+        supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
-            if (session) {
-                setLoading(true);
-                const role = await fetchUserRole(session.user.id, session.user.email);
-                setUserRole(role);
-                setLoading(false);
-            } else {
-                setUserRole(null);
-                setLoading(false);
-            }
+            setLoading(false);
         });
 
-        return () => {
-            authListener.subscription.unsubscribe();
-        };
+        // Ascultăm schimbările de stare (login/logout)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
     if (loading) {
         return (
-            <View style={styles.center}>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color="#4F46E5" />
-                <Text style={styles.loadingText}>Se inițializează securitatea...</Text>
             </View>
         );
     }
 
     return (
         <NavigationContainer>
-            <StatusBar barStyle="dark-content" backgroundColor="#f3f4f6" />
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
-
+            <Stack.Navigator screenOptions={{ headerShown: true, headerBackTitleVisible: false }}>
                 {!session ? (
-                    <Stack.Screen name="Login" component={LoginScreen} />
+                    // --- STIVA PUBLICĂ (NEAUTENTIFICAT) ---
+                    <>
+                        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Creare Cont' }} />
+                    </>
                 ) : (
-                    // --- RUTARE ÎN FUNCȚIE DE ROL ---
-                    userRole === 'neaprobat' ? (
-                        <Stack.Screen name="PendingApproval">
-                            {() => (
-                                <View style={styles.center}>
-                                    <MonitorX size={64} color="#d97706" />
-                                    <Text style={styles.errorTitle}>Așteaptă Aprobarea</Text>
-                                    <Text style={styles.errorText}>
-                                        Contul tău a fost creat, dar un administrator trebuie să îl activeze.
-                                    </Text>
-                                    <Text style={styles.logoutBtn} onPress={() => supabase.auth.signOut()}>
-                                        ÎNAPOI LA LOGIN
-                                    </Text>
-                                </View>
-                            )}
-                        </Stack.Screen>
-                    ) : userRole === 'furnizor' ? (
-                        <Stack.Screen name="SupplierDashboard" component={SupplierDashboard} /> // ✅ RUTĂ FURNIZOR
-                    ) : userRole === 'agent' ? (
-                        <Stack.Screen name="AgentDashboard" component={AgentDashboard} />
-                    ) : (
-                        // --- ADMIN / GESTIONAR / CASIER ---
-                        <>
-                            <Stack.Screen name="DashboardScreen" component={DashboardScreen} />
-                            <Stack.Screen name="Team" component={TeamScreen} />
-                            <Stack.Screen name="AddProduct" component={AddProductScreen} />
-                            <Stack.Screen name="ProductsList" component={ProductsListScreen} />
-                            <Stack.Screen name="EditProduct" component={EditProductScreen} />
-                            <Stack.Screen name="PriceCheck" component={PriceCheckScreen} />
-                            <Stack.Screen name="Reports" component={ReportsScreen} />
-                            <Stack.Screen name="Settings" component={SettingsScreen} />
-                            <Stack.Screen name="OutboundOrders" component={OutboundOrdersScreen} />
-                            <Stack.Screen name="InboundOrders" component={InboundOrdersScreen} />
-                        </>
-                    )
-                )}
+                    // --- STIVA PRIVATĂ (AUTENTIFICAT) ---
+                    <>
+                        <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
 
+                        {/* Rute Gestionar (Accesibile Tuturor) */}
+                        <Stack.Screen name="InventoryReceipt" component={InventoryReceipt} options={{ title: 'Recepție Marfă' }} />
+                        <Stack.Screen name="StockCheckScreen" component={StockCheckScreen} options={{ title: 'Verificare & Transfer' }} />
+                        <Stack.Screen name="ScrapScreen" component={ScrapScreen} options={{ title: 'Raportare Pierderi' }} />
+                        <Stack.Screen name="InventoryAuditScreen" component={InventoryAuditScreen} options={{ title: 'Inventar Rapid' }} />
+                        <Stack.Screen name="ProductsList" component={ProductsListScreen} options={{ title: 'Nomenclator Produse' }} />
+
+                        {/* Rute Admin (Doar Administratori) */}
+                        <Stack.Screen name="TeamScreen" component={TeamScreen} options={{ title: 'Gestionare Echipă' }} />
+                        <Stack.Screen name="SupplierScreens" component={SupplierScreens} options={{ title: 'Furnizori' }} />
+                        <Stack.Screen name="ReportsScreen" component={ReportsScreen} options={{ title: 'Rapoarte Generale' }} />
+                        <Stack.Screen name="SettingsScreen" component={SettingsScreen} options={{ title: 'Setări Sistem' }} />
+                        <Stack.Screen name="AdminLogsScreen" component={AdminLogsScreen} options={{ title: 'Jurnal Probleme' }} />
+                    </>
+                )}
             </Stack.Navigator>
         </NavigationContainer>
     );
 }
-
-const styles = StyleSheet.create({
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6', padding: 20 },
-    loadingText: { marginTop: 10, color: '#6b7280', fontSize: 14 },
-    errorTitle: { fontSize: 22, fontWeight: 'bold', color: '#1f2937', marginTop: 20, marginBottom: 10 },
-    errorText: { textAlign: 'center', color: '#4b5563', marginBottom: 30, lineHeight: 20 },
-    logoutBtn: { color: '#4F46E5', fontWeight: 'bold', fontSize: 16, padding: 10 }
-});
