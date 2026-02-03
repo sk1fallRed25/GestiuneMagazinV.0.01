@@ -1,268 +1,344 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TextInput, TouchableOpacity,
-    ActivityIndicator, SafeAreaView, Modal, Alert, ScrollView
+    FlatList, SafeAreaView, Alert, Modal, ActivityIndicator, Vibration
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
-import {
-    ArrowLeft, Camera, X, CheckCircle2, AlertTriangle, Eye, EyeOff, Search
-} from 'lucide-react-native';
+import { ArrowLeft, Plus, Trash2, X, Barcode, FileText } from 'lucide-react-native';
 
-export default function InventoryAuditScreen({ navigation }) {
-    const [query, setQuery] = useState('');
-    const [product, setProduct] = useState(null);
+export default function InventoryReceipt({ navigation }) {
+    // Date Factură
+    const [suppliers, setSuppliers] = useState([]);
+    const [selectedSupplier, setSelectedSupplier] = useState(null);
+    const [invoiceSeries, setInvoiceSeries] = useState(''); // SERIE
+    const [invoiceNumber, setInvoiceNumber] = useState(''); // NUMĂR
+
+    // Coș Recepție
+    const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    // State Inventar
-    const [location, setLocation] = useState('depozit');
-    const [physicalCount, setPhysicalCount] = useState('');
-
-    // VARIABILA DE VIZIBILITATE
-    const [showResult, setShowResult] = useState(false);
-
-    const [submitLoading, setSubmitLoading] = useState(false);
-
-    // Scanner
+    // Scanner & Produse Noi
     const [permission, requestPermission] = useCameraPermissions();
     const [scannerVisible, setScannerVisible] = useState(false);
+    const [scannedCode, setScannedCode] = useState(null);
 
-    // --- FIX CRITIC: RESETARE AUTOMATĂ ---
-    // De fiecare dată când se încarcă un produs nou, ASCUNDEM imediat stocul
+    // Modal pentru Produs Nou / Cantitate
+    const [qtyModalVisible, setQtyModalVisible] = useState(false);
+    const [tempQty, setTempQty] = useState('');
+    const [tempProduct, setTempProduct] = useState(null); // Produsul curent (existent sau nou)
+    const [isNewProduct, setIsNewProduct] = useState(false); // Flag dacă e produs nou
+
     useEffect(() => {
-        if (product) {
-            setShowResult(false);
-            setPhysicalCount('');
-        }
-    }, [product]);
+        fetchSuppliers();
+    }, []);
 
-    const openScanner = async () => {
+    const fetchSuppliers = async () => {
+        const { data } = await supabase.from('furnizori').select('*');
+        if (data) setSuppliers(data);
+    };
+
+    // --- LOGICA DE SCANARE ---
+    const startScanning = async () => {
         if (!permission?.granted) await requestPermission();
         setScannerVisible(true);
     };
 
-    const handleSearch = async (term) => {
-        if (!term || term.length < 3) return;
-        setLoading(true);
-        // Resetăm starea înainte de a începe căutarea
-        setProduct(null);
-        setShowResult(false);
+    const handleBarCodeScanned = async ({ data }) => {
+        // Pauză scanare pentru procesare
+        setScannerVisible(false);
+        setScannedCode(data);
+        Vibration.vibrate();
 
         try {
-            const { data, error } = await supabase
+            // 1. Căutăm produsul în baza de date
+            const { data: existingProd, error } = await supabase
                 .from('produse')
-                .select('id, nume, cod_bare, stoc_depozit, stoc_magazin')
-                .or(`cod_bare.eq.${term},nume.ilike.%${term}%`)
+                .select('*')
+                .eq('cod_bare', data)
                 .maybeSingle();
 
-            if (error) throw error;
-            if (data) {
-                setProduct(data);
-                // setShowResult(false) va fi apelat automat de useEffect
+            if (existingProd) {
+                // CAZ A: Produsul EXISTĂ
+                setTempProduct(existingProd);
+                setIsNewProduct(false);
+                setTempQty(''); // Resetăm câmpul cantitate
+                setQtyModalVisible(true); // Deschidem modalul doar pentru cantitate
+            } else {
+                // CAZ B: Produsul NU EXISTĂ -> Îl vom crea
+                setTempProduct({ cod_bare: data, nume: `PRODUS NOU - ${data}` });
+                setIsNewProduct(true);
+                setTempQty('');
+                setQtyModalVisible(true);
             }
-            else Alert.alert("Info", "Produsul nu a fost găsit.");
         } catch (err) {
-            Alert.alert("Eroare", "Problemă la căutare.");
-        } finally {
-            setLoading(false);
-            setScannerVisible(false);
+            Alert.alert("Eroare", "Nu am putut verifica produsul.");
         }
     };
 
-    // Dezvăluie rezultatul DOAR la cerere
-    const handleCompare = () => {
-        if (!physicalCount || physicalCount.trim() === '') {
-            Alert.alert("Atenție", "Trebuie să introduci cantitatea numărată!");
+    // --- ADĂUGARE ÎN LISTA DE RECEPȚIE ---
+    const confirmAddItem = async () => {
+        if (!tempQty || parseInt(tempQty) <= 0) {
+            Alert.alert("Eroare", "Introdu o cantitate validă.");
             return;
         }
-        setShowResult(true);
-    };
 
-    const handleSubmit = async () => {
-        const faptic = parseInt(physicalCount);
-        const scriptic = location === 'depozit' ? product.stoc_depozit : product.stoc_magazin;
-        const diff = faptic - scriptic;
+        let productToAdd = tempProduct;
 
-        if (Math.abs(diff) > 5) {
-            Alert.alert(
-                "Diferență Semnificativă",
-                `Scriptic: ${scriptic} vs Faptic: ${faptic}\nConfirmi actualizarea stocului?`,
-                [
-                    { text: "Nu", style: "cancel" },
-                    { text: "Da, Actualizează", onPress: executeUpdate }
-                ]
-            );
-        } else {
-            executeUpdate();
+        // Dacă e produs nou, îl creăm acum în Baza de Date
+        if (isNewProduct) {
+            setLoading(true);
+            const { data: newProd, error } = await supabase
+                .from('produse')
+                .insert([{
+                    nume: `PRODUS NOU - ${scannedCode}`, // Nume temporar
+                    cod_bare: scannedCode,
+                    stoc_depozit: 0,
+                    stoc_magazin: 0,
+                    pret_vanzare: 0 // Adminul va seta prețul
+                }])
+                .select()
+                .single();
+
+            setLoading(false);
+
+            if (error) {
+                Alert.alert("Eroare", "Nu s-a putut crea produsul nou în bază.");
+                return;
+            }
+            productToAdd = newProd;
         }
+
+        // Adăugăm în coșul local
+        const existingInCart = cart.find(p => p.id === productToAdd.id);
+        if (existingInCart) {
+            // Dacă e deja în listă, adunăm cantitatea
+            setCart(cart.map(p => p.id === productToAdd.id ? { ...p, qty: parseInt(p.qty) + parseInt(tempQty) } : p));
+        } else {
+            setCart([...cart, { ...productToAdd, qty: parseInt(tempQty), price: '' }]);
+        }
+
+        // Închidem tot și resetăm
+        setQtyModalVisible(false);
+        setTempQty('');
+        setTempProduct(null);
     };
 
-    const executeUpdate = async () => {
-        setSubmitLoading(true);
+    // --- GESTIUNE COȘ ---
+    const removeCartItem = (id) => {
+        setCart(cart.filter(item => item.id !== id));
+    };
+
+    const updatePrice = (id, price) => {
+        setCart(cart.map(item => item.id === id ? { ...item, price: price } : item));
+    };
+
+    // --- SALVARE FINALĂ ---
+    const submitReceipt = async () => {
+        if (!selectedSupplier) return Alert.alert("Eroare", "Selectează un furnizor.");
+        if (!invoiceNumber) return Alert.alert("Eroare", "Introdu numărul facturii.");
+        if (cart.length === 0) return Alert.alert("Eroare", "Lista de recepție e goală.");
+
         try {
-            const { error } = await supabase.rpc('reglare_inventar', {
-                p_produs_id: product.id,
-                p_locatie: location,
-                p_stoc_faptic: parseInt(physicalCount)
-            });
+            setLoading(true);
+            const { data: { user } } = await supabase.auth.getUser();
 
-            if (error) throw error;
+            // 1. Header Recepție
+            const { data: receipt, error: rError } = await supabase
+                .from('receptii')
+                .insert([{
+                    furnizor_id: selectedSupplier.id,
+                    user_id: user.id,
+                    serie_factura: invoiceSeries, // Câmp nou
+                    numar_factura: invoiceNumber,
+                    total_valoare: 0
+                }])
+                .select()
+                .single();
 
-            Alert.alert("Succes", "Inventar actualizat!");
-            setProduct(null); // Resetează ecranul
-            setQuery('');
+            if (rError) throw rError;
+
+            // 2. Detalii Recepție
+            const details = cart.map(item => ({
+                receptie_id: receipt.id,
+                produs_id: item.id,
+                cantitate: parseInt(item.qty),
+                pret_achizitie: parseFloat(item.price) || 0
+            }));
+
+            const { error: dError } = await supabase.from('receptii_detalii').insert(details);
+            if (dError) throw dError;
+
+            Alert.alert("Succes", "Recepție salvată!");
+            navigation.goBack();
+
         } catch (error) {
             Alert.alert("Eroare", error.message);
         } finally {
-            setSubmitLoading(false);
+            setLoading(false);
         }
     };
 
-    // Valoarea curentă din sistem (calculată, dar ascunsă de UI)
-    const currentSystemStock = product ? (location === 'depozit' ? product.stoc_depozit : product.stoc_magazin) : 0;
-    const currentDiff = parseInt(physicalCount || '0') - currentSystemStock;
-
     return (
         <SafeAreaView style={styles.container}>
+            {/* 1. Header Simplificat */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()}><ArrowLeft size={24} color="#1f2937" /></TouchableOpacity>
-                <Text style={styles.title}>Inventar Rapid (Orb)</Text>
+                <Text style={styles.title}>Recepție Marfă</Text>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <View style={styles.content}>
 
-                {/* SELECȚIE LOCAȚIE */}
-                <View style={styles.toggleContainer}>
-                    <TouchableOpacity
-                        style={[styles.toggleBtn, location === 'depozit' && styles.activeDepozit]}
-                        onPress={() => { setLocation('depozit'); setShowResult(false); }}
-                    >
-                        <Text style={[styles.toggleText, location === 'depozit' && styles.activeText]}>DEPOZIT</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.toggleBtn, location === 'magazin' && styles.activeMagazin]}
-                        onPress={() => { setLocation('magazin'); setShowResult(false); }}
-                    >
-                        <Text style={[styles.toggleText, location === 'magazin' && styles.activeText]}>RAFT</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* CĂUTARE */}
-                <View style={styles.searchSection}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Caută sau scanează..."
-                        value={query}
-                        onChangeText={setQuery}
-                        onSubmitEditing={() => handleSearch(query)}
+                {/* 2. Selector Furnizor */}
+                <View style={styles.section}>
+                    <Text style={styles.label}>Furnizor:</Text>
+                    <FlatList
+                        horizontal
+                        data={suppliers}
+                        showsHorizontalScrollIndicator={false}
+                        keyExtractor={item => item.id.toString()}
+                        renderItem={({ item }) => (
+                            <TouchableOpacity
+                                style={[styles.chip, selectedSupplier?.id === item.id && styles.activeChip]}
+                                onPress={() => setSelectedSupplier(item)}
+                            >
+                                <Text style={[styles.chipText, selectedSupplier?.id === item.id && styles.activeChipText]}>
+                                    {item.nume}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                     />
-                    <TouchableOpacity onPress={() => handleSearch(query)} style={styles.searchIconBtn}>
-                        <Search size={20} color="#6b7280" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={openScanner} style={styles.scanBtn}>
-                        <Camera size={24} color="white" />
-                    </TouchableOpacity>
                 </View>
 
-                {loading && <ActivityIndicator size="large" color="#7c3aed" />}
+                {/* 3. Date Factură (Serie & Număr) */}
+                <View style={styles.rowInputs}>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.label}>Serie Factură</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Ex: F-RO"
+                            value={invoiceSeries}
+                            onChangeText={setInvoiceSeries}
+                        />
+                    </View>
+                    <View style={{flex: 1}}>
+                        <Text style={styles.label}>Număr Factură</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Ex: 12345"
+                            value={invoiceNumber}
+                            onChangeText={setInvoiceNumber}
+                            keyboardType="numeric"
+                        />
+                    </View>
+                </View>
 
-                {product && (
-                    <View style={styles.card}>
-                        <Text style={styles.prodName}>{product.nume}</Text>
-                        <Text style={styles.prodCode}>{product.cod_bare}</Text>
+                {/* 4. Buton SCANARE MARE */}
+                <TouchableOpacity style={styles.scanBtn} onPress={startScanning}>
+                    <Barcode size={28} color="white" />
+                    <Text style={styles.scanBtnText}>SCANARE PRODUS</Text>
+                </TouchableOpacity>
 
-                        <View style={styles.comparisonRow}>
-
-                            {/* --- ZONA CRITICĂ: SCRIPTIC (STOC SISTEM) --- */}
-                            <View style={[styles.infoBlock, !showResult && styles.hiddenBlock]}>
-                                <Text style={styles.label}>SCRIPTIC (Sistem)</Text>
-
-                                {showResult === true ? (
-                                    // Dacă showResult e TRUE, arătăm numărul
-                                    <Text style={styles.systemValue}>{currentSystemStock}</Text>
-                                ) : (
-                                    // Dacă showResult e FALSE, arătăm ???
-                                    <View style={styles.hiddenContent}>
-                                        <EyeOff size={24} color="#9ca3af" />
-                                        <Text style={styles.hiddenText}>???</Text>
-                                    </View>
-                                )}
+                {/* 5. Lista Produse Scanate */}
+                <FlatList
+                    data={cart}
+                    keyExtractor={item => item.id.toString()}
+                    contentContainerStyle={{ paddingBottom: 100 }}
+                    ListHeaderComponent={<Text style={styles.listHeader}>Produse pe Factură:</Text>}
+                    ListEmptyComponent={<Text style={styles.emptyText}>Scanează pentru a adăuga produse.</Text>}
+                    renderItem={({ item }) => (
+                        <View style={styles.cartItem}>
+                            <View style={{flex: 1}}>
+                                <Text style={styles.itemName}>{item.nume}</Text>
+                                <Text style={styles.itemCode}>{item.cod_bare}</Text>
                             </View>
 
-                            <View style={styles.arrowBlock}>
-                                <Text style={{fontSize: 24, color: '#9ca3af'}}>→</Text>
-                            </View>
-
-                            {/* --- ZONA INPUT: FAPTIC (NUMĂRAT) --- */}
-                            <View style={styles.inputBlock}>
-                                <Text style={styles.label}>FAPTIC (Numărat)</Text>
+                            <View style={styles.itemDetails}>
+                                <View style={styles.qtyBadge}>
+                                    <Text style={styles.qtyText}>{item.qty} buc</Text>
+                                </View>
                                 <TextInput
-                                    style={styles.countInput}
+                                    style={styles.priceInput}
+                                    placeholder="Preț Ach."
                                     keyboardType="numeric"
-                                    placeholder="?"
-                                    value={physicalCount}
-                                    onChangeText={(t) => {
-                                        setPhysicalCount(t);
-                                        // Dacă modifică cifra, ascundem din nou rezultatul pentru a preveni trișarea
-                                        setShowResult(false);
-                                    }}
-                                    autoFocus={true}
+                                    value={item.price}
+                                    onChangeText={t => updatePrice(item.id, t)}
                                 />
+                                <TouchableOpacity onPress={() => removeCartItem(item.id)} style={{padding:5}}>
+                                    <Trash2 size={20} color="#ef4444" />
+                                </TouchableOpacity>
                             </View>
                         </View>
+                    )}
+                />
+            </View>
 
-                        {/* REZULTAT (Apare doar după Verificare) */}
-                        {showResult && (
-                            <View style={[
-                                styles.diffBadge,
-                                currentDiff === 0 ? styles.diffZero :
-                                    currentDiff < 0 ? styles.diffNegative : styles.diffPositive
-                            ]}>
-                                <Text style={styles.diffText}>
-                                    {currentDiff === 0 ? "Perfect! Nicio diferență." :
-                                        `Diferență: ${currentDiff > 0 ? '+' : ''}${currentDiff} buc`}
-                                </Text>
-                            </View>
-                        )}
-
-                        {/* BUTOANE */}
-                        {!showResult ? (
-                            <TouchableOpacity style={styles.verifyBtn} onPress={handleCompare}>
-                                <Eye size={20} color="white" />
-                                <Text style={styles.submitText}>VERIFICĂ</Text>
-                            </TouchableOpacity>
-                        ) : (
-                            <TouchableOpacity
-                                style={styles.submitBtn}
-                                onPress={handleSubmit}
-                                disabled={submitLoading}
-                            >
-                                {submitLoading ? <ActivityIndicator color="white" /> : (
-                                    <>
-                                        <CheckCircle2 size={20} color="white" />
-                                        <Text style={styles.submitText}>CONFIRMĂ REGLAREA</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-                        )}
-
-                        {!showResult && (
-                            <View style={styles.infoNote}>
-                                <AlertTriangle size={14} color="#6b7280" />
-                                <Text style={styles.noteText}>Numără produsele înainte de a vedea stocul din sistem.</Text>
-                            </View>
-                        )}
-                    </View>
+            {/* Buton Salvare */}
+            <View style={styles.footer}>
+                {loading ? <ActivityIndicator color="#4F46E5" /> : (
+                    <TouchableOpacity style={styles.saveBtn} onPress={submitReceipt}>
+                        <FileText size={20} color="white" />
+                        <Text style={styles.saveBtnText}>FINALIZEAZĂ RECEPȚIA</Text>
+                    </TouchableOpacity>
                 )}
-            </ScrollView>
+            </View>
 
+            {/* --- MODAL CANTITATE (Produs Nou sau Existent) --- */}
+            <Modal visible={qtyModalVisible} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>
+                            {isNewProduct ? "⚠️ PRODUS NOU DETECTAT" : "Produs Identificat"}
+                        </Text>
+
+                        <View style={styles.modalProdInfo}>
+                            <Text style={styles.modalProdName}>
+                                {isNewProduct ? `Cod: ${scannedCode}` : tempProduct?.nume}
+                            </Text>
+                            {isNewProduct && (
+                                <Text style={styles.newProdHint}>
+                                    Acest produs va fi salvat în bază. Adminul va edita detaliile ulterior.
+                                </Text>
+                            )}
+                        </View>
+
+                        <Text style={styles.label}>Introdu Cantitatea Primită:</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            placeholder="0"
+                            keyboardType="numeric"
+                            autoFocus={true}
+                            value={tempQty}
+                            onChangeText={setTempQty}
+                        />
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity style={styles.cancelBtn} onPress={() => setQtyModalVisible(false)}>
+                                <Text style={styles.cancelText}>Anulează</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.confirmBtn} onPress={confirmAddItem}>
+                                <Text style={styles.confirmText}>ADAUGĂ</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* --- MODAL CAMERA --- */}
             <Modal visible={scannerVisible} animationType="slide">
-                <View style={{ flex: 1, backgroundColor: 'black' }}>
+                <View style={{flex: 1, backgroundColor: 'black'}}>
                     <CameraView
                         style={StyleSheet.absoluteFill}
-                        onBarcodeScanned={scannerVisible ? ({data}) => { setQuery(data); handleSearch(data); } : undefined}
+                        onBarcodeScanned={scannerVisible ? handleBarCodeScanned : undefined}
                     />
-                    <TouchableOpacity style={styles.closeCam} onPress={() => setScannerVisible(false)}><X size={35} color="white" /></TouchableOpacity>
+                    <TouchableOpacity style={styles.closeCamera} onPress={() => setScannerVisible(false)}>
+                        <X size={32} color="white" />
+                    </TouchableOpacity>
+
+                    <View style={styles.overlay}>
+                        <View style={styles.scanFrame} />
+                        <Text style={styles.scanText}>Încadrează codul de bare</Text>
+                    </View>
                 </View>
             </Modal>
         </SafeAreaView>
@@ -272,52 +348,57 @@ export default function InventoryAuditScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f9fafb' },
     header: { flexDirection: 'row', alignItems: 'center', padding: 20, gap: 15, backgroundColor: 'white', elevation: 2 },
-    title: { fontSize: 20, fontWeight: 'bold', color: '#111827' },
-    content: { padding: 20 },
+    title: { fontSize: 20, fontWeight: 'bold' },
+    content: { padding: 20, flex: 1 },
 
-    toggleContainer: { flexDirection: 'row', backgroundColor: '#e5e7eb', borderRadius: 10, padding: 4, marginBottom: 20 },
-    toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-    activeDepozit: { backgroundColor: '#3b82f6', elevation: 2 },
-    activeMagazin: { backgroundColor: '#10b981', elevation: 2 },
-    toggleText: { fontWeight: '700', color: '#6b7280' },
-    activeText: { color: 'white' },
+    // Form
+    section: { marginBottom: 15 },
+    label: { fontWeight: '600', marginBottom: 5, color: '#374151', fontSize: 13 },
+    chip: { backgroundColor: '#e5e7eb', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10 },
+    activeChip: { backgroundColor: '#4F46E5' },
+    chipText: { color: '#374151' },
+    activeChipText: { color: 'white', fontWeight: 'bold' },
 
-    searchSection: { flexDirection: 'row', gap: 10, marginBottom: 20, position:'relative' },
-    input: { flex: 1, backgroundColor: 'white', padding: 12, paddingRight: 40, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb' },
-    searchIconBtn: { position:'absolute', right: 60, top: 12, padding: 5 },
-    scanBtn: { backgroundColor: '#7c3aed', width: 50, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    rowInputs: { flexDirection: 'row', gap: 15, marginBottom: 15 },
+    input: { backgroundColor: 'white', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db' },
 
-    card: { backgroundColor: 'white', padding: 20, borderRadius: 16, elevation: 3 },
-    prodName: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', color: '#1f2937' },
-    prodCode: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginBottom: 20 },
+    // Scan Button
+    scanBtn: { backgroundColor: '#4F46E5', padding: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, marginBottom: 20, elevation: 3 },
+    scanBtnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 
-    comparisonRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    // List
+    listHeader: { fontWeight: 'bold', marginBottom: 10, color: '#6b7280' },
+    emptyText: { textAlign: 'center', color: '#9ca3af', marginTop: 20 },
+    cartItem: { backgroundColor: 'white', padding: 12, borderRadius: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent:'space-between', elevation: 1 },
+    itemName: { fontWeight: 'bold', fontSize: 14, color: '#1f2937', maxWidth: '60%' },
+    itemCode: { color: '#6b7280', fontSize: 11 },
+    itemDetails: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    qtyBadge: { backgroundColor: '#e0e7ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    qtyText: { color: '#4338ca', fontWeight: 'bold', fontSize: 12 },
+    priceInput: { backgroundColor: '#f3f4f6', padding: 8, borderRadius: 6, width: 70, textAlign: 'center', fontSize: 12 },
 
-    infoBlock: { alignItems: 'center', flex: 1, padding: 10, borderRadius: 10, minHeight: 80, justifyContent: 'center' },
-    hiddenBlock: { backgroundColor: '#f3f4f6', borderWidth: 2, borderColor: '#e5e7eb', borderStyle: 'dotted' },
+    // Footer
+    footer: { padding: 20, backgroundColor: 'white', borderTopWidth: 1, borderColor: '#e5e7eb' },
+    saveBtn: { backgroundColor: '#059669', padding: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
+    saveBtnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 
-    systemValue: { fontSize: 28, fontWeight: '900', color: '#374151', marginTop: 5 },
-    hiddenContent: { alignItems: 'center', marginTop: 5 },
-    hiddenText: { color: '#9ca3af', fontWeight: 'bold', fontSize: 20 },
+    // Modal Qty
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+    modalContent: { backgroundColor: 'white', borderRadius: 15, padding: 20 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
+    modalProdInfo: { backgroundColor: '#f9fafb', padding: 10, borderRadius: 8, marginBottom: 15 },
+    modalProdName: { fontWeight: 'bold', textAlign: 'center', fontSize: 16 },
+    newProdHint: { fontSize: 11, color: '#ea580c', textAlign: 'center', marginTop: 5 },
+    modalInput: { backgroundColor: '#f3f4f6', fontSize: 24, fontWeight: 'bold', textAlign: 'center', padding: 15, borderRadius: 10, marginBottom: 20 },
+    modalButtons: { flexDirection: 'row', gap: 10 },
+    cancelBtn: { flex: 1, padding: 15, alignItems: 'center' },
+    cancelText: { color: '#6b7280', fontWeight: 'bold' },
+    confirmBtn: { flex: 1, backgroundColor: '#4F46E5', padding: 15, borderRadius: 10, alignItems: 'center' },
+    confirmText: { color: 'white', fontWeight: 'bold' },
 
-    inputBlock: { alignItems: 'center', flex: 1 },
-    countInput: {
-        backgroundColor: '#f3f4f6', fontSize: 24, fontWeight: 'bold', color: '#111827',
-        padding: 10, width: '90%', textAlign: 'center', borderRadius: 8, borderWidth: 2, borderColor: '#4F46E5'
-    },
-    label: { fontSize: 10, fontWeight: '700', color: '#6b7280', textTransform: 'uppercase', marginBottom: 5 },
-
-    diffBadge: { padding: 12, borderRadius: 8, marginBottom: 20, alignItems: 'center' },
-    diffZero: { backgroundColor: '#f0fdf4', borderWidth: 1, borderColor: '#bbf7d0' },
-    diffNegative: { backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca' },
-    diffPositive: { backgroundColor: '#eff6ff', borderWidth: 1, borderColor: '#bfdbfe' },
-    diffText: { fontWeight: 'bold', color: '#374151' },
-
-    verifyBtn: { backgroundColor: '#4b5563', padding: 18, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-    submitBtn: { backgroundColor: '#7c3aed', padding: 18, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-    submitText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-
-    infoNote: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 15, gap: 5 },
-    noteText: { fontSize: 11, color: '#6b7280' },
-    closeCam: { position: 'absolute', top: 50, right: 25, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 25, padding: 5 }
+    // Camera
+    closeCamera: { position: 'absolute', top: 50, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
+    overlay: { position: 'absolute', bottom: 100, left: 0, right: 0, alignItems: 'center' },
+    scanFrame: { width: 250, height: 250, borderWidth: 2, borderColor: 'white', borderRadius: 20, marginBottom: 20 },
+    scanText: { color: 'white', fontWeight: 'bold', backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 8 }
 });

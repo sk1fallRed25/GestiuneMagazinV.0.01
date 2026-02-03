@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, TouchableOpacity, SafeAreaView,
-    ScrollView, ActivityIndicator, Dimensions
+    ScrollView, ActivityIndicator, Dimensions, Alert
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import {
     LogOut, Package, ClipboardCheck, SearchCheck,
     AlertOctagon, ClipboardList, Settings, UserCircle,
-    Users, Truck, BarChart3, FileWarning
+    Users, Truck, BarChart3, FileWarning, ScrollText
 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -17,6 +17,7 @@ export default function DashboardScreen({ navigation }) {
     const [userData, setUserData] = useState({ email: '', role: '', name: '' });
     const [loading, setLoading] = useState(true);
 
+    // --- 1. ÎNCĂRCARE PROFIL ---
     useFocusEffect(
         useCallback(() => {
             fetchUserProfile();
@@ -48,6 +49,41 @@ export default function DashboardScreen({ navigation }) {
 
     const isAdmin = userData.role === 'admin';
 
+    // --- 2. NOTIFICĂRI ADMIN ---
+    useEffect(() => {
+        if (!isAdmin) return;
+        console.log("🔔 Sistemul de notificări este activ.");
+
+        const channel = supabase.channel('dashboard-alerts')
+            .on(
+                'postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'receptii' },
+                async (payload) => {
+                    let providerName = 'Necunoscut';
+                    try {
+                        const { data } = await supabase
+                            .from('furnizori')
+                            .select('nume')
+                            .eq('id', payload.new.furnizor_id)
+                            .single();
+                        if (data) providerName = data.nume;
+                    } catch (e) {}
+
+                    Alert.alert(
+                        "📦 Recepție Nouă!",
+                        `S-a finalizat o recepție.\n\nFurnizor: ${providerName}\nFactura: ${payload.new.serie_factura || ''} ${payload.new.numar_factura}`,
+                        [
+                            { text: "Vezi Istoric", onPress: () => navigation.navigate('ReceiptsHistoryScreen') },
+                            { text: "OK" }
+                        ]
+                    );
+                }
+            )
+            .subscribe();
+
+        return () => { supabase.removeChannel(channel); };
+    }, [isAdmin]);
+
     if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#4F46E5" /></View>;
 
     return (
@@ -74,6 +110,7 @@ export default function DashboardScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
                 {/* --- FLUX OPERAȚIONAL (GESTIONAR) --- */}
+                {/* Acum sunt doar 4 butoane, așezate 2 câte 2 */}
                 <Text style={styles.sectionTitle}>Gestiune Depozit</Text>
                 <View style={styles.grid}>
 
@@ -109,15 +146,7 @@ export default function DashboardScreen({ navigation }) {
                         <Text style={styles.cardSubtitle}>Corecție Stoc</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.card, {width: '100%'}]} onPress={() => navigation.navigate('ProductsList')}>
-                        <View style={{flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 15}}>
-                            <Package size={28} color="#475569" />
-                            <View>
-                                <Text style={styles.cardTitle}>Nomenclator Produse</Text>
-                                <Text style={styles.cardSubtitle}>Listă completă & Prețuri</Text>
-                            </View>
-                        </View>
-                    </TouchableOpacity>
+                    {/* AICI AM ELIMINAT NOMENCLATORUL */}
                 </View>
 
                 {/* --- ZONA ADMIN --- */}
@@ -126,12 +155,33 @@ export default function DashboardScreen({ navigation }) {
                         <Text style={styles.sectionTitle}>Panou Administrator</Text>
                         <View style={styles.grid}>
 
-                            {/* BUTON NOU: JURNAL PROBLEME */}
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminLogsScreen')}>
                                 <View style={[styles.iconBox, { backgroundColor: '#fee2e2' }]}>
                                     <FileWarning size={28} color="#dc2626" />
                                 </View>
                                 <Text style={styles.cardTitle}>Jurnal Probleme</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ReceiptsHistoryScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#e0e7ff' }]}>
+                                    <ScrollText size={28} color="#4338ca" />
+                                </View>
+                                <Text style={styles.cardTitle}>Istoric Recepții</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ReportsScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#dcfce7' }]}>
+                                    <BarChart3 size={28} color="#15803d" />
+                                </View>
+                                <Text style={styles.cardTitle}>Rapoarte</Text>
+                            </TouchableOpacity>
+
+                            {/* AM MUTAT NOMENCLATORUL AICI (Doar Adminul editează produse) */}
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ProductsList')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#f1f5f9' }]}>
+                                    <Package size={28} color="#475569" />
+                                </View>
+                                <Text style={styles.cardTitle}>Produse</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('TeamScreen')}>
@@ -146,13 +196,6 @@ export default function DashboardScreen({ navigation }) {
                                     <Truck size={28} color="#ea580c" />
                                 </View>
                                 <Text style={styles.cardTitle}>Furnizori</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ReportsScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#dcfce7' }]}>
-                                    <BarChart3 size={28} color="#15803d" />
-                                </View>
-                                <Text style={styles.cardTitle}>Rapoarte</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('SettingsScreen')}>
@@ -186,7 +229,7 @@ const styles = StyleSheet.create({
     badgeText: { color: 'white', fontSize: 10, fontWeight: '800' },
     logoutBtn: { padding: 10, backgroundColor: '#fff1f2', borderRadius: 12 },
 
-    scrollContent: { padding: 20 },
+    scrollContent: { padding: 20, paddingBottom: 50 },
     sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1e293b', marginBottom: 15, marginTop: 10, marginLeft: 5 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
 
