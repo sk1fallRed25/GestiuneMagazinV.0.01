@@ -4,7 +4,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import { supabase } from './supabaseClient';
 import {
     LayoutDashboard, Package, Truck, ShoppingCart, Settings, PackagePlus, ArrowRightLeft, ListTodo, Send, Inbox,
-    Briefcase, ChevronDown, ChevronRight, Bell, Search, LogOut, TrendingUp, AlertTriangle, X, Check
+    Briefcase, ChevronDown, ChevronRight, Bell, Search, LogOut, TrendingUp, AlertTriangle, X, Check, Users, ClipboardList, FileText
 } from 'lucide-react';
 
 // --- IMPORTURI PAGINI ---
@@ -20,11 +20,14 @@ import TransferMarfa from './TransferMarfa'
 import ListaCumparaturi from './ListaCumparaturi'
 import DetaliiComanda from './DetaliiComanda';
 import ComandaFurnizor from './ComandaFurnizor';
+import Comenzi from './Comenzi';
 import ReceptieComanda from './ReceptieComanda';
 import DetaliiComandaAgent from './DetaliiComandaAgent';
+import GestiuneAgenti from './GestiuneAgenti';
+import IstoricVanzari from './IstoricVanzari'; // <--- PAGINA NOUA IMPORTATĂ
 
 // ==========================================
-// COMPONENTE UI (Stat Cards - Actualizat pt culori custom)
+// COMPONENTE UI (Stat Cards)
 // ==========================================
 
 const StatCard = ({ title, value, icon: Icon, color, valueColor, trend, loading }: any) => (
@@ -33,7 +36,6 @@ const StatCard = ({ title, value, icon: Icon, color, valueColor, trend, loading 
         <div className="flex justify-between items-start">
             <div>
                 <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-                {/* Folosim valueColor pentru movul specific din imagine */}
                 <h3 className={`text-3xl font-bold transition-colors ${valueColor || 'text-gray-800 group-hover:text-indigo-600'}`}>
                     {value}
                 </h3>
@@ -63,12 +65,10 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
     const [isGestionarMenuOpen, setIsGestionarMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
-    // --- STATE NOTIFICĂRI ---
     const [notifications, setNotifications] = useState<any[]>([]);
     const [showNotifMenu, setShowNotifMenu] = useState(false);
     const notifMenuRef = useRef<HTMLDivElement>(null);
 
-    // Închide meniul de notificări dacă dai click în afară
     useEffect(() => {
         function handleClickOutside(event: any) {
             if (notifMenuRef.current && !notifMenuRef.current.contains(event.target)) {
@@ -79,17 +79,14 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // Scroll effect Header
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 20);
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    // --- LOGICA DE NOTIFICĂRI ---
     const fetchNotifications = useCallback(async () => {
         const { data: produse } = await supabase.from('produse').select('id, nume, stoc_depozit, stoc_minim_depozit');
-
         const critice = produse?.filter(p => p.stoc_depozit <= p.stoc_minim_depozit).map(p => ({
             id: p.id,
             type: 'alert',
@@ -97,7 +94,6 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
             time: 'Acum',
             read: false
         })) || [];
-
         setNotifications(critice);
     }, []);
 
@@ -167,6 +163,7 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                     {userRole === 'admin' && (
                         <>
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
+
                             <div className="mx-2 mb-1">
                                 <button onClick={() => setIsGestionarMenuOpen(!isGestionarMenuOpen)} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-sm font-medium ${isGestionarMenuOpen ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
                                     <div className="flex items-center gap-3"><Briefcase size={18} /><span>Atribuții Gestionar</span></div>
@@ -176,12 +173,21 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                                     <div className="overflow-hidden bg-slate-900/50 rounded-b-xl mb-2"><div className="py-2 space-y-1"><LinkuriOperatiuni isSubmenu={true} /></div></div>
                                 </div>
                             </div>
+
                             <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
                             <NavLink to="/comanda-furnizor" label="Comandă Furnizor" icon={<Send size={18} />} />
+                            <NavLink to="/comenzi" label="Situație Comenzi" icon={<ClipboardList size={18} />} />
+                            <NavLink to="/gestiune-agenti" label="Gestiune Agenți" icon={<Users size={18} />} />
                             <NavLink to="/furnizori" label="Furnizori" icon={<Truck size={18} />} />
+
+                            {/* BUTONUL NOU - ISTORIC VÂNZĂRI */}
+                            <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
+
                             <NavLink to="/lista-cumparaturi" label="Listă Cumpărături" icon={<ListTodo size={18} />} />
+
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Punct de Vânzare</div>
                             <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
+
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Sistem</div>
                             <NavLink to="/fast-add" label="Adăugare Rapidă" icon={<Settings size={18} />} />
                         </>
@@ -239,13 +245,13 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
     )
 };
 
-// --- DASHBOARD (CU SUMA CORECTĂ DIN VANZARI) ---
+// --- DASHBOARD (CU COMANDA FURNIZOR LIVE) ---
 const Dashboard = ({ userRole }: { userRole: string }) => {
     const [stats, setStats] = useState({
         alerteStoc: 0,
         comenziAgenti: 0,
         vanzariAstazi: 0,
-        cereriFurnizori: 0,
+        comenziFurnizor: 0,
         loading: true
     });
 
@@ -258,31 +264,23 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
             // 2. Comenzi Agenți
             const { count: comenziCount } = await supabase.from('comenzi_agenti').select('*', { count: 'exact', head: true }).eq('status', 'pending_admin');
 
-            // 3. Cereri Furnizori
-            const { count: cereriCount } = await supabase.from('cereri_furnizori').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+            // 3. COMENZI FURNIZOR
+            const { count: comenziFurnizorCount } = await supabase
+                .from('comenzi_furnizor')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'pending');
 
-            // 4. Vânzări Astăzi (CALCUL CORECT)
-            const todayStart = new Date();
-            todayStart.setHours(0, 0, 0, 0);
-            const todayEnd = new Date();
-            todayEnd.setHours(23, 59, 59, 999);
-
-            const { data: vanzari, error } = await supabase
-                .from('vanzari')
-                .select('total')
-                .eq('status', 'finalizat') // Importanța maximă: doar vânzările finalizate
-                .gte('data_vanzare', todayStart.toISOString()) // Folosim data_vanzare din poza ta
-                .lte('data_vanzare', todayEnd.toISOString());
-
-            if (error) console.error("Eroare fetch vanzari:", error);
-
+            // 4. Vânzări Astăzi
+            const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+            const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+            const { data: vanzari } = await supabase.from('vanzari').select('total').eq('status', 'finalizat').gte('data_vanzare', todayStart.toISOString()).lte('data_vanzare', todayEnd.toISOString());
             const totalVanzari = vanzari?.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0) || 0;
 
             setStats({
                 alerteStoc: alerteCount,
                 comenziAgenti: comenziCount || 0,
                 vanzariAstazi: totalVanzari,
-                cereriFurnizori: cereriCount || 0,
+                comenziFurnizor: comenziFurnizorCount || 0,
                 loading: false
             });
 
@@ -299,7 +297,7 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
         const channel = supabase.channel('dashboard-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'produse' }, () => fetchDashboardData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'comenzi_agenti' }, () => fetchDashboardData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'cereri_furnizori' }, () => fetchDashboardData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'comenzi_furnizor' }, () => fetchDashboardData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vanzari' }, () => fetchDashboardData())
             .subscribe();
 
@@ -315,23 +313,17 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
 
-                {/* 1. WIDGET ALERTE STOC */}
                 <Link to="/produse">
                     <StatCard
                         title="Alerte Stoc Critic"
                         value={`${stats.alerteStoc} Produse`}
                         icon={AlertTriangle}
                         color={stats.alerteStoc > 0 ? "bg-red-500 text-red-600" : "bg-green-500 text-green-600"}
-                        trend={{
-                            isPositive: stats.alerteStoc === 0,
-                            value: stats.alerteStoc > 0 ? "Necesită aprovizionare" : "Stoc Optim",
-                            label: "status curent"
-                        }}
+                        trend={{ isPositive: stats.alerteStoc === 0, value: stats.alerteStoc > 0 ? "Necesită aprovizionare" : "Stoc Optim", label: "status curent" }}
                         loading={stats.loading}
                     />
                 </Link>
 
-                {/* 2. WIDGET COMENZI AGENTI */}
                 <StatCard
                     title="Comenzi Agenți"
                     value={`${stats.comenziAgenti} Noi`}
@@ -342,27 +334,28 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
                     loading={stats.loading}
                 />
 
-                {/* 3. WIDGET VÂNZĂRI ASTĂZI (DESIGN ACTUALIZAT) */}
                 <StatCard
                     title="Vânzări Astăzi"
                     value={`${stats.vanzariAstazi.toFixed(2)} RON`}
                     icon={TrendingUp}
                     color="bg-green-100 text-green-600"
-                    valueColor="text-indigo-600" // Culoarea MOV din design
+                    valueColor="text-indigo-600"
                     trend={{ isPositive: true, value: "Astăzi", label: "total încasări" }}
                     loading={stats.loading}
                 />
 
-                {/* 4. WIDGET CERERI FURNIZORI */}
                 {userRole === 'admin' && (
-                    <StatCard
-                        title="Cereri Furnizori"
-                        value={`${stats.cereriFurnizori} În Așteptare`}
-                        icon={Briefcase}
-                        color="bg-blue-500 text-blue-600"
-                        valueColor="text-gray-800"
-                        loading={stats.loading}
-                    />
+                    <Link to="/comenzi">
+                        <StatCard
+                            title="Comenzi Furnizor"
+                            value={`${stats.comenziFurnizor} În Așteptare`}
+                            icon={Truck}
+                            color="bg-blue-500 text-blue-600"
+                            valueColor="text-gray-800"
+                            trend={{ isPositive: true, value: "Livrare Pend.", label: "" }}
+                            loading={stats.loading}
+                        />
+                    </Link>
                 )}
             </div>
 
@@ -445,7 +438,22 @@ function App() {
                                 <Route path="/receptie-comanda" element={<ReceptieComanda />} />
                                 <Route path="/transfer" element={<TransferMarfa />} />
                                 <Route path="/comanda/:id" element={<DetaliiComanda />} />
-                                {userRole === 'admin' && (<><Route path="/furnizori" element={<Furnizori />} /><Route path="/vanzare" element={<Vanzare />} /><Route path="/fast-add" element={<FastAdd />} /><Route path="/lista-cumparaturi" element={<ListaCumparaturi />} /><Route path="/comanda-furnizor" element={<ComandaFurnizor />} /><Route path="/comanda-primita/:id" element={<DetaliiComandaAgent />} /></>)}
+                                {userRole === 'admin' && (
+                                    <>
+                                        <Route path="/furnizori" element={<Furnizori />} />
+                                        <Route path="/vanzare" element={<Vanzare />} />
+                                        <Route path="/fast-add" element={<FastAdd />} />
+                                        <Route path="/lista-cumparaturi" element={<ListaCumparaturi />} />
+
+                                        {/* RUTE NOI ADAUGATE */}
+                                        <Route path="/comanda-furnizor" element={<ComandaFurnizor />} />
+                                        <Route path="/comenzi" element={<Comenzi />} />
+                                        <Route path="/gestiune-agenti" element={<GestiuneAgenti />} />
+                                        <Route path="/istoric-vanzari" element={<IstoricVanzari />} />
+
+                                        <Route path="/comanda-primita/:id" element={<DetaliiComandaAgent />} />
+                                    </>
+                                )}
                                 <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
                         </MainLayout>
