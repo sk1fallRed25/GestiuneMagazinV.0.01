@@ -23,7 +23,8 @@ import TeamScreen from './src/screens/TeamScreen';
 import SupplierScreens from './src/screens/SupplierScreens';
 import ReportsScreen from './src/screens/ReportsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import AdminLogsScreen from './src/screens/AdminLogsScreen'; // <--- ECRANUL NOU
+import AdminLogsScreen from './src/screens/AdminLogsScreen';
+import ReceiptsHistoryScreen from './src/screens/ReceiptsHistoryScreen'; // <--- ECRAN NOU
 
 const Stack = createNativeStackNavigator();
 
@@ -35,15 +36,39 @@ export default function App() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Verificăm sesiunea curentă
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setLoading(false);
-        });
+        // 1. Verificăm sesiunea inițială cu protecție la erori
+        const checkSession = async () => {
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
 
-        // Ascultăm schimbările de stare (login/logout)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setSession(session);
+                if (error) {
+                    console.log("⚠️ Eroare sesiune:", error.message);
+                    // Dacă tokenul e invalid, forțăm logout pentru a nu bloca aplicația
+                    if (error.message.includes("Refresh Token")) {
+                        await supabase.auth.signOut();
+                        setSession(null);
+                    }
+                } else {
+                    setSession(session);
+                }
+            } catch (err) {
+                console.error("Eroare neașteptată auth:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        checkSession();
+
+        // 2. Ascultăm schimbările de stare (login/logout/token refresh)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (_event === 'TOKEN_REFRESH_REVOKED') {
+                console.log('Token revocat! Delogare...');
+                setSession(null);
+            } else {
+                setSession(session);
+            }
+            setLoading(false);
         });
 
         return () => subscription.unsubscribe();
@@ -72,8 +97,8 @@ export default function App() {
                         <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
 
                         {/* Rute Gestionar (Accesibile Tuturor) */}
-                        <Stack.Screen name="InventoryReceipt" component={InventoryReceipt} options={{ title: 'Recepție Marfă' }} />
-                        <Stack.Screen name="StockCheckScreen" component={StockCheckScreen} options={{ title: 'Verificare & Transfer' }} />
+                        <Stack.Screen name="InventoryReceipt" component={InventoryReceipt} options={{ headerShown: false }} />
+                        <Stack.Screen name="StockCheckScreen" component={StockCheckScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="ScrapScreen" component={ScrapScreen} options={{ title: 'Raportare Pierderi' }} />
                         <Stack.Screen name="InventoryAuditScreen" component={InventoryAuditScreen} options={{ title: 'Inventar Rapid' }} />
                         <Stack.Screen name="ProductsList" component={ProductsListScreen} options={{ title: 'Nomenclator Produse' }} />
@@ -81,9 +106,10 @@ export default function App() {
                         {/* Rute Admin (Doar Administratori) */}
                         <Stack.Screen name="TeamScreen" component={TeamScreen} options={{ title: 'Gestionare Echipă' }} />
                         <Stack.Screen name="SupplierScreens" component={SupplierScreens} options={{ title: 'Furnizori' }} />
-                        <Stack.Screen name="ReportsScreen" component={ReportsScreen} options={{ title: 'Rapoarte Generale' }} />
+                        <Stack.Screen name="ReportsScreen" component={ReportsScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="SettingsScreen" component={SettingsScreen} options={{ title: 'Setări Sistem' }} />
-                        <Stack.Screen name="AdminLogsScreen" component={AdminLogsScreen} options={{ title: 'Jurnal Probleme' }} />
+                        <Stack.Screen name="AdminLogsScreen" component={AdminLogsScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="ReceiptsHistoryScreen" component={ReceiptsHistoryScreen} options={{ headerShown: false }} />
                     </>
                 )}
             </Stack.Navigator>
