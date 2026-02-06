@@ -1,345 +1,457 @@
 import React, { useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, TextInput, TouchableOpacity,
-    FlatList, SafeAreaView, Alert, Modal, ActivityIndicator, Vibration
+    View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList,
+    Alert, Modal, SafeAreaView, ActivityIndicator, Keyboard, Platform
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, Plus, Trash2, X, Barcode, FileText } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import {
+    Barcode, Check, Plus, Trash2, X, Search, Calendar,
+    ChevronDown, Package, FileText, ArrowLeft
+} from 'lucide-react-native';
 
 export default function InventoryReceipt({ navigation }) {
-    // Date Factură
+    // --- STATE GENERAL ---
+    const [step, setStep] = useState(1); // 1 = Selectare Furnizor, 2 = Scanare Produse
+    const [loading, setLoading] = useState(false);
     const [suppliers, setSuppliers] = useState([]);
     const [selectedSupplier, setSelectedSupplier] = useState(null);
-    const [invoiceSeries, setInvoiceSeries] = useState(''); // SERIE
-    const [invoiceNumber, setInvoiceNumber] = useState(''); // NUMĂR
+    const [invoiceNumber, setInvoiceNumber] = useState('');
+    const [invoiceSeries, setInvoiceSeries] = useState('');
 
-    // Coș Recepție
-    const [cart, setCart] = useState([]);
-    const [loading, setLoading] = useState(false);
+    // --- STATE PRODUSE ---
+    const [scannedItems, setScannedItems] = useState([]);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [currentProduct, setCurrentProduct] = useState(null);
 
-    // Scanner & Produse Noi
+    // Formular Adăugare Cantitate/Preț/Lot
+    const [qty, setQty] = useState('');
+    const [price, setPrice] = useState('');
+    const [batch, setBatch] = useState(''); // Lot
+    const [expDate, setExpDate] = useState(new Date()); // Data Expirare
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [hasExpDate, setHasExpDate] = useState(false); // Checkbox virtual pentru expirare
+
+    // --- STATE SCANNER ---
     const [permission, requestPermission] = useCameraPermissions();
     const [scannerVisible, setScannerVisible] = useState(false);
-    const [scannedCode, setScannedCode] = useState(null);
-
-    // Modal pentru Produs Nou / Cantitate
-    const [qtyModalVisible, setQtyModalVisible] = useState(false);
-    const [tempQty, setTempQty] = useState('');
-    const [tempProduct, setTempProduct] = useState(null); // Produsul curent (existent sau nou)
-    const [isNewProduct, setIsNewProduct] = useState(false); // Flag dacă e produs nou
+    const [manualSearch, setManualSearch] = useState('');
 
     useEffect(() => {
         fetchSuppliers();
     }, []);
 
     const fetchSuppliers = async () => {
-        const { data } = await supabase.from('furnizori').select('*');
-        if (data) setSuppliers(data);
+        try {
+            const { data, error } = await supabase.from('furnizori').select('*').order('nume');
+            if (error) throw error;
+            setSuppliers(data || []);
+        } catch (err) {
+            console.log("Eroare incarcare furnizori:", err.message);
+        }
     };
 
-    // --- LOGICA DE SCANARE ---
-    const startScanning = async () => {
+    // --- PASUL 1: LOGICA FURNIZOR ---
+    const handleSupplierSelect = (supplier) => {
+        setSelectedSupplier(supplier);
+    };
+
+    const goToScanning = () => {
+        if (!selectedSupplier || !invoiceNumber) {
+            Alert.alert("Eroare", "Te rog selectează furnizorul și introdu numărul facturii.");
+            return;
+        }
+        setStep(2);
+    };
+
+    // --- PASUL 2: LOGICA SCANARE ---
+    const openScanner = async () => {
         if (!permission?.granted) await requestPermission();
         setScannerVisible(true);
     };
 
     const handleBarCodeScanned = async ({ data }) => {
-        // Pauză scanare pentru procesare
         setScannerVisible(false);
-        setScannedCode(data);
-        Vibration.vibrate();
+        findProduct(data);
+    };
 
+    const findProduct = async (term) => {
+        setLoading(true);
         try {
-            // 1. Căutăm produsul în baza de date
-            const { data: existingProd, error } = await supabase
+            const { data, error } = await supabase
                 .from('produse')
                 .select('*')
-                .eq('cod_bare', data)
+                .or(`cod_bare.eq.${term},nume.ilike.%${term}%`)
                 .maybeSingle();
 
-            if (existingProd) {
-                // CAZ A: Produsul EXISTĂ
-                setTempProduct(existingProd);
-                setIsNewProduct(false);
-                setTempQty(''); // Resetăm câmpul cantitate
-                setQtyModalVisible(true); // Deschidem modalul doar pentru cantitate
+            if (data) {
+                setCurrentProduct(data);
+                // Reset form
+                setQty('');
+                setPrice('');
+                setBatch('');
+                setHasExpDate(false);
+                setExpDate(new Date());
+                setModalVisible(true);
             } else {
-                // CAZ B: Produsul NU EXISTĂ -> Îl vom crea
-                setTempProduct({ cod_bare: data, nume: `PRODUS NOU - ${data}` });
-                setIsNewProduct(true);
-                setTempQty('');
-                setQtyModalVisible(true);
+                Alert.alert(
+                    "Produs Inexistent",
+                    "Acest produs nu există în nomenclator. Vrei să îl creezi?",
+                    [
+                        { text: "Nu", style: "cancel" },
+                        { text: "Da, Crează", onPress: () => navigation.navigate('AdminQuickAddScreen') }
+                    ]
+                );
             }
         } catch (err) {
-            Alert.alert("Eroare", "Nu am putut verifica produsul.");
-        }
-    };
-
-    // --- ADĂUGARE ÎN LISTA DE RECEPȚIE ---
-    const confirmAddItem = async () => {
-        if (!tempQty || parseInt(tempQty) <= 0) {
-            Alert.alert("Eroare", "Introdu o cantitate validă.");
-            return;
-        }
-
-        let productToAdd = tempProduct;
-
-        // Dacă e produs nou, îl creăm acum în Baza de Date
-        if (isNewProduct) {
-            setLoading(true);
-            const { data: newProd, error } = await supabase
-                .from('produse')
-                .insert([{
-                    nume: `PRODUS NOU - ${scannedCode}`, // Nume temporar
-                    cod_bare: scannedCode,
-                    stoc_depozit: 0,
-                    stoc_magazin: 0,
-                    pret_vanzare: 0 // Adminul va seta prețul
-                }])
-                .select()
-                .single();
-
-            setLoading(false);
-
-            if (error) {
-                Alert.alert("Eroare", "Nu s-a putut crea produsul nou în bază.");
-                return;
-            }
-            productToAdd = newProd;
-        }
-
-        // Adăugăm în coșul local
-        const existingInCart = cart.find(p => p.id === productToAdd.id);
-        if (existingInCart) {
-            // Dacă e deja în listă, adunăm cantitatea
-            setCart(cart.map(p => p.id === productToAdd.id ? { ...p, qty: parseInt(p.qty) + parseInt(tempQty) } : p));
-        } else {
-            setCart([...cart, { ...productToAdd, qty: parseInt(tempQty), price: '' }]);
-        }
-
-        // Închidem tot și resetăm
-        setQtyModalVisible(false);
-        setTempQty('');
-        setTempProduct(null);
-    };
-
-    // --- GESTIUNE COȘ ---
-    const removeCartItem = (id) => {
-        setCart(cart.filter(item => item.id !== id));
-    };
-
-    const updatePrice = (id, price) => {
-        setCart(cart.map(item => item.id === id ? { ...item, price: price } : item));
-    };
-
-    // --- SALVARE FINALĂ ---
-    const submitReceipt = async () => {
-        if (!selectedSupplier) return Alert.alert("Eroare", "Selectează un furnizor.");
-        if (!invoiceNumber) return Alert.alert("Eroare", "Introdu numărul facturii.");
-        if (cart.length === 0) return Alert.alert("Eroare", "Lista de recepție e goală.");
-
-        try {
-            setLoading(true);
-            const { data: { user } } = await supabase.auth.getUser();
-
-            // 1. Header Recepție
-            const { data: receipt, error: rError } = await supabase
-                .from('receptii')
-                .insert([{
-                    furnizor_id: selectedSupplier.id,
-                    user_id: user.id,
-                    serie_factura: invoiceSeries, // Câmp nou
-                    numar_factura: invoiceNumber,
-                    total_valoare: 0
-                }])
-                .select()
-                .single();
-
-            if (rError) throw rError;
-
-            // 2. Detalii Recepție
-            const details = cart.map(item => ({
-                receptie_id: receipt.id,
-                produs_id: item.id,
-                cantitate: parseInt(item.qty),
-                pret_achizitie: parseFloat(item.price) || 0
-            }));
-
-            const { error: dError } = await supabase.from('receptii_detalii').insert(details);
-            if (dError) throw dError;
-
-            Alert.alert("Succes", "Recepție salvată!");
-            navigation.goBack();
-
-        } catch (error) {
-            Alert.alert("Eroare", error.message);
+            Alert.alert("Eroare", "A apărut o problemă la căutare.");
         } finally {
             setLoading(false);
         }
     };
 
-    return (
-        <SafeAreaView style={styles.container}>
-            {/* 1. Header Simplificat */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}><ArrowLeft size={24} color="#1f2937" /></TouchableOpacity>
-                <Text style={styles.title}>Recepție Marfă</Text>
-            </View>
+    const addItemToReceipt = () => {
+        if (!qty || !price) {
+            Alert.alert("Eroare", "Introdu cantitatea și prețul de achiziție.");
+            return;
+        }
 
-            <View style={styles.content}>
+        const newItem = {
+            uniqueId: Date.now(), // ID temporar pt lista locală
+            ...currentProduct,
+            cantitate_intrata: parseInt(qty),
+            pret_achizitie: parseFloat(price.replace(',', '.')),
+            lot: batch || null,
+            data_expirare: hasExpDate ? expDate.toISOString().split('T')[0] : null
+        };
 
-                {/* 2. Selector Furnizor */}
-                <View style={styles.section}>
-                    <Text style={styles.label}>Furnizor:</Text>
+        setScannedItems([newItem, ...scannedItems]);
+        setModalVisible(false);
+        setManualSearch('');
+    };
+
+    const removeItem = (id) => {
+        setScannedItems(scannedItems.filter(item => item.uniqueId !== id));
+    };
+
+    // --- FINALIZARE RECEPȚIE (LOGICĂ ROBUSTĂ) ---
+    const submitReceipt = async () => {
+        if (scannedItems.length === 0) return Alert.alert("Eroare", "Nu ai scanat niciun produs.");
+        if (!selectedSupplier) return Alert.alert("Eroare", "Furnizorul s-a pierdut. Reia procesul.");
+
+        Alert.alert(
+            "Finalizare Recepție",
+            `Salvezi ${scannedItems.length} produse?`,
+            [
+                { text: "Anulează", style: "cancel" },
+                { text: "DA, Salvează", onPress: processSubmission }
+            ]
+        );
+    };
+
+    const processSubmission = async () => {
+        setLoading(true);
+        console.log("--> Începe salvarea recepției...");
+
+        try {
+            // 1. Verificăm Auth
+            const { data: { user }, error: userError } = await supabase.auth.getUser();
+            if (userError || !user) throw new Error("Nu ești autentificat!");
+
+            // 2. Creare Antet Recepție
+            const totalValoare = scannedItems.reduce((sum, item) => sum + (item.cantitate_intrata * item.pret_achizitie), 0);
+
+            const { data: receiptData, error: rError } = await supabase
+                .from('receptii')
+                .insert([{
+                    furnizor_id: selectedSupplier.id,
+                    user_id: user.id,
+                    serie_factura: invoiceSeries || '',
+                    numar_factura: invoiceNumber,
+                    total_valoare: totalValoare
+                }])
+                .select()
+                .single();
+
+            if (rError) throw new Error(`Eroare salvare antet: ${rError.message}`);
+            console.log("Antet creat ID:", receiptData.id);
+
+            // 3. Salvare Detalii și Update Stoc (Item cu Item)
+            for (const item of scannedItems) {
+                // A. Insert Detaliu
+                const { error: dError } = await supabase
+                    .from('receptii_detalii')
+                    .insert([{
+                        receptie_id: receiptData.id,
+                        produs_id: item.id,
+                        cantitate: item.cantitate_intrata,
+                        pret_achizitie: item.pret_achizitie,
+                        lot: item.lot,
+                        data_expirare: item.data_expirare
+                    }]);
+
+                if (dError) throw new Error(`Eroare la produsul ${item.nume}: ${dError.message}`);
+
+                // B. Update Stoc (Încercăm RPC, dacă nu merge, facem Update direct)
+                const { error: rpcError } = await supabase.rpc('increment_stock', {
+                    row_id: item.id,
+                    quantity: item.cantitate_intrata
+                });
+
+                if (rpcError) {
+                    console.log(`⚠️ RPC failed for ${item.nume}, trying direct update...`);
+                    // Fallback: Citim stocul curent și adăugăm
+                    const { data: currentProd } = await supabase
+                        .from('produse')
+                        .select('stoc_depozit')
+                        .eq('id', item.id)
+                        .single();
+
+                    const newStock = (currentProd?.stoc_depozit || 0) + item.cantitate_intrata;
+
+                    await supabase.from('produse').update({
+                        stoc_depozit: newStock,
+                        ultimul_pret_achizitie: item.pret_achizitie
+                    }).eq('id', item.id);
+                } else {
+                    // Dacă RPC a mers, actualizăm doar prețul de achiziție
+                    await supabase.from('produse')
+                        .update({ ultimul_pret_achizitie: item.pret_achizitie })
+                        .eq('id', item.id);
+                }
+            }
+
+            Alert.alert("Succes", "Recepția a fost salvată și stocul actualizat!");
+            navigation.goBack();
+
+        } catch (error) {
+            console.error("CRITICAL ERROR:", error);
+            Alert.alert("Eroare la Salvare", error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- DATE PICKER HANDLER ---
+    const onDateChange = (event, date) => {
+        if (Platform.OS === 'android') setShowDatePicker(false);
+        if (event.type === 'set' && date) setExpDate(date);
+        else if (event.type === 'dismissed') setShowDatePicker(false);
+    };
+
+    // --- RENDER ---
+    if (step === 1) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()}><ArrowLeft size={24} color="#374151" /></TouchableOpacity>
+                    <Text style={styles.title}>Recepție Nouă (1/2)</Text>
+                </View>
+
+                <View style={styles.formContainer}>
+                    <Text style={styles.label}>1. Selectează Furnizor</Text>
                     <FlatList
-                        horizontal
                         data={suppliers}
-                        showsHorizontalScrollIndicator={false}
                         keyExtractor={item => item.id.toString()}
-                        renderItem={({ item }) => (
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={{maxHeight: 80, marginBottom: 20}}
+                        renderItem={({item}) => (
                             <TouchableOpacity
-                                style={[styles.chip, selectedSupplier?.id === item.id && styles.activeChip]}
-                                onPress={() => setSelectedSupplier(item)}
+                                style={[styles.supplierCard, selectedSupplier?.id === item.id && styles.selectedCard]}
+                                onPress={() => handleSupplierSelect(item)}
                             >
-                                <Text style={[styles.chipText, selectedSupplier?.id === item.id && styles.activeChipText]}>
-                                    {item.nume}
-                                </Text>
+                                <Text style={[styles.supText, selectedSupplier?.id === item.id && {color:'white'}]}>{item.nume}</Text>
                             </TouchableOpacity>
                         )}
                     />
-                </View>
 
-                {/* 3. Date Factură (Serie & Număr) */}
-                <View style={styles.rowInputs}>
-                    <View style={{flex: 1}}>
-                        <Text style={styles.label}>Serie Factură</Text>
+                    <Text style={styles.label}>2. Detalii Factură</Text>
+                    <View style={styles.row}>
                         <TextInput
-                            style={styles.input}
-                            placeholder="Ex: F-RO"
+                            style={[styles.input, {flex:1}]}
+                            placeholder="Serie (Opțional)"
                             value={invoiceSeries}
                             onChangeText={setInvoiceSeries}
                         />
-                    </View>
-                    <View style={{flex: 1}}>
-                        <Text style={styles.label}>Număr Factură</Text>
                         <TextInput
-                            style={styles.input}
-                            placeholder="Ex: 12345"
+                            style={[styles.input, {flex:2}]}
+                            placeholder="Număr Factură *"
                             value={invoiceNumber}
                             onChangeText={setInvoiceNumber}
                             keyboardType="numeric"
                         />
                     </View>
-                </View>
 
-                {/* 4. Buton SCANARE MARE */}
-                <TouchableOpacity style={styles.scanBtn} onPress={startScanning}>
-                    <Barcode size={28} color="white" />
-                    <Text style={styles.scanBtnText}>SCANARE PRODUS</Text>
-                </TouchableOpacity>
-
-                {/* 5. Lista Produse Scanate */}
-                <FlatList
-                    data={cart}
-                    keyExtractor={item => item.id.toString()}
-                    contentContainerStyle={{ paddingBottom: 100 }}
-                    ListHeaderComponent={<Text style={styles.listHeader}>Produse pe Factură:</Text>}
-                    ListEmptyComponent={<Text style={styles.emptyText}>Scanează pentru a adăuga produse.</Text>}
-                    renderItem={({ item }) => (
-                        <View style={styles.cartItem}>
-                            <View style={{flex: 1}}>
-                                <Text style={styles.itemName}>{item.nume}</Text>
-                                <Text style={styles.itemCode}>{item.cod_bare}</Text>
-                            </View>
-
-                            <View style={styles.itemDetails}>
-                                <View style={styles.qtyBadge}>
-                                    <Text style={styles.qtyText}>{item.qty} buc</Text>
-                                </View>
-                                <TextInput
-                                    style={styles.priceInput}
-                                    placeholder="Preț Ach."
-                                    keyboardType="numeric"
-                                    value={item.price}
-                                    onChangeText={t => updatePrice(item.id, t)}
-                                />
-                                <TouchableOpacity onPress={() => removeCartItem(item.id)} style={{padding:5}}>
-                                    <Trash2 size={20} color="#ef4444" />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    )}
-                />
-            </View>
-
-            {/* Buton Salvare */}
-            <View style={styles.footer}>
-                {loading ? <ActivityIndicator color="#4F46E5" /> : (
-                    <TouchableOpacity style={styles.saveBtn} onPress={submitReceipt}>
-                        <FileText size={20} color="white" />
-                        <Text style={styles.saveBtnText}>FINALIZEAZĂ RECEPȚIA</Text>
+                    <TouchableOpacity style={styles.nextBtn} onPress={goToScanning}>
+                        <Text style={styles.btnText}>Continuă la Produse</Text>
+                        <ChevronDown size={20} color="white" style={{transform: [{rotate:'-90deg'}]}} />
                     </TouchableOpacity>
-                )}
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => setStep(1)}><ArrowLeft size={24} color="#374151" /></TouchableOpacity>
+                <View>
+                    <Text style={styles.title}>Scanare Produse (2/2)</Text>
+                    <Text style={styles.subtitle}>{selectedSupplier?.nume} - {invoiceNumber}</Text>
+                </View>
             </View>
 
-            {/* --- MODAL CANTITATE (Produs Nou sau Existent) --- */}
-            <Modal visible={qtyModalVisible} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>
-                            {isNewProduct ? "⚠️ PRODUS NOU DETECTAT" : "Produs Identificat"}
-                        </Text>
+            <View style={styles.scanArea}>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Caută manual sau scanează..."
+                    value={manualSearch}
+                    onChangeText={setManualSearch}
+                    onSubmitEditing={() => findProduct(manualSearch)}
+                />
+                <TouchableOpacity style={styles.scanBtn} onPress={openScanner}>
+                    <Barcode size={24} color="white" />
+                </TouchableOpacity>
+            </View>
 
-                        <View style={styles.modalProdInfo}>
-                            <Text style={styles.modalProdName}>
-                                {isNewProduct ? `Cod: ${scannedCode}` : tempProduct?.nume}
-                            </Text>
-                            {isNewProduct && (
-                                <Text style={styles.newProdHint}>
-                                    Acest produs va fi salvat în bază. Adminul va edita detaliile ulterior.
-                                </Text>
+            {loading && <ActivityIndicator size="large" color="#4F46E5" />}
+
+            <FlatList
+                data={scannedItems}
+                keyExtractor={item => item.uniqueId.toString()}
+                contentContainerStyle={{padding: 20}}
+                renderItem={({item}) => (
+                    <View style={styles.itemCard}>
+                        <View style={{flex:1}}>
+                            <Text style={styles.itemName}>{item.nume}</Text>
+                            <Text style={styles.itemSub}>{item.cantitate_intrata} buc x {item.pret_achizitie} RON</Text>
+                            {(item.lot || item.data_expirare) && (
+                                <View style={styles.metaBadge}>
+                                    <Text style={styles.metaText}>
+                                        {item.lot ? `Lot: ${item.lot} ` : ''}
+                                        {item.data_expirare ? `Exp: ${item.data_expirare}` : ''}
+                                    </Text>
+                                </View>
                             )}
                         </View>
+                        <TouchableOpacity onPress={() => removeItem(item.uniqueId)}>
+                            <Trash2 size={20} color="#ef4444" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+            />
 
-                        <Text style={styles.label}>Introdu Cantitatea Primită:</Text>
-                        <TextInput
-                            style={styles.modalInput}
-                            placeholder="0"
-                            keyboardType="numeric"
-                            autoFocus={true}
-                            value={tempQty}
-                            onChangeText={setTempQty}
-                        />
+            <View style={styles.footer}>
+                <View style={styles.totalBox}>
+                    <Text style={styles.totalLabel}>Total Factură:</Text>
+                    <Text style={styles.totalVal}>
+                        {scannedItems.reduce((acc, i) => acc + (i.cantitate_intrata * i.pret_achizitie), 0).toFixed(2)} RON
+                    </Text>
+                </View>
+                <TouchableOpacity style={styles.finishBtn} onPress={submitReceipt}>
+                    {loading ? <ActivityIndicator color="white"/> : (
+                        <>
+                            <Check size={24} color="white" />
+                            <Text style={styles.btnText}>Finalizează Recepția</Text>
+                        </>
+                    )}
+                </TouchableOpacity>
+            </View>
 
-                        <View style={styles.modalButtons}>
-                            <TouchableOpacity style={styles.cancelBtn} onPress={() => setQtyModalVisible(false)}>
-                                <Text style={styles.cancelText}>Anulează</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.confirmBtn} onPress={confirmAddItem}>
-                                <Text style={styles.confirmText}>ADAUGĂ</Text>
-                            </TouchableOpacity>
+            {/* MODAL CANTITATE & LOT */}
+            <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>{currentProduct?.nume}</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)}><X size={24} color="#374151" /></TouchableOpacity>
                         </View>
+
+                        <View style={styles.row}>
+                            <View style={{flex:1}}>
+                                <Text style={styles.inputLabel}>Cantitate</Text>
+                                <TextInput
+                                    style={styles.modalInput}
+                                    keyboardType="numeric"
+                                    value={qty}
+                                    onChangeText={setQty}
+                                    autoFocus
+                                    placeholder="0"
+                                />
+                            </View>
+                            <View style={{flex:1}}>
+                                <Text style={styles.inputLabel}>Preț Achiziție (RON)</Text>
+                                <TextInput
+                                    style={styles.modalInput}
+                                    keyboardType="numeric"
+                                    value={price}
+                                    onChangeText={setPrice}
+                                    placeholder="0.00"
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.divider} />
+
+                        {/* LOT SI EXPIRARE */}
+                        <Text style={styles.sectionHeader}>Informații Lot (Opțional)</Text>
+
+                        <View style={styles.formGroup}>
+                            <Text style={styles.inputLabel}>Număr Lot</Text>
+                            <TextInput
+                                style={styles.modalInputSecondary}
+                                value={batch}
+                                onChangeText={setBatch}
+                                placeholder="Ex: L2024-05"
+                            />
+                        </View>
+
+                        <View style={styles.dateRow}>
+                            <TouchableOpacity
+                                style={[styles.checkbox, hasExpDate && styles.checkboxActive]}
+                                onPress={() => setHasExpDate(!hasExpDate)}
+                            >
+                                {hasExpDate && <Check size={14} color="white" />}
+                            </TouchableOpacity>
+                            <Text style={{fontSize:14, color:'#374151'}}>Are dată de expirare?</Text>
+                        </View>
+
+                        {hasExpDate && (
+                            <TouchableOpacity style={styles.datePickerBtn} onPress={() => setShowDatePicker(true)}>
+                                <Calendar size={20} color="#4F46E5" />
+                                <Text style={styles.dateText}>
+                                    Expiră la: {expDate.toLocaleDateString('ro-RO')}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+
+                        {showDatePicker && (
+                            <DateTimePicker
+                                value={expDate}
+                                mode="date"
+                                onChange={onDateChange}
+                                minimumDate={new Date()}
+                            />
+                        )}
+
+                        <TouchableOpacity style={styles.addBtn} onPress={addItemToReceipt}>
+                            <Text style={styles.addBtnText}>Adaugă în Recepție</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
 
-            {/* --- MODAL CAMERA --- */}
+            {/* SCANNER CAMERA */}
             <Modal visible={scannerVisible} animationType="slide">
-                <View style={{flex: 1, backgroundColor: 'black'}}>
-                    <CameraView
-                        style={StyleSheet.absoluteFill}
-                        onBarcodeScanned={scannerVisible ? handleBarCodeScanned : undefined}
-                    />
-                    <TouchableOpacity style={styles.closeCamera} onPress={() => setScannerVisible(false)}>
-                        <X size={32} color="white" />
-                    </TouchableOpacity>
-
-                    <View style={styles.overlay}>
-                        <View style={styles.scanFrame} />
-                        <Text style={styles.scanText}>Încadrează codul de bare</Text>
-                    </View>
-                </View>
+                <CameraView
+                    style={StyleSheet.absoluteFill}
+                    onBarcodeScanned={scannerVisible ? handleBarCodeScanned : undefined}
+                />
+                <TouchableOpacity style={styles.closeCam} onPress={() => setScannerVisible(false)}>
+                    <X size={35} color="white" />
+                </TouchableOpacity>
             </Modal>
         </SafeAreaView>
     );
@@ -347,58 +459,57 @@ export default function InventoryReceipt({ navigation }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f9fafb' },
-    header: { flexDirection: 'row', alignItems: 'center', padding: 20, gap: 15, backgroundColor: 'white', elevation: 2 },
-    title: { fontSize: 20, fontWeight: 'bold' },
-    content: { padding: 20, flex: 1 },
+    header: { padding: 20, backgroundColor: 'white', flexDirection: 'row', gap: 15, alignItems: 'center', elevation: 2 },
+    title: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
+    subtitle: { fontSize: 12, color: '#6b7280' },
 
-    // Form
-    section: { marginBottom: 15 },
-    label: { fontWeight: '600', marginBottom: 5, color: '#374151', fontSize: 13 },
-    chip: { backgroundColor: '#e5e7eb', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10 },
-    activeChip: { backgroundColor: '#4F46E5' },
-    chipText: { color: '#374151' },
-    activeChipText: { color: 'white', fontWeight: 'bold' },
+    // Step 1
+    formContainer: { padding: 20 },
+    label: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 10, marginTop: 10 },
+    row: { flexDirection: 'row', gap: 10 },
+    input: { backgroundColor: 'white', borderWidth: 1, borderColor: '#d1d5db', padding: 12, borderRadius: 8, fontSize: 16 },
+    supplierCard: { padding: 15, backgroundColor: 'white', borderRadius: 10, marginRight: 10, borderWidth: 1, borderColor: '#e5e7eb', minWidth: 100, alignItems: 'center', justifyContent:'center' },
+    selectedCard: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
+    supText: { fontWeight: '600', color: '#374151' },
+    nextBtn: { backgroundColor: '#4F46E5', padding: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 30, gap: 10 },
+    btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 
-    rowInputs: { flexDirection: 'row', gap: 15, marginBottom: 15 },
-    input: { backgroundColor: 'white', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db' },
+    // Step 2
+    scanArea: { flexDirection: 'row', padding: 15, gap: 10 },
+    searchInput: { flex: 1, backgroundColor: 'white', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#e5e7eb' },
+    scanBtn: { backgroundColor: '#4F46E5', width: 50, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
 
-    // Scan Button
-    scanBtn: { backgroundColor: '#4F46E5', padding: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, marginBottom: 20, elevation: 3 },
-    scanBtnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+    itemCard: { backgroundColor: 'white', padding: 15, borderRadius: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 1 },
+    itemName: { fontWeight: 'bold', fontSize: 16, color: '#1f2937' },
+    itemSub: { color: '#6b7280', marginTop: 2 },
+    metaBadge: { backgroundColor: '#fef3c7', alignSelf:'flex-start', paddingHorizontal:6, paddingVertical:2, borderRadius:4, marginTop:4 },
+    metaText: { fontSize:10, color:'#b45309', fontWeight:'bold' },
 
-    // List
-    listHeader: { fontWeight: 'bold', marginBottom: 10, color: '#6b7280' },
-    emptyText: { textAlign: 'center', color: '#9ca3af', marginTop: 20 },
-    cartItem: { backgroundColor: 'white', padding: 12, borderRadius: 10, marginBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent:'space-between', elevation: 1 },
-    itemName: { fontWeight: 'bold', fontSize: 14, color: '#1f2937', maxWidth: '60%' },
-    itemCode: { color: '#6b7280', fontSize: 11 },
-    itemDetails: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    qtyBadge: { backgroundColor: '#e0e7ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-    qtyText: { color: '#4338ca', fontWeight: 'bold', fontSize: 12 },
-    priceInput: { backgroundColor: '#f3f4f6', padding: 8, borderRadius: 6, width: 70, textAlign: 'center', fontSize: 12 },
-
-    // Footer
     footer: { padding: 20, backgroundColor: 'white', borderTopWidth: 1, borderColor: '#e5e7eb' },
-    saveBtn: { backgroundColor: '#059669', padding: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-    saveBtnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+    totalBox: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+    totalLabel: { fontSize: 16, color: '#6b7280' },
+    totalVal: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
+    finishBtn: { backgroundColor: '#059669', padding: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
 
-    // Modal Qty
+    // Modal
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-    modalContent: { backgroundColor: 'white', borderRadius: 15, padding: 20 },
-    modalTitle: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
-    modalProdInfo: { backgroundColor: '#f9fafb', padding: 10, borderRadius: 8, marginBottom: 15 },
-    modalProdName: { fontWeight: 'bold', textAlign: 'center', fontSize: 16 },
-    newProdHint: { fontSize: 11, color: '#ea580c', textAlign: 'center', marginTop: 5 },
-    modalInput: { backgroundColor: '#f3f4f6', fontSize: 24, fontWeight: 'bold', textAlign: 'center', padding: 15, borderRadius: 10, marginBottom: 20 },
-    modalButtons: { flexDirection: 'row', gap: 10 },
-    cancelBtn: { flex: 1, padding: 15, alignItems: 'center' },
-    cancelText: { color: '#6b7280', fontWeight: 'bold' },
-    confirmBtn: { flex: 1, backgroundColor: '#4F46E5', padding: 15, borderRadius: 10, alignItems: 'center' },
-    confirmText: { color: 'white', fontWeight: 'bold' },
+    modalContent: { backgroundColor: 'white', borderRadius: 20, padding: 20 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold' },
+    inputLabel: { fontSize: 12, fontWeight: 'bold', color: '#6b7280', marginBottom: 5 },
+    modalInput: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 18, fontWeight: 'bold' },
+    modalInputSecondary: { backgroundColor: '#f9fafb', borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 10 },
 
-    // Camera
-    closeCamera: { position: 'absolute', top: 50, right: 20, backgroundColor: 'rgba(0,0,0,0.5)', padding: 8, borderRadius: 20 },
-    overlay: { position: 'absolute', bottom: 100, left: 0, right: 0, alignItems: 'center' },
-    scanFrame: { width: 250, height: 250, borderWidth: 2, borderColor: 'white', borderRadius: 20, marginBottom: 20 },
-    scanText: { color: 'white', fontWeight: 'bold', backgroundColor: 'rgba(0,0,0,0.5)', padding: 10, borderRadius: 8 }
+    divider: { height:1, backgroundColor:'#e5e7eb', marginVertical:15 },
+    sectionHeader: { fontSize:14, fontWeight:'bold', color:'#374151', marginBottom:10 },
+    dateRow: { flexDirection:'row', alignItems:'center', gap:10, marginBottom:10 },
+    checkbox: { width:20, height:20, borderRadius:4, borderWidth:2, borderColor:'#4F46E5', alignItems:'center', justifyContent:'center' },
+    checkboxActive: { backgroundColor:'#4F46E5' },
+    datePickerBtn: { flexDirection:'row', alignItems:'center', gap:10, backgroundColor:'#e0e7ff', padding:10, borderRadius:8 },
+    dateText: { color:'#4338ca', fontWeight:'bold' },
+
+    addBtn: { backgroundColor: '#4F46E5', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20 },
+    addBtnText: { color: 'white', fontWeight: 'bold' },
+
+    closeCam: { position: 'absolute', top: 50, right: 25, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 25, padding: 5 }
 });

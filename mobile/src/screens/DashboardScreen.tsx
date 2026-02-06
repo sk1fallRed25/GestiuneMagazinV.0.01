@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase';
 import {
     LogOut, Package, ClipboardCheck, SearchCheck,
     AlertOctagon, ClipboardList, Settings, UserCircle,
-    Users, Truck, BarChart3, FileWarning, ScrollText, ScanBarcode
+    Users, Truck, BarChart3, FileWarning, ScrollText, ScanBarcode, RotateCcw
 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -152,7 +152,7 @@ export default function DashboardScreen({ navigation }) {
                         <Text style={styles.sectionTitle}>Panou Administrator</Text>
                         <View style={styles.grid}>
 
-                            {/* BUTON NOU: SCANARE RAPIDĂ */}
+                            {/* BUTON: SCANARE RAPIDĂ */}
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminQuickAddScreen')}>
                                 <View style={[styles.iconBox, { backgroundColor: '#e0e7ff' }]}>
                                     <ScanBarcode size={28} color="#4F46E5" />
@@ -160,11 +160,20 @@ export default function DashboardScreen({ navigation }) {
                                 <Text style={styles.cardTitle}>Scanare Rapidă</Text>
                             </TouchableOpacity>
 
+                            {/* BUTON: LISTA PRODUSE */}
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ProductsList')}>
                                 <View style={[styles.iconBox, { backgroundColor: '#f1f5f9' }]}>
                                     <Package size={28} color="#475569" />
                                 </View>
                                 <Text style={styles.cardTitle}>Listă Produse</Text>
+                            </TouchableOpacity>
+
+                            {/* BUTON NOU: RETUR FURNIZOR */}
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('SupplierReturnsScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#fee2e2' }]}>
+                                    <RotateCcw size={28} color="#ef4444" />
+                                </View>
+                                <Text style={styles.cardTitle}>Retur Furnizor</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ReportsScreen')}>

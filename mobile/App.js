@@ -25,7 +25,8 @@ import ReportsScreen from './src/screens/ReportsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import AdminLogsScreen from './src/screens/AdminLogsScreen';
 import ReceiptsHistoryScreen from './src/screens/ReceiptsHistoryScreen';
-import AdminQuickAddScreen from './src/screens/AdminQuickAddScreen'; // <--- IMPORT NOU
+import AdminQuickAddScreen from './src/screens/AdminQuickAddScreen';
+import SupplierReturnsScreen from './src/screens/SupplierReturnsScreen'; // <--- IMPORT NOU
 
 const Stack = createNativeStackNavigator();
 
@@ -108,6 +109,7 @@ export default function App() {
                         <Stack.Screen name="AdminLogsScreen" component={AdminLogsScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="ReceiptsHistoryScreen" component={ReceiptsHistoryScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="AdminQuickAddScreen" component={AdminQuickAddScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="SupplierReturnsScreen" component={SupplierReturnsScreen} options={{ headerShown: false }} />
                     </>
                 )}
             </Stack.Navigator>

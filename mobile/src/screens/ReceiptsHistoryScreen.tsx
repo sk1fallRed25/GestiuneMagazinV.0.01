@@ -4,7 +4,7 @@ import {
     SafeAreaView, Modal, RefreshControl
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, FileText, X, ChevronRight, User } from 'lucide-react-native';
+import { ArrowLeft, FileText, X, ChevronRight, User, Calendar, Package } from 'lucide-react-native';
 
 export default function ReceiptsHistoryScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
@@ -17,32 +17,22 @@ export default function ReceiptsHistoryScreen({ navigation }) {
     const [loadingDetails, setLoadingDetails] = useState(false);
 
     useEffect(() => {
-        // 1. Încărcare inițială
         fetchReceipts();
 
-        // 2. ACTIVARE REALTIME (Actualizare Live)
-        console.log("📡 Se ascultă recepții noi...");
         const channel = supabase.channel('receipts-history-live')
             .on(
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'receptii' },
-                (payload) => {
-                    console.log('⚡ Recepție nouă în istoric! Reîmprospătare...');
-                    fetchReceipts(); // Reîncărcăm lista pentru a vedea noua intrare
-                }
+                () => { fetchReceipts(); }
             )
             .subscribe();
 
-        // 3. Curățenie la ieșire
-        return () => {
-            supabase.removeChannel(channel);
-        };
+        return () => { supabase.removeChannel(channel); };
     }, []);
 
     const fetchReceipts = async () => {
-        // Nu mai punem setLoading(true) aici pentru a nu face ecranul să "pâlpâie" la fiecare update live
-        // Doar la prima încărcare (când lista e goală) vrem spinner
         try {
+            // Aducem recepțiile + numele furnizorului + numele utilizatorului
             const { data, error } = await supabase
                 .from('receptii')
                 .select(`
@@ -55,7 +45,7 @@ export default function ReceiptsHistoryScreen({ navigation }) {
             if (error) throw error;
             setReceipts(data || []);
         } catch (error) {
-            console.error("Eroare la incarcare receptii:", error.message);
+            console.error("Eroare incarcare receptii:", error.message);
         } finally {
             setLoading(false);
         }
@@ -67,6 +57,7 @@ export default function ReceiptsHistoryScreen({ navigation }) {
         setLoadingDetails(true);
 
         try {
+            // Aici selectăm TOATE coloanele (*), deci și 'lot' și 'data_expirare' sunt incluse
             const { data, error } = await supabase
                 .from('receptii_detalii')
                 .select(`
@@ -85,7 +76,10 @@ export default function ReceiptsHistoryScreen({ navigation }) {
     };
 
     const renderReceiptItem = ({ item }) => {
-        const date = new Date(item.created_at).toLocaleDateString('ro-RO');
+        // Fallback pentru dată dacă created_at e null (deși l-am reparat)
+        const rawDate = item.created_at || new Date().toISOString();
+        const date = new Date(rawDate).toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' });
+
         const supplierName = item.furnizori?.nume || 'Furnizor Necunoscut';
         const userLabel = item.utilizatori?.nume || item.utilizatori?.email?.split('@')[0] || 'N/A';
 
@@ -128,7 +122,7 @@ export default function ReceiptsHistoryScreen({ navigation }) {
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <ArrowLeft size={24} color="#1f2937" />
                 </TouchableOpacity>
-                <Text style={styles.title}>Istoric Recepții (Live)</Text>
+                <Text style={styles.title}>Istoric Recepții</Text>
             </View>
 
             {loading ? <ActivityIndicator size="large" color="#4F46E5" style={{marginTop: 50}} /> : (
@@ -170,9 +164,9 @@ export default function ReceiptsHistoryScreen({ navigation }) {
                                     </Text>
                                 </View>
                                 <View style={styles.summaryRow}>
-                                    <Text style={styles.summaryLabel}>Dată:</Text>
-                                    <Text style={styles.summaryValue}>
-                                        {new Date(selectedReceipt.created_at).toLocaleDateString('ro-RO')}
+                                    <Text style={styles.summaryLabel}>Total:</Text>
+                                    <Text style={[styles.summaryValue, {color: '#166534'}]}>
+                                        {selectedReceipt.total_valoare?.toFixed(2)} RON
                                     </Text>
                                 </View>
                             </View>
@@ -190,6 +184,25 @@ export default function ReceiptsHistoryScreen({ navigation }) {
                                         <View style={{flex:1}}>
                                             <Text style={styles.prodName}>{item.produse?.nume || 'Produs Șters'}</Text>
                                             <Text style={styles.prodCode}>{item.produse?.cod_bare}</Text>
+
+                                            {/* --- AICI AFIȘĂM LOTUL ȘI EXPIRAREA --- */}
+                                            {(item.lot || item.data_expirare) && (
+                                                <View style={styles.badgesContainer}>
+                                                    {item.lot && (
+                                                        <View style={[styles.badge, {backgroundColor: '#fef3c7'}]}>
+                                                            <Package size={10} color="#d97706" />
+                                                            <Text style={[styles.badgeText, {color: '#d97706'}]}>Lot: {item.lot}</Text>
+                                                        </View>
+                                                    )}
+                                                    {item.data_expirare && (
+                                                        <View style={[styles.badge, {backgroundColor: '#fee2e2'}]}>
+                                                            <Calendar size={10} color="#dc2626" />
+                                                            <Text style={[styles.badgeText, {color: '#dc2626'}]}>Exp: {item.data_expirare}</Text>
+                                                        </View>
+                                                    )}
+                                                </View>
+                                            )}
+
                                         </View>
                                         <View style={styles.qtyBox}>
                                             <Text style={styles.qtyText}>+{item.cantitate} buc</Text>
@@ -241,6 +254,12 @@ const styles = StyleSheet.create({
     detailItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#f3f4f6' },
     prodName: { fontWeight: '600', color: '#1f2937', fontSize: 14 },
     prodCode: { fontSize: 12, color: '#9ca3af' },
+
+    // BADGES STYLES
+    badgesContainer: { flexDirection: 'row', gap: 8, marginTop: 4 },
+    badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 4 },
+    badgeText: { fontSize: 10, fontWeight: 'bold' },
+
     qtyBox: { alignItems: 'flex-end' },
     qtyText: { color: '#166534', fontWeight: 'bold', fontSize: 14 },
     priceText: { color: '#6b7280', fontSize: 11 }
