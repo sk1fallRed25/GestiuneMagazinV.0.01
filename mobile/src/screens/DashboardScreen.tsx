@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase';
 import {
     LogOut, Package, ClipboardCheck, SearchCheck,
     AlertOctagon, ClipboardList, Settings, UserCircle,
-    Users, Truck, BarChart3, FileWarning, ScrollText
+    Users, Truck, BarChart3, FileWarning, ScrollText, ScanBarcode
 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -49,10 +49,9 @@ export default function DashboardScreen({ navigation }) {
 
     const isAdmin = userData.role === 'admin';
 
-    // --- 2. NOTIFICĂRI ADMIN ---
+    // --- 2. NOTIFICĂRI ADMIN (Realtime) ---
     useEffect(() => {
         if (!isAdmin) return;
-        console.log("🔔 Sistemul de notificări este activ.");
 
         const channel = supabase.channel('dashboard-alerts')
             .on(
@@ -109,8 +108,7 @@ export default function DashboardScreen({ navigation }) {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
-                {/* --- FLUX OPERAȚIONAL (GESTIONAR) --- */}
-                {/* Acum sunt doar 4 butoane, așezate 2 câte 2 */}
+                {/* --- FLUX OPERAȚIONAL (GESTIONAR & ADMIN) --- */}
                 <Text style={styles.sectionTitle}>Gestiune Depozit</Text>
                 <View style={styles.grid}>
 
@@ -146,7 +144,6 @@ export default function DashboardScreen({ navigation }) {
                         <Text style={styles.cardSubtitle}>Corecție Stoc</Text>
                     </TouchableOpacity>
 
-                    {/* AICI AM ELIMINAT NOMENCLATORUL */}
                 </View>
 
                 {/* --- ZONA ADMIN --- */}
@@ -155,18 +152,19 @@ export default function DashboardScreen({ navigation }) {
                         <Text style={styles.sectionTitle}>Panou Administrator</Text>
                         <View style={styles.grid}>
 
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminLogsScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#fee2e2' }]}>
-                                    <FileWarning size={28} color="#dc2626" />
+                            {/* BUTON NOU: SCANARE RAPIDĂ */}
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminQuickAddScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#e0e7ff' }]}>
+                                    <ScanBarcode size={28} color="#4F46E5" />
                                 </View>
-                                <Text style={styles.cardTitle}>Jurnal Probleme</Text>
+                                <Text style={styles.cardTitle}>Scanare Rapidă</Text>
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ReceiptsHistoryScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#e0e7ff' }]}>
-                                    <ScrollText size={28} color="#4338ca" />
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ProductsList')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#f1f5f9' }]}>
+                                    <Package size={28} color="#475569" />
                                 </View>
-                                <Text style={styles.cardTitle}>Istoric Recepții</Text>
+                                <Text style={styles.cardTitle}>Listă Produse</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ReportsScreen')}>
@@ -176,12 +174,18 @@ export default function DashboardScreen({ navigation }) {
                                 <Text style={styles.cardTitle}>Rapoarte</Text>
                             </TouchableOpacity>
 
-                            {/* AM MUTAT NOMENCLATORUL AICI (Doar Adminul editează produse) */}
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ProductsList')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#f1f5f9' }]}>
-                                    <Package size={28} color="#475569" />
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ReceiptsHistoryScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#ffedd5' }]}>
+                                    <ScrollText size={28} color="#ea580c" />
                                 </View>
-                                <Text style={styles.cardTitle}>Produse</Text>
+                                <Text style={styles.cardTitle}>Istoric Recepții</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminLogsScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#fee2e2' }]}>
+                                    <FileWarning size={28} color="#dc2626" />
+                                </View>
+                                <Text style={styles.cardTitle}>Jurnal Probleme</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('TeamScreen')}>
@@ -192,8 +196,8 @@ export default function DashboardScreen({ navigation }) {
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('SupplierScreens')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#ffedd5' }]}>
-                                    <Truck size={28} color="#ea580c" />
+                                <View style={[styles.iconBox, { backgroundColor: '#ccfbf1' }]}>
+                                    <Truck size={28} color="#0d9488" />
                                 </View>
                                 <Text style={styles.cardTitle}>Furnizori</Text>
                             </TouchableOpacity>

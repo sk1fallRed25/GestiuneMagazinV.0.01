@@ -16,15 +16,16 @@ import InventoryReceipt from './src/screens/InventoryReceipt';
 import StockCheckScreen from './src/screens/StockCheckScreen';
 import ScrapScreen from './src/screens/ScrapScreen';
 import InventoryAuditScreen from './src/screens/InventoryAuditScreen';
-import ProductsListScreen from './src/screens/ProductsListScreen';
 
 // --- MODULE ADMINISTRATOR (MANAGEMENT) ---
+import ProductsListScreen from './src/screens/ProductsListScreen';
 import TeamScreen from './src/screens/TeamScreen';
 import SupplierScreens from './src/screens/SupplierScreens';
 import ReportsScreen from './src/screens/ReportsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import AdminLogsScreen from './src/screens/AdminLogsScreen';
-import ReceiptsHistoryScreen from './src/screens/ReceiptsHistoryScreen'; // <--- ECRAN NOU
+import ReceiptsHistoryScreen from './src/screens/ReceiptsHistoryScreen';
+import AdminQuickAddScreen from './src/screens/AdminQuickAddScreen'; // <--- IMPORT NOU
 
 const Stack = createNativeStackNavigator();
 
@@ -36,14 +37,12 @@ export default function App() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // 1. Verificăm sesiunea inițială cu protecție la erori
         const checkSession = async () => {
             try {
                 const { data: { session }, error } = await supabase.auth.getSession();
 
                 if (error) {
                     console.log("⚠️ Eroare sesiune:", error.message);
-                    // Dacă tokenul e invalid, forțăm logout pentru a nu bloca aplicația
                     if (error.message.includes("Refresh Token")) {
                         await supabase.auth.signOut();
                         setSession(null);
@@ -60,10 +59,8 @@ export default function App() {
 
         checkSession();
 
-        // 2. Ascultăm schimbările de stare (login/logout/token refresh)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (_event === 'TOKEN_REFRESH_REVOKED') {
-                console.log('Token revocat! Delogare...');
                 setSession(null);
             } else {
                 setSession(session);
@@ -86,30 +83,31 @@ export default function App() {
         <NavigationContainer>
             <Stack.Navigator screenOptions={{ headerShown: true, headerBackTitleVisible: false }}>
                 {!session ? (
-                    // --- STIVA PUBLICĂ (NEAUTENTIFICAT) ---
+                    // --- STIVA PUBLICĂ ---
                     <>
                         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Creare Cont' }} />
                     </>
                 ) : (
-                    // --- STIVA PRIVATĂ (AUTENTIFICAT) ---
+                    // --- STIVA PRIVATĂ ---
                     <>
                         <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
 
-                        {/* Rute Gestionar (Accesibile Tuturor) */}
+                        {/* Rute Gestionar */}
                         <Stack.Screen name="InventoryReceipt" component={InventoryReceipt} options={{ headerShown: false }} />
                         <Stack.Screen name="StockCheckScreen" component={StockCheckScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="ScrapScreen" component={ScrapScreen} options={{ title: 'Raportare Pierderi' }} />
-                        <Stack.Screen name="InventoryAuditScreen" component={InventoryAuditScreen} options={{ title: 'Inventar Rapid' }} />
-                        <Stack.Screen name="ProductsList" component={ProductsListScreen} options={{ title: 'Nomenclator Produse' }} />
+                        <Stack.Screen name="InventoryAuditScreen" component={InventoryAuditScreen} options={{ headerShown: false }} />
 
-                        {/* Rute Admin (Doar Administratori) */}
+                        {/* Rute Admin */}
+                        <Stack.Screen name="ProductsList" component={ProductsListScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="TeamScreen" component={TeamScreen} options={{ title: 'Gestionare Echipă' }} />
                         <Stack.Screen name="SupplierScreens" component={SupplierScreens} options={{ title: 'Furnizori' }} />
                         <Stack.Screen name="ReportsScreen" component={ReportsScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="SettingsScreen" component={SettingsScreen} options={{ title: 'Setări Sistem' }} />
                         <Stack.Screen name="AdminLogsScreen" component={AdminLogsScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="ReceiptsHistoryScreen" component={ReceiptsHistoryScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="AdminQuickAddScreen" component={AdminQuickAddScreen} options={{ headerShown: false }} />
                     </>
                 )}
             </Stack.Navigator>
