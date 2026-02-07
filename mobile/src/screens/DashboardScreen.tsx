@@ -8,7 +8,8 @@ import { supabase } from '../lib/supabase';
 import {
     LogOut, Package, ClipboardCheck, SearchCheck,
     AlertOctagon, ClipboardList, Settings, UserCircle,
-    Users, Truck, BarChart3, FileWarning, ScrollText, ScanBarcode, RotateCcw
+    Users, Truck, BarChart3, FileWarning, ScrollText,
+    ScanBarcode, RotateCcw, Briefcase, FileCheck
 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -36,7 +37,7 @@ export default function DashboardScreen({ navigation }) {
 
                 setUserData({
                     email: user.email,
-                    role: data?.rol || 'gestionar',
+                    role: data?.rol || '',
                     name: data?.nume || user.email.split('@')[0]
                 });
             }
@@ -47,35 +48,26 @@ export default function DashboardScreen({ navigation }) {
         }
     };
 
+    // --- 2. LOGICĂ PERMISIUNI ---
     const isAdmin = userData.role === 'admin';
+    const isGestionar = userData.role === 'gestionar';
+    const isAgent = userData.role && userData.role.toLowerCase().includes('agent');
 
-    // --- 2. NOTIFICĂRI ADMIN (Realtime) ---
+    // Depozitul îl văd Adminul și Gestionarul
+    const canViewWarehouse = isAdmin || isGestionar;
+
+    // --- 3. NOTIFICĂRI ADMIN (Comenzi Noi) ---
     useEffect(() => {
         if (!isAdmin) return;
 
         const channel = supabase.channel('dashboard-alerts')
             .on(
                 'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'receptii' },
+                { event: 'INSERT', schema: 'public', table: 'comenzi_aprovizionare' },
                 async (payload) => {
-                    let providerName = 'Necunoscut';
-                    try {
-                        const { data } = await supabase
-                            .from('furnizori')
-                            .select('nume')
-                            .eq('id', payload.new.furnizor_id)
-                            .single();
-                        if (data) providerName = data.nume;
-                    } catch (e) {}
-
-                    Alert.alert(
-                        "📦 Recepție Nouă!",
-                        `S-a finalizat o recepție.\n\nFurnizor: ${providerName}\nFactura: ${payload.new.serie_factura || ''} ${payload.new.numar_factura}`,
-                        [
-                            { text: "Vezi Istoric", onPress: () => navigation.navigate('ReceiptsHistoryScreen') },
-                            { text: "OK" }
-                        ]
-                    );
+                    // Notificare discretă sau Alert
+                    console.log("Comandă nouă primită!", payload);
+                    // Opțional: Poți pune un badge roșu pe buton (necesită extra state)
                 }
             )
             .subscribe();
@@ -85,19 +77,26 @@ export default function DashboardScreen({ navigation }) {
 
     if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#4F46E5" /></View>;
 
+    const getBadgeColor = () => {
+        if (isAdmin) return '#4F46E5';
+        if (isGestionar) return '#059669';
+        if (isAgent) return '#0ea5e9';
+        return '#6b7280';
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             {/* HEADER */}
             <View style={styles.header}>
                 <View style={styles.userInfo}>
                     <View style={styles.avatar}>
-                        <UserCircle size={32} color={isAdmin ? "#4F46E5" : "#059669"} />
+                        <UserCircle size={32} color={getBadgeColor()} />
                     </View>
                     <View>
                         <Text style={styles.welcomeText}>Bine ai venit,</Text>
                         <Text style={styles.userName}>{userData.name}</Text>
-                        <View style={[styles.badge, { backgroundColor: isAdmin ? '#4F46E5' : '#059669' }]}>
-                            <Text style={styles.badgeText}>{userData.role.toUpperCase()}</Text>
+                        <View style={[styles.badge, { backgroundColor: getBadgeColor() }]}>
+                            <Text style={styles.badgeText}>{userData.role ? userData.role.toUpperCase() : 'UTILIZATOR'}</Text>
                         </View>
                     </View>
                 </View>
@@ -108,51 +107,85 @@ export default function DashboardScreen({ navigation }) {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
 
-                {/* --- FLUX OPERAȚIONAL (GESTIONAR & ADMIN) --- */}
-                <Text style={styles.sectionTitle}>Gestiune Depozit</Text>
-                <View style={styles.grid}>
+                {/* --- GESTIUNE DEPOZIT (Admin & Gestionar) --- */}
+                {canViewWarehouse && (
+                    <>
+                        <Text style={styles.sectionTitle}>Gestiune Depozit</Text>
+                        <View style={styles.grid}>
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('InventoryReceipt')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#d1fae5' }]}>
+                                    <ClipboardCheck size={32} color="#059669" />
+                                </View>
+                                <Text style={styles.cardTitle}>Recepție</Text>
+                                <Text style={styles.cardSubtitle}>Intrare Marfă</Text>
+                            </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('InventoryReceipt')}>
-                        <View style={[styles.iconBox, { backgroundColor: '#d1fae5' }]}>
-                            <ClipboardCheck size={32} color="#059669" />
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('StockCheckScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#e0e7ff' }]}>
+                                    <SearchCheck size={32} color="#4338ca" />
+                                </View>
+                                <Text style={styles.cardTitle}>Verificare</Text>
+                                <Text style={styles.cardSubtitle}>Transfer Raft</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ScrapScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#fee2e2' }]}>
+                                    <AlertOctagon size={32} color="#dc2626" />
+                                </View>
+                                <Text style={styles.cardTitle}>Pierderi</Text>
+                                <Text style={styles.cardSubtitle}>Deteriorate</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('InventoryAuditScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#f3e8ff' }]}>
+                                    <ClipboardList size={32} color="#7c3aed" />
+                                </View>
+                                <Text style={styles.cardTitle}>Inventar</Text>
+                                <Text style={styles.cardSubtitle}>Corecție Stoc</Text>
+                            </TouchableOpacity>
                         </View>
-                        <Text style={styles.cardTitle}>Recepție</Text>
-                        <Text style={styles.cardSubtitle}>Intrare Marfă</Text>
-                    </TouchableOpacity>
+                    </>
+                )}
 
-                    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('StockCheckScreen')}>
-                        <View style={[styles.iconBox, { backgroundColor: '#e0e7ff' }]}>
-                            <SearchCheck size={32} color="#4338ca" />
+                {/* --- PANOU AGENT --- */}
+                {isAgent && (
+                    <View style={styles.adminSection}>
+                        <Text style={styles.sectionTitle}>Panou Agent Furnizor</Text>
+                        <View style={styles.grid}>
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AgentSupplyOrderScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#e0f2fe' }]}>
+                                    <Package size={28} color="#0284c7" />
+                                </View>
+                                <Text style={styles.cardTitle}>Comandă Nouă</Text>
+                                <Text style={styles.cardSubtitle}>Către Magazin</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AgentSupplyHistoryScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#ffedd5' }]}>
+                                    <ScrollText size={28} color="#ea580c" />
+                                </View>
+                                <Text style={styles.cardTitle}>Istoric Comenzi</Text>
+                                <Text style={styles.cardSubtitle}>Status Livrări</Text>
+                            </TouchableOpacity>
                         </View>
-                        <Text style={styles.cardTitle}>Verificare</Text>
-                        <Text style={styles.cardSubtitle}>Transfer Raft</Text>
-                    </TouchableOpacity>
+                    </View>
+                )}
 
-                    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ScrapScreen')}>
-                        <View style={[styles.iconBox, { backgroundColor: '#fee2e2' }]}>
-                            <AlertOctagon size={32} color="#dc2626" />
-                        </View>
-                        <Text style={styles.cardTitle}>Pierderi</Text>
-                        <Text style={styles.cardSubtitle}>Deteriorate</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('InventoryAuditScreen')}>
-                        <View style={[styles.iconBox, { backgroundColor: '#f3e8ff' }]}>
-                            <ClipboardList size={32} color="#7c3aed" />
-                        </View>
-                        <Text style={styles.cardTitle}>Inventar</Text>
-                        <Text style={styles.cardSubtitle}>Corecție Stoc</Text>
-                    </TouchableOpacity>
-
-                </View>
-
-                {/* --- ZONA ADMIN --- */}
+                {/* --- PANOU ADMINISTRATOR --- */}
                 {isAdmin && (
                     <View style={styles.adminSection}>
                         <Text style={styles.sectionTitle}>Panou Administrator</Text>
                         <View style={styles.grid}>
 
-                            {/* BUTON: SCANARE RAPIDĂ */}
+                            {/* BUTON NOU: APROBARE COMENZI AGENTI */}
+                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminSupplyOrdersScreen')}>
+                                <View style={[styles.iconBox, { backgroundColor: '#fef3c7' }]}>
+                                    <FileCheck size={28} color="#d97706" />
+                                </View>
+                                <Text style={styles.cardTitle}>Comenzi Agenți</Text>
+                                <Text style={styles.cardSubtitle}>Aprobare</Text>
+                            </TouchableOpacity>
+
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminQuickAddScreen')}>
                                 <View style={[styles.iconBox, { backgroundColor: '#e0e7ff' }]}>
                                     <ScanBarcode size={28} color="#4F46E5" />
@@ -160,7 +193,6 @@ export default function DashboardScreen({ navigation }) {
                                 <Text style={styles.cardTitle}>Scanare Rapidă</Text>
                             </TouchableOpacity>
 
-                            {/* BUTON: LISTA PRODUSE */}
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ProductsList')}>
                                 <View style={[styles.iconBox, { backgroundColor: '#f1f5f9' }]}>
                                     <Package size={28} color="#475569" />
@@ -168,7 +200,6 @@ export default function DashboardScreen({ navigation }) {
                                 <Text style={styles.cardTitle}>Listă Produse</Text>
                             </TouchableOpacity>
 
-                            {/* BUTON NOU: RETUR FURNIZOR */}
                             <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('SupplierReturnsScreen')}>
                                 <View style={[styles.iconBox, { backgroundColor: '#fee2e2' }]}>
                                     <RotateCcw size={28} color="#ef4444" />
@@ -217,10 +248,19 @@ export default function DashboardScreen({ navigation }) {
                                 </View>
                                 <Text style={styles.cardTitle}>Setări</Text>
                             </TouchableOpacity>
-
                         </View>
                     </View>
                 )}
+
+                {/* --- EMPTY STATE --- */}
+                {!canViewWarehouse && !isAdmin && !isAgent && (
+                    <View style={styles.emptyState}>
+                        <Briefcase size={64} color="#d1d5db" />
+                        <Text style={styles.emptyTitle}>Panou {userData.role ? userData.role.toUpperCase() : 'UTILIZATOR'}</Text>
+                        <Text style={styles.emptyText}>Momentan nu există acțiuni disponibile.</Text>
+                    </View>
+                )}
+
             </ScrollView>
         </SafeAreaView>
     );
@@ -229,7 +269,6 @@ export default function DashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f8fafc' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
     header: {
         padding: 20, backgroundColor: 'white', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         borderBottomWidth: 1, borderColor: '#e2e8f0', elevation: 2
@@ -241,11 +280,9 @@ const styles = StyleSheet.create({
     badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginTop: 4, alignSelf: 'flex-start' },
     badgeText: { color: 'white', fontSize: 10, fontWeight: '800' },
     logoutBtn: { padding: 10, backgroundColor: '#fff1f2', borderRadius: 12 },
-
     scrollContent: { padding: 20, paddingBottom: 50 },
     sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1e293b', marginBottom: 15, marginTop: 10, marginLeft: 5 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-
     card: {
         width: (width - 55) / 2,
         backgroundColor: 'white',
@@ -259,6 +296,8 @@ const styles = StyleSheet.create({
     iconBox: { width: 50, height: 50, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
     cardTitle: { fontSize: 14, fontWeight: 'bold', color: '#334155', textAlign: 'center' },
     cardSubtitle: { fontSize: 11, color: '#94a3b8', marginTop: 2, textAlign: 'center' },
-
-    adminSection: { marginTop: 20, paddingTop: 10, borderTopWidth: 1, borderColor: '#e2e8f0' }
+    adminSection: { marginTop: 20, paddingTop: 10, borderTopWidth: 1, borderColor: '#e2e8f0' },
+    emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 50, padding: 20 },
+    emptyTitle: { fontSize: 18, fontWeight: 'bold', color: '#374151', marginTop: 20 },
+    emptyText: { textAlign: 'center', color: '#6b7280', marginTop: 10, lineHeight: 22 }
 });

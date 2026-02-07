@@ -1,38 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator,
-    SafeAreaView, Modal, RefreshControl
+    View, Text, StyleSheet, FlatList, TouchableOpacity,
+    Modal, SafeAreaView, ActivityIndicator, ScrollView
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, FileText, X, ChevronRight, User, Calendar, Package } from 'lucide-react-native';
+import {
+    ArrowLeft, Calendar, ChevronRight, FileText,
+    X, AlertTriangle, CheckCircle, Package
+} from 'lucide-react-native';
 
 export default function ReceiptsHistoryScreen({ navigation }) {
-    const [loading, setLoading] = useState(true);
     const [receipts, setReceipts] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // Detalii Modal
+    // Modal Detalii
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedReceipt, setSelectedReceipt] = useState(null);
-    const [receiptDetails, setReceiptDetails] = useState([]);
+    const [comparisonData, setComparisonData] = useState([]); // Aici ținem datele comparate
     const [loadingDetails, setLoadingDetails] = useState(false);
 
     useEffect(() => {
         fetchReceipts();
-
-        const channel = supabase.channel('receipts-history-live')
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'receptii' },
-                () => { fetchReceipts(); }
-            )
-            .subscribe();
-
-        return () => { supabase.removeChannel(channel); };
     }, []);
 
     const fetchReceipts = async () => {
         try {
-            // Aducem recepțiile + numele furnizorului + numele utilizatorului
             const { data, error } = await supabase
                 .from('receptii')
                 .select(`
@@ -44,30 +36,60 @@ export default function ReceiptsHistoryScreen({ navigation }) {
 
             if (error) throw error;
             setReceipts(data || []);
-        } catch (error) {
-            console.error("Eroare incarcare receptii:", error.message);
+        } catch (err) {
+            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    const openDetails = async (receipt) => {
-        setSelectedReceipt(receipt);
-        setModalVisible(true);
+    const fetchComparisonDetails = async (receipt) => {
         setLoadingDetails(true);
-
         try {
-            // Aici selectăm TOATE coloanele (*), deci și 'lot' și 'data_expirare' sunt incluse
-            const { data, error } = await supabase
+            // 1. Luăm ce s-a recepționat fizic
+            const { data: recLines } = await supabase
                 .from('receptii_detalii')
-                .select(`
-                    *,
-                    produse (nume, cod_bare)
-                `)
+                .select(`*, produse (nume, cod_bare)`)
                 .eq('receptie_id', receipt.id);
 
-            if (error) throw error;
-            setReceiptDetails(data || []);
+            let finalData = recLines.map(line => ({
+                ...line,
+                qty_ordered: null, // Inițial nu știm
+                diff: 0,
+                status: 'manual' // Presupunem recepție manuală
+            }));
+
+            // 2. Dacă recepția vine dintr-o comandă, luăm și comanda originală
+            if (receipt.comanda_aprovizionare_id) {
+                const { data: orderLines } = await supabase
+                    .from('comenzi_aprovizionare_detalii')
+                    .select('produs_id, cantitate_totala')
+                    .eq('comanda_id', receipt.comanda_aprovizionare_id);
+
+                // 3. Facem MERGE între cele două liste
+                finalData = finalData.map(recLine => {
+                    const ordLine = orderLines.find(o => o.produs_id === recLine.produs_id);
+                    const ordered = ordLine ? ordLine.cantitate_totala : 0;
+
+                    // Calculăm diferența (Scanat - Comandat)
+                    // Ex: Scanat 8, Comandat 10 => Diff -2
+                    const difference = recLine.cantitate_totala - ordered;
+
+                    let status = 'ok';
+                    if (difference < 0) status = 'missing';
+                    if (difference > 0) status = 'extra';
+                    if (!ordLine) status = 'unplanned'; // Nu era în comandă
+
+                    return {
+                        ...recLine,
+                        qty_ordered: ordered,
+                        diff: difference,
+                        status: status
+                    };
+                });
+            }
+
+            setComparisonData(finalData);
         } catch (err) {
             console.error(err);
         } finally {
@@ -75,42 +97,28 @@ export default function ReceiptsHistoryScreen({ navigation }) {
         }
     };
 
+    const openReceipt = (receipt) => {
+        setSelectedReceipt(receipt);
+        setModalVisible(true);
+        fetchComparisonDetails(receipt);
+    };
+
     const renderReceiptItem = ({ item }) => {
-        // Fallback pentru dată dacă created_at e null (deși l-am reparat)
-        const rawDate = item.created_at || new Date().toISOString();
-        const date = new Date(rawDate).toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', year: 'numeric' });
-
-        const supplierName = item.furnizori?.nume || 'Furnizor Necunoscut';
-        const userLabel = item.utilizatori?.nume || item.utilizatori?.email?.split('@')[0] || 'N/A';
-
+        const date = new Date(item.created_at).toLocaleDateString('ro-RO', {day: 'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
         return (
-            <TouchableOpacity style={styles.card} onPress={() => openDetails(item)}>
-                <View style={styles.cardHeader}>
-                    <View style={styles.iconContainer}>
-                        <FileText size={24} color="#4F46E5" />
-                    </View>
-
-                    <View style={styles.infoContainer}>
-                        <Text style={styles.supplierText}>{supplierName}</Text>
-
-                        <View style={styles.invoiceRow}>
-                            <Text style={styles.invoiceLabel}>Factura:</Text>
-                            <Text style={styles.invoiceValue}>
-                                {item.serie_factura ? `${item.serie_factura} ` : ''}{item.numar_factura}
-                            </Text>
-                        </View>
-
-                        <View style={styles.metaRow}>
-                            <Text style={styles.dateText}>{date}</Text>
-                            <Text style={styles.bullet}>•</Text>
-                            <View style={{flexDirection:'row', alignItems:'center', gap:4}}>
-                                <User size={10} color="#6b7280" />
-                                <Text style={styles.userText}>{userLabel}</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    <ChevronRight size={20} color="#9ca3af" />
+            <TouchableOpacity style={styles.card} onPress={() => openReceipt(item)}>
+                <View style={styles.iconContainer}>
+                    <FileText size={24} color="#4F46E5" />
+                </View>
+                <View style={{flex:1}}>
+                    <Text style={styles.supplier}>{item.furnizori?.nume || 'Furnizor Necunoscut'}</Text>
+                    <Text style={styles.invoice}>Factura: {item.serie_factura} {item.numar_factura}</Text>
+                    <Text style={styles.user}>Recepționat de: {item.utilizatori?.nume || 'Gestionar'}</Text>
+                </View>
+                <View style={{alignItems:'flex-end'}}>
+                    <Text style={styles.date}>{date}</Text>
+                    <Text style={styles.total}>{item.total_valoare?.toFixed(2)} RON</Text>
+                    <ChevronRight size={20} color="#ccc" style={{marginTop:5}}/>
                 </View>
             </TouchableOpacity>
         );
@@ -120,98 +128,94 @@ export default function ReceiptsHistoryScreen({ navigation }) {
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <ArrowLeft size={24} color="#1f2937" />
+                    <ArrowLeft size={24} color="#374151" />
                 </TouchableOpacity>
                 <Text style={styles.title}>Istoric Recepții</Text>
             </View>
 
-            {loading ? <ActivityIndicator size="large" color="#4F46E5" style={{marginTop: 50}} /> : (
+            {loading ? <ActivityIndicator size="large" color="#4F46E5" style={{marginTop:50}} /> : (
                 <FlatList
                     data={receipts}
                     keyExtractor={item => item.id.toString()}
                     renderItem={renderReceiptItem}
-                    contentContainerStyle={{ padding: 20 }}
-                    refreshControl={<RefreshControl refreshing={false} onRefresh={() => { setLoading(true); fetchReceipts(); }} />}
-                    ListEmptyComponent={
-                        <Text style={{textAlign:'center', marginTop: 50, color:'#9ca3af'}}>
-                            Nu există recepții înregistrate.
-                        </Text>
-                    }
+                    contentContainerStyle={{padding:20}}
+                    ListEmptyComponent={<Text style={styles.emptyText}>Nu există recepții.</Text>}
                 />
             )}
 
-            {/* MODAL DETALII */}
-            <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
+            {/* MODAL DETALII COMPARATIVE */}
+            <Modal visible={modalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Detalii Recepție</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
+                            <View>
+                                <Text style={styles.modalTitle}>Detalii Recepție</Text>
+                                <Text style={{fontSize:12, color:'#666'}}>
+                                    {selectedReceipt?.serie_factura} {selectedReceipt?.numar_factura}
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setModalVisible(false)}>
                                 <X size={24} color="#374151" />
                             </TouchableOpacity>
                         </View>
 
-                        {selectedReceipt && (
-                            <View style={styles.summaryBox}>
-                                <View style={styles.summaryRow}>
-                                    <Text style={styles.summaryLabel}>Furnizor:</Text>
-                                    <Text style={styles.summaryValue}>{selectedReceipt.furnizori?.nume}</Text>
-                                </View>
-                                <View style={styles.summaryRow}>
-                                    <Text style={styles.summaryLabel}>Factură:</Text>
-                                    <Text style={styles.summaryValue}>
-                                        {selectedReceipt.serie_factura} {selectedReceipt.numar_factura}
-                                    </Text>
-                                </View>
-                                <View style={styles.summaryRow}>
-                                    <Text style={styles.summaryLabel}>Total:</Text>
-                                    <Text style={[styles.summaryValue, {color: '#166534'}]}>
-                                        {selectedReceipt.total_valoare?.toFixed(2)} RON
-                                    </Text>
-                                </View>
-                            </View>
-                        )}
+                        <ScrollView>
+                            {loadingDetails ? <ActivityIndicator color="#4F46E5"/> : (
+                                comparisonData.map((item, index) => {
+                                    const isProblem = item.status === 'missing' || item.cantitate_defecte > 0;
 
-                        <Text style={styles.listTitle}>Produse Recepționate:</Text>
+                                    return (
+                                        <View key={index} style={[styles.detailRow, isProblem && {backgroundColor:'#fef2f2'}]}>
+                                            <View style={{flex:1}}>
+                                                <Text style={styles.prodName}>{item.produse?.nume}</Text>
 
-                        {loadingDetails ? <ActivityIndicator color="#4F46E5" style={{padding:20}} /> : (
-                            <FlatList
-                                data={receiptDetails}
-                                keyExtractor={item => item.id.toString()}
-                                style={{marginTop: 5}}
-                                renderItem={({ item }) => (
-                                    <View style={styles.detailItem}>
-                                        <View style={{flex:1}}>
-                                            <Text style={styles.prodName}>{item.produse?.nume || 'Produs Șters'}</Text>
-                                            <Text style={styles.prodCode}>{item.produse?.cod_bare}</Text>
+                                                {/* LINIA DE COMPARARE */}
+                                                {item.qty_ordered !== null ? (
+                                                    <View style={{flexDirection:'row', gap:10, marginTop:4}}>
+                                                        <Text style={{fontSize:12, color:'#374151'}}>
+                                                            Scanat: <Text style={{fontWeight:'bold'}}>{item.cantitate_totala}</Text>
+                                                        </Text>
+                                                        <Text style={{fontSize:12, color:'#6b7280'}}>
+                                                            / Comandat: {item.qty_ordered}
+                                                        </Text>
+                                                    </View>
+                                                ) : (
+                                                    <Text style={{fontSize:12, color:'#6b7280'}}>Recepție Manuală</Text>
+                                                )}
 
-                                            {/* --- AICI AFIȘĂM LOTUL ȘI EXPIRAREA --- */}
-                                            {(item.lot || item.data_expirare) && (
-                                                <View style={styles.badgesContainer}>
-                                                    {item.lot && (
-                                                        <View style={[styles.badge, {backgroundColor: '#fef3c7'}]}>
-                                                            <Package size={10} color="#d97706" />
-                                                            <Text style={[styles.badgeText, {color: '#d97706'}]}>Lot: {item.lot}</Text>
-                                                        </View>
-                                                    )}
-                                                    {item.data_expirare && (
-                                                        <View style={[styles.badge, {backgroundColor: '#fee2e2'}]}>
-                                                            <Calendar size={10} color="#dc2626" />
-                                                            <Text style={[styles.badgeText, {color: '#dc2626'}]}>Exp: {item.data_expirare}</Text>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                            )}
+                                                {/* INFO DEFECTE */}
+                                                {item.cantitate_defecte > 0 && (
+                                                    <Text style={{color:'#dc2626', fontSize:11, fontWeight:'bold', marginTop:2}}>
+                                                        ⚠️ {item.cantitate_defecte} Defecte: {item.motiv_refuz}
+                                                    </Text>
+                                                )}
+                                            </View>
 
+                                            {/* ZONA STATUS / DIFERENȚĂ */}
+                                            <View style={{alignItems:'flex-end'}}>
+                                                {item.status === 'missing' && (
+                                                    <View style={styles.diffBadgeBad}>
+                                                        <Text style={{color:'#dc2626', fontWeight:'bold', fontSize:12}}>
+                                                            Lipsă: {item.diff}
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                                {item.status === 'extra' && (
+                                                    <View style={styles.diffBadgeWarn}>
+                                                        <Text style={{color:'#d97706', fontWeight:'bold', fontSize:12}}>
+                                                            Plus: +{item.diff}
+                                                        </Text>
+                                                    </View>
+                                                )}
+                                                {item.status === 'ok' && item.cantitate_defecte === 0 && (
+                                                    <CheckCircle size={20} color="#059669" />
+                                                )}
+                                            </View>
                                         </View>
-                                        <View style={styles.qtyBox}>
-                                            <Text style={styles.qtyText}>+{item.cantitate} buc</Text>
-                                            <Text style={styles.priceText}>{item.pret_achizitie} RON</Text>
-                                        </View>
-                                    </View>
-                                )}
-                            />
-                        )}
+                                    );
+                                })
+                            )}
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>
@@ -222,45 +226,25 @@ export default function ReceiptsHistoryScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f8fafc' },
     header: { padding: 20, backgroundColor: 'white', flexDirection: 'row', gap: 15, alignItems: 'center', elevation: 2 },
-    title: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
+    title: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
 
-    card: { backgroundColor: 'white', padding: 15, borderRadius: 12, marginBottom: 12, elevation: 2, shadowColor:'#000', shadowOpacity:0.05, shadowRadius:5 },
-    cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 15 },
-    iconContainer: { backgroundColor: '#e0e7ff', padding: 12, borderRadius: 10, justifyContent:'center', alignItems:'center' },
-    infoContainer: { flex: 1 },
-
-    supplierText: { fontWeight: 'bold', fontSize: 16, color: '#1f2937', marginBottom: 2 },
-    invoiceRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
-    invoiceLabel: { fontSize: 13, color: '#6b7280' },
-    invoiceValue: { fontSize: 13, fontWeight: '700', color: '#374151' },
-
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    dateText: { fontSize: 11, color: '#9ca3af' },
-    bullet: { fontSize: 11, color: '#d1d5db' },
-    userText: { fontSize: 11, color: '#6b7280' },
+    card: { backgroundColor: 'white', padding: 15, borderRadius: 12, flexDirection: 'row', alignItems: 'center', marginBottom: 12, elevation: 1 },
+    iconContainer: { width: 45, height: 45, borderRadius: 25, backgroundColor: '#e0e7ff', alignItems: 'center', justifyContent: 'center', marginRight: 15 },
+    supplier: { fontWeight: 'bold', fontSize: 16, color: '#1f2937' },
+    invoice: { fontSize: 13, color: '#4b5563', marginVertical: 2 },
+    user: { fontSize: 11, color: '#9ca3af' },
+    date: { fontSize: 11, color: '#6b7280' },
+    total: { fontWeight: 'bold', color: '#059669', marginTop: 4 },
+    emptyText: { textAlign: 'center', marginTop: 50, color: '#999' },
 
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '85%', padding: 20 },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827' },
-    closeBtn: { padding: 5, backgroundColor:'#f3f4f6', borderRadius:20 },
+    modalContent: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '80%', padding: 20 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold' },
 
-    summaryBox: { backgroundColor: '#f9fafb', padding: 15, borderRadius: 12, marginBottom: 20, borderWidth:1, borderColor:'#f3f4f6' },
-    summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-    summaryLabel: { color: '#6b7280', fontSize: 14 },
-    summaryValue: { fontWeight: 'bold', color: '#1f2937', fontSize: 14 },
+    detailRow: { flexDirection: 'row', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#f3f4f6', paddingHorizontal: 5 },
+    prodName: { fontWeight: 'bold', fontSize: 14, color: '#374151' },
 
-    listTitle: { fontSize: 14, fontWeight: 'bold', color: '#374151', marginBottom: 10, marginLeft: 5 },
-    detailItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#f3f4f6' },
-    prodName: { fontWeight: '600', color: '#1f2937', fontSize: 14 },
-    prodCode: { fontSize: 12, color: '#9ca3af' },
-
-    // BADGES STYLES
-    badgesContainer: { flexDirection: 'row', gap: 8, marginTop: 4 },
-    badge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 4 },
-    badgeText: { fontSize: 10, fontWeight: 'bold' },
-
-    qtyBox: { alignItems: 'flex-end' },
-    qtyText: { color: '#166534', fontWeight: 'bold', fontSize: 14 },
-    priceText: { color: '#6b7280', fontSize: 11 }
+    diffBadgeBad: { backgroundColor: '#fee2e2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    diffBadgeWarn: { backgroundColor: '#fef3c7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }
 });

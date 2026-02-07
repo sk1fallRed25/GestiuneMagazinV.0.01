@@ -1,85 +1,151 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView } from 'react-native';
+import {
+    View, Text, StyleSheet, FlatList, TouchableOpacity,
+    ActivityIndicator, Alert, SafeAreaView
+} from 'react-native';
 import { supabase } from '../lib/supabase';
-import { UserCheck, UserX, Shield, Trash2, ArrowLeft } from 'lucide-react-native';
+import { User, Shield, Trash2, Mail, UserPlus } from 'lucide-react-native';
 
 export default function TeamScreen({ navigation }) {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => { fetchTeam(); }, []);
+    useEffect(() => {
+        fetchTeam();
+    }, []);
 
     const fetchTeam = async () => {
-        setLoading(true);
-        const { data, error } = await supabase.from('utilizatori').select('*').order('created_at', { ascending: false });
-        if (!error) setUsers(data);
-        setLoading(false);
+        try {
+            // Luăm toți utilizatorii din tabelul public 'utilizatori'
+            const { data, error } = await supabase
+                .from('utilizatori')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setUsers(data || []);
+        } catch (error) {
+            console.error("Eroare la incarcare echipa:", error.message);
+            Alert.alert("Eroare", "Nu am putut încărca lista de utilizatori.");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const toggleApprove = async (id, currentStatus) => {
-        const { error } = await supabase.from('utilizatori').update({ aprobat: !currentStatus }).eq('id', id);
-        if (!error) fetchTeam();
+    const deleteUser = async (userId, userName) => {
+        Alert.alert(
+            "Ștergere Utilizator",
+            `Ești sigur că vrei să ștergi accesul pentru ${userName}?`,
+            [
+                { text: "Anulează", style: "cancel" },
+                {
+                    text: "DA, Șterge",
+                    style: "destructive",
+                    onPress: async () => {
+                        // Ștergem doar din tabelul public (accesul în app).
+                        // Ștergerea din Auth (login efectiv) necesită funcții speciale de admin server-side,
+                        // dar ștergerea de aici îi va bloca accesul la date datorită RLS.
+                        const { error } = await supabase.from('utilizatori').delete().eq('id', userId);
+                        if (error) {
+                            Alert.alert("Eroare", error.message);
+                        } else {
+                            fetchTeam(); // Reîmprospătăm lista
+                        }
+                    }
+                }
+            ]
+        );
     };
 
-    const toggleRole = async (id, currentRole) => {
-        const newRole = currentRole === 'admin' ? 'gestionar' : 'admin';
-        const { error } = await supabase.from('utilizatori').update({ rol: newRole }).eq('id', id);
-        if (!error) fetchTeam();
-    };
+    const renderUserItem = ({ item }) => {
+        const isAdmin = item.rol === 'admin';
 
-    const renderItem = ({ item }) => (
-        <View style={styles.card}>
-            <View style={{flex: 1}}>
-                <Text style={styles.name}>{item.nume || 'Utilizator Nou'}</Text>
-                <Text style={styles.email}>{item.email}</Text>
-                <View style={{flexDirection: 'row', gap: 5, marginTop: 5}}>
-                    <View style={[styles.badge, { backgroundColor: item.rol === 'admin' ? '#4F46E5' : '#6b7280' }]}>
-                        <Text style={styles.badgeText}>{item.rol.toUpperCase()}</Text>
+        return (
+            <View style={styles.card}>
+                <View style={styles.avatarBox}>
+                    {isAdmin ? <Shield size={24} color="#4F46E5" /> : <User size={24} color="#059669" />}
+                </View>
+
+                <View style={styles.infoBox}>
+                    <Text style={styles.nameText}>{item.nume || 'Utilizator Fără Nume'}</Text>
+                    <View style={styles.row}>
+                        <Mail size={12} color="#6b7280" />
+                        <Text style={styles.emailText}>{item.email}</Text>
                     </View>
-                    <View style={[styles.badge, { backgroundColor: item.aprobat ? '#059669' : '#dc2626' }]}>
-                        <Text style={styles.badgeText}>{item.aprobat ? 'ACTIV' : 'PENDING'}</Text>
+                    <View style={[styles.badge, isAdmin ? styles.badgeAdmin : styles.badgeUser]}>
+                        <Text style={[styles.badgeText, isAdmin ? {color:'#4F46E5'} : {color:'#059669'}]}>
+                            {item.rol ? item.rol.toUpperCase() : 'GESTIONAR'}
+                        </Text>
                     </View>
                 </View>
-            </View>
 
-            <View style={styles.actions}>
-                <TouchableOpacity onPress={() => toggleApprove(item.id, item.aprobat)} style={[styles.iconBtn, {backgroundColor: item.aprobat ? '#fee2e2' : '#dcfce7'}]}>
-                    {item.aprobat ? <UserX size={20} color="#dc2626" /> : <UserCheck size={20} color="#166534" />}
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => toggleRole(item.id, item.rol)} style={[styles.iconBtn, {backgroundColor: '#e0e7ff'}]}>
-                    <Shield size={20} color="#4338ca" />
+                {/* Buton Ștergere (doar dacă nu e adminul curent - logică simplificată) */}
+                <TouchableOpacity onPress={() => deleteUser(item.id, item.nume)} style={styles.deleteBtn}>
+                    <Trash2 size={20} color="#ef4444" />
                 </TouchableOpacity>
             </View>
-        </View>
-    );
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}><ArrowLeft size={24} color="#1f2937" /></TouchableOpacity>
-                <Text style={styles.title}>Gestionare Echipă</Text>
-            </View>
-            {loading ? <ActivityIndicator size="large" color="#4F46E5" style={{marginTop: 20}} /> :
+            {loading ? (
+                <ActivityIndicator size="large" color="#4F46E5" style={{marginTop: 50}} />
+            ) : (
                 <FlatList
                     data={users}
-                    renderItem={renderItem}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={{padding: 20}}
+                    keyExtractor={item => item.id.toString()}
+                    renderItem={renderUserItem}
+                    contentContainerStyle={{ padding: 20 }}
+                    ListEmptyComponent={
+                        <Text style={styles.emptyText}>Nu există alți utilizatori în echipă.</Text>
+                    }
                 />
-            }
+            )}
+
+            {/* Buton plutitor pentru adăugare user (opțional, te duce la Register) */}
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={() => {
+                    Alert.alert("Info", "Pentru a adăuga un membru nou, acesta trebuie să își creeze cont din ecranul de start (Register), iar tu îl vei vedea aici.");
+                }}
+            >
+                <UserPlus size={24} color="white" />
+                <Text style={styles.fabText}>Adaugă</Text>
+            </TouchableOpacity>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f9fafb' },
-    header: { padding: 20, backgroundColor: 'white', flexDirection: 'row', gap: 15, alignItems: 'center', elevation: 2 },
-    title: { fontSize: 20, fontWeight: 'bold' },
-    card: { backgroundColor: 'white', padding: 15, marginBottom: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', elevation: 1 },
-    name: { fontWeight: 'bold', fontSize: 16 },
-    email: { color: '#6b7280', fontSize: 12 },
-    badge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-    badgeText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
-    actions: { flexDirection: 'row', gap: 10 },
-    iconBtn: { padding: 10, borderRadius: 8 }
+    container: { flex: 1, backgroundColor: '#f8fafc' },
+    card: {
+        flexDirection: 'row', alignItems: 'center', backgroundColor: 'white',
+        padding: 15, borderRadius: 12, marginBottom: 12,
+        elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5
+    },
+    avatarBox: {
+        width: 50, height: 50, borderRadius: 25, backgroundColor: '#f1f5f9',
+        justifyContent: 'center', alignItems: 'center', marginRight: 15
+    },
+    infoBox: { flex: 1 },
+    nameText: { fontSize: 16, fontWeight: 'bold', color: '#1f2937' },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+    emailText: { fontSize: 12, color: '#6b7280' },
+
+    badge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginTop: 5 },
+    badgeAdmin: { backgroundColor: '#e0e7ff' },
+    badgeUser: { backgroundColor: '#d1fae5' },
+    badgeText: { fontSize: 10, fontWeight: 'bold' },
+
+    deleteBtn: { padding: 10 },
+    emptyText: { textAlign: 'center', marginTop: 50, color: '#9ca3af' },
+
+    fab: {
+        position: 'absolute', bottom: 30, right: 20,
+        backgroundColor: '#4F46E5', flexDirection: 'row', alignItems: 'center',
+        paddingVertical: 12, paddingHorizontal: 20, borderRadius: 30,
+        elevation: 4, gap: 8
+    },
+    fabText: { color: 'white', fontWeight: 'bold' }
 });

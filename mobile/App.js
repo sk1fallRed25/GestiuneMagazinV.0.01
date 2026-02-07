@@ -26,11 +26,15 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import AdminLogsScreen from './src/screens/AdminLogsScreen';
 import ReceiptsHistoryScreen from './src/screens/ReceiptsHistoryScreen';
 import AdminQuickAddScreen from './src/screens/AdminQuickAddScreen';
-import SupplierReturnsScreen from './src/screens/SupplierReturnsScreen'; // <--- IMPORT NOU
+import SupplierReturnsScreen from './src/screens/SupplierReturnsScreen';
+
+// --- MODULE NOI (B2B / Agent & Aprobare) ---
+import AgentSupplyOrderScreen from './src/screens/AgentSupplyOrderScreen';
+import AgentSupplyHistoryScreen from './src/screens/AgentSupplyHistoryScreen';
+import AdminSupplyOrdersScreen from './src/screens/AdminSupplyOrdersScreen'; // <--- NOU
 
 const Stack = createNativeStackNavigator();
 
-// Ignorăm avertismentele minore de UI
 LogBox.ignoreLogs(['new NativeEventEmitter']);
 
 export default function App() {
@@ -41,9 +45,7 @@ export default function App() {
         const checkSession = async () => {
             try {
                 const { data: { session }, error } = await supabase.auth.getSession();
-
                 if (error) {
-                    console.log("⚠️ Eroare sesiune:", error.message);
                     if (error.message.includes("Refresh Token")) {
                         await supabase.auth.signOut();
                         setSession(null);
@@ -52,7 +54,7 @@ export default function App() {
                     setSession(session);
                 }
             } catch (err) {
-                console.error("Eroare neașteptată auth:", err);
+                console.error("Auth Error:", err);
             } finally {
                 setLoading(false);
             }
@@ -82,34 +84,44 @@ export default function App() {
 
     return (
         <NavigationContainer>
-            <Stack.Navigator screenOptions={{ headerShown: true, headerBackTitleVisible: false }}>
+            <Stack.Navigator
+                screenOptions={{
+                    headerShown: true,
+                    headerBackTitleVisible: false,
+                    headerTintColor: '#1f2937',
+                    headerTitleStyle: { fontWeight: 'bold' }
+                }}
+            >
                 {!session ? (
-                    // --- STIVA PUBLICĂ ---
                     <>
                         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Creare Cont' }} />
                     </>
                 ) : (
-                    // --- STIVA PRIVATĂ ---
                     <>
                         <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
 
-                        {/* Rute Gestionar */}
+                        {/* --- RUTE GESTIONAR --- */}
                         <Stack.Screen name="InventoryReceipt" component={InventoryReceipt} options={{ headerShown: false }} />
-                        <Stack.Screen name="StockCheckScreen" component={StockCheckScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="StockCheckScreen" component={StockCheckScreen} options={{ title: 'Verificare Stoc' }} />
                         <Stack.Screen name="ScrapScreen" component={ScrapScreen} options={{ title: 'Raportare Pierderi' }} />
-                        <Stack.Screen name="InventoryAuditScreen" component={InventoryAuditScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="InventoryAuditScreen" component={InventoryAuditScreen} options={{ title: 'Inventar' }} />
 
-                        {/* Rute Admin */}
-                        <Stack.Screen name="ProductsList" component={ProductsListScreen} options={{ headerShown: false }} />
+                        {/* --- RUTE ADMIN --- */}
+                        <Stack.Screen name="AdminSupplyOrdersScreen" component={AdminSupplyOrdersScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="ProductsList" component={ProductsListScreen} options={{ title: 'Catalog Produse' }} />
                         <Stack.Screen name="TeamScreen" component={TeamScreen} options={{ title: 'Gestionare Echipă' }} />
                         <Stack.Screen name="SupplierScreens" component={SupplierScreens} options={{ title: 'Furnizori' }} />
-                        <Stack.Screen name="ReportsScreen" component={ReportsScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="ReportsScreen" component={ReportsScreen} options={{ title: 'Rapoarte' }} />
                         <Stack.Screen name="SettingsScreen" component={SettingsScreen} options={{ title: 'Setări Sistem' }} />
-                        <Stack.Screen name="AdminLogsScreen" component={AdminLogsScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="AdminLogsScreen" component={AdminLogsScreen} options={{ title: 'Jurnal Erori' }} />
                         <Stack.Screen name="ReceiptsHistoryScreen" component={ReceiptsHistoryScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="AdminQuickAddScreen" component={AdminQuickAddScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="SupplierReturnsScreen" component={SupplierReturnsScreen} options={{ headerShown: false }} />
+
+                        {/* --- RUTE AGENT --- */}
+                        <Stack.Screen name="AgentSupplyOrderScreen" component={AgentSupplyOrderScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="AgentSupplyHistoryScreen" component={AgentSupplyHistoryScreen} options={{ title: 'Istoric Comenzi' }} />
                     </>
                 )}
             </Stack.Navigator>
