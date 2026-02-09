@@ -1,200 +1,242 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, TextInput, TouchableOpacity,
-    ActivityIndicator, SafeAreaView, Modal, Alert, ScrollView
+    View, Text, StyleSheet, FlatList, TouchableOpacity,
+    TextInput, Modal, Alert, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
 import {
-    Search, ArrowLeft, Camera, X, AlertOctagon, Trash2
+    ArrowLeft, Search, Trash2, X, AlertOctagon
 } from 'lucide-react-native';
 
-export default function ScrapScreen({ navigation }) {
-    const [query, setQuery] = useState('');
-    const [product, setProduct] = useState(null);
-    const [loading, setLoading] = useState(false);
+// --- PRIMIM PROPS-urile { navigation, route } ---
+export default function ScrapScreen({ navigation, route }) {
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
 
-    // Formular Deteriorare
-    const [qty, setQty] = useState('');
-    const [reason, setReason] = useState('Spart'); // Motiv default
-    const [source, setSource] = useState('depozit'); // Sursa default
+    const [modalVisible, setModalVisible] = useState(false);
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [scrapQty, setScrapQty] = useState('');
+    const [reason, setReason] = useState('');
 
-    const [permission, requestPermission] = useCameraPermissions();
-    const [scannerVisible, setScannerVisible] = useState(false);
+    useEffect(() => {
+        fetchProductsAndCheckParams();
+    }, []);
 
-    const reasons = ['Spart', 'Expirat', 'Desigilat', 'Defect Fabrica', 'Consum Protocol'];
-
-    const openScanner = async () => {
-        if (!permission?.granted) await requestPermission();
-        setScannerVisible(true);
-    };
-
-    const handleSearch = async (term) => {
-        if (!term || term.length < 3) return;
+    const fetchProductsAndCheckParams = async () => {
         setLoading(true);
-        setProduct(null);
         try {
             const { data, error } = await supabase
                 .from('produse')
                 .select('id, nume, cod_bare, stoc_depozit, stoc_magazin')
-                .or(`cod_bare.eq.${term},nume.ilike.%${term}%`)
-                .maybeSingle();
+                .order('nume');
 
             if (error) throw error;
-            if (data) setProduct(data);
-            else Alert.alert("Info", "Produsul nu a fost găsit.");
+            setProducts(data || []);
+
+            // --- LOGICĂ NOUĂ: VERIFICARE PARAMETRI DE LA EXPIRĂRI ---
+            // Dacă am venit din ecranul de Expirări, avem un 'preSelectedId'
+            if (route.params?.preSelectedId) {
+                const preSelected = data.find(p => p.id === route.params.preSelectedId);
+                if (preSelected) {
+                    // Deschidem automat modalul pentru acest produs
+                    openScrapModal(preSelected);
+                    // Pre-completăm motivul
+                    setReason("Produs Expirat");
+                }
+            }
+
         } catch (err) {
-            Alert.alert("Eroare", "Problemă la căutare.");
+            console.error(err);
         } finally {
             setLoading(false);
-            setScannerVisible(false);
         }
     };
 
-    const handleSubmit = async () => {
-        const quantity = parseInt(qty);
-        if (!quantity || quantity <= 0) return Alert.alert("Eroare", "Introduceți cantitatea.");
+    const openScrapModal = (prod) => {
+        setSelectedProduct(prod);
+        setScrapQty('');
+        setReason('');
+        setModalVisible(true);
+    };
 
-        // Verificare stoc disponibil
-        const currentStock = source === 'depozit' ? product.stoc_depozit : product.stoc_magazin;
-        if (quantity > currentStock) return Alert.alert("Eroare", `Nu poți scădea ${quantity} buc. Ai doar ${currentStock}.`);
+    const handleScrap = async () => {
+        const qty = parseInt(scrapQty);
+        if (!qty || qty <= 0) return Alert.alert("Eroare", "Cantitate invalidă");
+        if (!reason) return Alert.alert("Eroare", "Introdu motivul (ex: Expirat, Spart)");
+
+        // Verificăm stocul total (Depozit + Raft)
+        const totalStock = (selectedProduct.stoc_depozit || 0) + (selectedProduct.stoc_magazin || 0);
+
+        if (qty > totalStock) {
+            return Alert.alert("Eroare", `Nu poți scădea ${qty} buc. Stoc total disponibil: ${totalStock}`);
+        }
 
         setLoading(true);
         try {
-            const { error } = await supabase.rpc('inregistreaza_pierdere', {
-                p_produs_id: product.id,
-                p_cantitate: quantity,
-                p_motiv: reason,
-                p_sursa: source
-            });
+            // 1. Înregistrăm pierderea în tabelul 'pierderi'
+            const { error: logError } = await supabase
+                .from('pierderi')
+                .insert([{
+                    produs_id: selectedProduct.id,
+                    cantitate: qty,
+                    motiv: reason,
+                    data_pierdere: new Date()
+                }]);
 
-            if (error) throw error;
+            if (logError) throw logError;
 
-            Alert.alert("Succes", "Produsul a fost scos din stoc.");
-            navigation.goBack();
-        } catch (error) {
-            Alert.alert("Eroare", error.message);
+            // 2. Scădem din stoc
+            // Prioritizăm scăderea din Magazin (Raft), apoi din Depozit
+            let remainingToScrap = qty;
+            let newMagazin = selectedProduct.stoc_magazin || 0;
+            let newDepozit = selectedProduct.stoc_depozit || 0;
+
+            if (newMagazin >= remainingToScrap) {
+                newMagazin -= remainingToScrap;
+                remainingToScrap = 0;
+            } else {
+                remainingToScrap -= newMagazin;
+                newMagazin = 0;
+                newDepozit -= remainingToScrap; // Restul luăm din depozit
+            }
+
+            const { error: updateError } = await supabase
+                .from('produse')
+                .update({
+                    stoc_magazin: newMagazin,
+                    stoc_depozit: newDepozit
+                })
+                .eq('id', selectedProduct.id);
+
+            if (updateError) throw updateError;
+
+            Alert.alert("Succes", "Pierdere înregistrată și stoc actualizat.");
+            setModalVisible(false);
+
+            // Reîmprospătăm lista fără să suprascriem parametrii
+            const { data } = await supabase.from('produse').select('*').order('nume');
+            setProducts(data || []);
+
+        } catch (err) {
+            Alert.alert("Eroare", err.message);
         } finally {
             setLoading(false);
         }
     };
+
+    const filteredProducts = products.filter(p =>
+        p.nume.toLowerCase().includes(search.toLowerCase()) ||
+        p.cod_bare.includes(search)
+    );
+
+    const renderItem = ({ item }) => (
+        <TouchableOpacity style={styles.card} onPress={() => openScrapModal(item)}>
+            <View>
+                <Text style={styles.prodName}>{item.nume}</Text>
+                <Text style={styles.prodCode}>{item.cod_bare}</Text>
+            </View>
+            <View style={{alignItems:'flex-end'}}>
+                <Text style={styles.stockLabel}>Stoc Total</Text>
+                <Text style={styles.stockValue}>{(item.stoc_depozit || 0) + (item.stoc_magazin || 0)} buc</Text>
+            </View>
+        </TouchableOpacity>
+    );
 
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}><ArrowLeft size={24} color="#1f2937" /></TouchableOpacity>
-                <Text style={styles.title}>Raportare Deteriorări</Text>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <ArrowLeft size={24} color="#374151" />
+                </TouchableOpacity>
+                <Text style={styles.title}>Raportare Pierderi</Text>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
-                <View style={styles.searchSection}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Caută sau scanează..."
-                        value={query}
-                        onChangeText={setQuery}
-                        onSubmitEditing={() => handleSearch(query)}
-                    />
-                    <TouchableOpacity onPress={openScanner} style={styles.scanBtn}>
-                        <Camera size={24} color="white" />
-                    </TouchableOpacity>
-                </View>
+            <View style={styles.searchContainer}>
+                <Search size={20} color="#9ca3af" />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Caută produs..."
+                    value={search}
+                    onChangeText={setSearch}
+                />
+            </View>
 
-                {loading && <ActivityIndicator size="large" color="#ef4444" />}
+            {loading && !modalVisible ? (
+                <ActivityIndicator size="large" color="#dc2626" style={{marginTop:20}} />
+            ) : (
+                <FlatList
+                    data={filteredProducts}
+                    keyExtractor={item => item.id.toString()}
+                    renderItem={renderItem}
+                    contentContainerStyle={{padding: 20}}
+                />
+            )}
 
-                {product && (
-                    <View style={styles.card}>
-                        <Text style={styles.prodName}>{product.nume}</Text>
-                        <View style={styles.stockRow}>
-                            <Text style={styles.stockText}>Depozit: {product.stoc_depozit}</Text>
-                            <Text style={styles.stockText}>Raft: {product.stoc_magazin}</Text>
-                        </View>
-
-                        <Text style={styles.label}>1. De unde provine produsul?</Text>
-                        <View style={styles.toggleRow}>
-                            <TouchableOpacity
-                                style={[styles.toggleBtn, source === 'depozit' && styles.activeDepozit]}
-                                onPress={() => setSource('depozit')}
-                            >
-                                <Text style={[styles.toggleText, source === 'depozit' && styles.activeText]}>DEPOZIT</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.toggleBtn, source === 'magazin' && styles.activeMagazin]}
-                                onPress={() => setSource('magazin')}
-                            >
-                                <Text style={[styles.toggleText, source === 'magazin' && styles.activeText]}>RAFT</Text>
+            <Modal visible={modalVisible} transparent animationType="slide">
+                <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Confirmă Pierdere</Text>
+                            <TouchableOpacity onPress={() => setModalVisible(false)}>
+                                <X size={24} color="#374151" />
                             </TouchableOpacity>
                         </View>
 
-                        <Text style={styles.label}>2. Cantitate (Bucăți)</Text>
+                        <Text style={styles.prodTitleModal}>{selectedProduct?.nume}</Text>
+
+                        <Text style={styles.label}>Cantitate Pierdută</Text>
                         <TextInput
-                            style={styles.qtyInput}
-                            keyboardType="numeric"
+                            style={styles.input}
                             placeholder="0"
-                            value={qty}
-                            onChangeText={setQty}
+                            keyboardType="numeric"
+                            value={scrapQty}
+                            onChangeText={setScrapQty}
+                            autoFocus
                         />
 
-                        <Text style={styles.label}>3. Motivul</Text>
-                        <View style={styles.reasonsGrid}>
-                            {reasons.map((r) => (
-                                <TouchableOpacity
-                                    key={r}
-                                    style={[styles.reasonChip, reason === r && styles.activeReason]}
-                                    onPress={() => setReason(r)}
-                                >
-                                    <Text style={[styles.reasonText, reason === r && styles.activeReasonText]}>{r}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                        <Text style={styles.label}>Motiv (Ex: Expirat, Spart)</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Motivul pierderii"
+                            value={reason}
+                            onChangeText={setReason}
+                        />
 
-                        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-                            <Trash2 size={24} color="white" />
-                            <Text style={styles.submitText}>CONFIRMĂ PIERDEREA</Text>
+                        <TouchableOpacity style={styles.confirmBtn} onPress={handleScrap}>
+                            <AlertOctagon size={20} color="white" />
+                            <Text style={styles.btnText}>Scoate din Gestiune</Text>
                         </TouchableOpacity>
                     </View>
-                )}
-            </ScrollView>
-
-            <Modal visible={scannerVisible} animationType="slide">
-                <View style={{ flex: 1, backgroundColor: 'black' }}>
-                    <CameraView
-                        style={StyleSheet.absoluteFill}
-                        onBarcodeScanned={scannerVisible ? ({data}) => { setQuery(data); handleSearch(data); } : undefined}
-                    />
-                    <TouchableOpacity style={styles.closeCam} onPress={() => setScannerVisible(false)}><X size={35} color="white" /></TouchableOpacity>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fef2f2' }, // Fundal roșcat pentru alertă
-    header: { flexDirection: 'row', alignItems: 'center', padding: 20, gap: 15, backgroundColor: 'white' },
-    title: { fontSize: 20, fontWeight: 'bold', color: '#991b1b' },
-    content: { padding: 20 },
-    searchSection: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-    input: { flex: 1, backgroundColor: 'white', padding: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb' },
-    scanBtn: { backgroundColor: '#ef4444', width: 50, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-    card: { backgroundColor: 'white', padding: 20, borderRadius: 16, elevation: 3 },
-    prodName: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
-    stockRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 20, borderBottomWidth: 1, borderColor: '#f3f4f6', paddingBottom: 10 },
-    stockText: { fontWeight: '600', color: '#6b7280' },
-    label: { fontWeight: 'bold', color: '#374151', marginTop: 15, marginBottom: 8 },
-    toggleRow: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 8, padding: 4 },
-    toggleBtn: { flex: 1, padding: 10, alignItems: 'center', borderRadius: 6 },
-    activeDepozit: { backgroundColor: '#3b82f6' },
-    activeMagazin: { backgroundColor: '#10b981' },
-    activeText: { color: 'white', fontWeight: 'bold' },
-    toggleText: { color: '#6b7280', fontWeight: '600' },
-    qtyInput: { backgroundColor: '#fef2f2', padding: 15, borderRadius: 10, fontSize: 20, textAlign: 'center', fontWeight: 'bold', color: '#991b1b', borderWidth: 1, borderColor: '#fecaca' },
-    reasonsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    reasonChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6' },
-    activeReason: { backgroundColor: '#ef4444' },
-    reasonText: { color: '#374151', fontSize: 12 },
-    activeReasonText: { color: 'white', fontWeight: 'bold' },
-    submitBtn: { backgroundColor: '#b91c1c', marginTop: 25, padding: 18, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-    submitText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-    closeCam: { position: 'absolute', top: 50, right: 25, backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 25, padding: 5 }
+    container: { flex: 1, backgroundColor: '#fef2f2' },
+    header: { padding: 20, backgroundColor: 'white', flexDirection: 'row', gap: 15, alignItems: 'center', elevation: 2 },
+    title: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
+
+    searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', margin: 20, paddingHorizontal: 15, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', height: 50 },
+    searchInput: { flex: 1, marginLeft: 10, fontSize: 16 },
+
+    card: { backgroundColor: 'white', padding: 15, borderRadius: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 1 },
+    prodName: { fontWeight: 'bold', fontSize: 16, color: '#374151' },
+    prodCode: { fontSize: 12, color: '#9ca3af' },
+    stockLabel: { fontSize: 10, color: '#6b7280', textTransform: 'uppercase' },
+    stockValue: { fontSize: 16, fontWeight: 'bold', color: '#dc2626' },
+
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 25 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color:'#374151' },
+    prodTitleModal: { fontSize: 16, color: '#4b5563', marginBottom: 15, fontWeight:'bold' },
+
+    label: { fontWeight: 'bold', color: '#374151', marginBottom: 5, marginTop: 10 },
+    input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 16, backgroundColor:'#f9fafb' },
+
+    confirmBtn: { backgroundColor: '#dc2626', height: 55, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10, marginTop: 30 },
+    btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 }
 });

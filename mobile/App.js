@@ -11,11 +11,13 @@ import RegisterScreen from './src/screens/RegisterScreen';
 // --- DASHBOARD PRINCIPAL ---
 import DashboardScreen from './src/screens/DashboardScreen';
 
-// --- MODULE GESTIONAR (OPERATIVE) ---
+// --- MODULE GESTIONAR (DEPOZIT & OPERATIV) ---
 import InventoryReceipt from './src/screens/InventoryReceipt';
 import StockCheckScreen from './src/screens/StockCheckScreen';
 import ScrapScreen from './src/screens/ScrapScreen';
 import InventoryAuditScreen from './src/screens/InventoryAuditScreen';
+import TransferScreen from './src/screens/TransferScreen';       // <--- TRANSFER
+import ExpirationsScreen from './src/screens/ExpirationsScreen'; // <--- EXPIRĂRI
 
 // --- MODULE ADMINISTRATOR (MANAGEMENT) ---
 import ProductsListScreen from './src/screens/ProductsListScreen';
@@ -26,15 +28,17 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import AdminLogsScreen from './src/screens/AdminLogsScreen';
 import ReceiptsHistoryScreen from './src/screens/ReceiptsHistoryScreen';
 import AdminQuickAddScreen from './src/screens/AdminQuickAddScreen';
-import SupplierReturnsScreen from './src/screens/SupplierReturnsScreen';
+import SupplierReturnsScreen from './src/screens/SupplierReturnsScreen'; // <--- RETUR FURNIZOR
+import AdminSupplyOrdersScreen from './src/screens/AdminSupplyOrdersScreen';
+import AdminSmartRestockScreen from './src/screens/AdminSmartRestockScreen'; // <--- AI CONSULTANT
 
-// --- MODULE NOI (B2B / Agent & Aprobare) ---
+// --- MODULE AGENT (B2B) ---
 import AgentSupplyOrderScreen from './src/screens/AgentSupplyOrderScreen';
 import AgentSupplyHistoryScreen from './src/screens/AgentSupplyHistoryScreen';
-import AdminSupplyOrdersScreen from './src/screens/AdminSupplyOrdersScreen'; // <--- NOU
 
 const Stack = createNativeStackNavigator();
 
+// Ignorăm warning-uri minore
 LogBox.ignoreLogs(['new NativeEventEmitter']);
 
 export default function App() {
@@ -42,10 +46,12 @@ export default function App() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // 1. Verificăm sesiunea curentă
         const checkSession = async () => {
             try {
                 const { data: { session }, error } = await supabase.auth.getSession();
                 if (error) {
+                    // Dacă token-ul e invalid, delogăm forțat
                     if (error.message.includes("Refresh Token")) {
                         await supabase.auth.signOut();
                         setSession(null);
@@ -62,6 +68,7 @@ export default function App() {
 
         checkSession();
 
+        // 2. Ascultăm schimbările de stare (Login/Logout)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             if (_event === 'TOKEN_REFRESH_REVOKED') {
                 setSession(null);
@@ -93,23 +100,29 @@ export default function App() {
                 }}
             >
                 {!session ? (
+                    // --- RUTE PUBLICE (Neautentificat) ---
                     <>
                         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Creare Cont' }} />
                     </>
                 ) : (
+                    // --- RUTE PROTEJATE (Autentificat) ---
                     <>
                         <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ headerShown: false }} />
 
-                        {/* --- RUTE GESTIONAR --- */}
+                        {/* Secțiunea Depozit */}
                         <Stack.Screen name="InventoryReceipt" component={InventoryReceipt} options={{ headerShown: false }} />
                         <Stack.Screen name="StockCheckScreen" component={StockCheckScreen} options={{ title: 'Verificare Stoc' }} />
+                        <Stack.Screen name="TransferScreen" component={TransferScreen} options={{ title: 'Transfer Marfă', headerShown: false }} />
+                        <Stack.Screen name="ExpirationsScreen" component={ExpirationsScreen} options={{ title: 'Monitorizare Expirări', headerShown: false }} />
                         <Stack.Screen name="ScrapScreen" component={ScrapScreen} options={{ title: 'Raportare Pierderi' }} />
                         <Stack.Screen name="InventoryAuditScreen" component={InventoryAuditScreen} options={{ title: 'Inventar' }} />
 
-                        {/* --- RUTE ADMIN --- */}
+                        {/* Secțiunea Admin */}
                         <Stack.Screen name="AdminSupplyOrdersScreen" component={AdminSupplyOrdersScreen} options={{ headerShown: false }} />
+                        <Stack.Screen name="AdminSmartRestockScreen" component={AdminSmartRestockScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="ProductsList" component={ProductsListScreen} options={{ title: 'Catalog Produse' }} />
+                        <Stack.Screen name="SupplierReturnsScreen" component={SupplierReturnsScreen} options={{ title: 'Retur Furnizor', headerShown: false }} />
                         <Stack.Screen name="TeamScreen" component={TeamScreen} options={{ title: 'Gestionare Echipă' }} />
                         <Stack.Screen name="SupplierScreens" component={SupplierScreens} options={{ title: 'Furnizori' }} />
                         <Stack.Screen name="ReportsScreen" component={ReportsScreen} options={{ title: 'Rapoarte' }} />
@@ -117,9 +130,8 @@ export default function App() {
                         <Stack.Screen name="AdminLogsScreen" component={AdminLogsScreen} options={{ title: 'Jurnal Erori' }} />
                         <Stack.Screen name="ReceiptsHistoryScreen" component={ReceiptsHistoryScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="AdminQuickAddScreen" component={AdminQuickAddScreen} options={{ headerShown: false }} />
-                        <Stack.Screen name="SupplierReturnsScreen" component={SupplierReturnsScreen} options={{ headerShown: false }} />
 
-                        {/* --- RUTE AGENT --- */}
+                        {/* Secțiunea Agent */}
                         <Stack.Screen name="AgentSupplyOrderScreen" component={AgentSupplyOrderScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="AgentSupplyHistoryScreen" component={AgentSupplyHistoryScreen} options={{ title: 'Istoric Comenzi' }} />
                     </>
