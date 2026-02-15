@@ -1,40 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    TextInput, Modal, Alert, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform
+    TextInput, ActivityIndicator, SafeAreaView, Alert, Modal, ScrollView
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import {
-    Package, Plus, Search, X, Edit2,
-    Trash2, Save, ShoppingCart, CalendarClock, AlertTriangle
+    Package, Search, AlertTriangle, Filter, X, Check
 } from 'lucide-react-native';
 
 export default function ProductsListScreen() {
     const [products, setProducts] = useState([]);
-    const [suppliers, setSuppliers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-
-    // --- LISTA PRODUSELOR CU PROBLEME (EXPIRĂRI) ---
     const [expiringIds, setExpiringIds] = useState(new Set());
 
-    // Modal Editare
-    const [modalVisible, setModalVisible] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
-    const [editId, setEditId] = useState(null);
-
-    // Form Editare
-    const [name, setName] = useState('');
-    const [barcode, setBarcode] = useState('');
-    const [price, setPrice] = useState('');
-    const [stockDepozit, setStockDepozit] = useState('');
-    const [stockMagazin, setStockMagazin] = useState('');
-    const [selectedSupplierId, setSelectedSupplierId] = useState(null);
-
-    // Modal Vânzare
-    const [sellModalVisible, setSellModalVisible] = useState(false);
-    const [sellProduct, setSellProduct] = useState(null);
-    const [sellQty, setSellQty] = useState('');
+    // --- STATE FILTRARE ---
+    const [filterModalVisible, setFilterModalVisible] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [selectedSubcategory, setSelectedSubcategory] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -43,31 +26,19 @@ export default function ProductsListScreen() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // 1. Luăm produsele
             const { data: prodData, error: prodError } = await supabase
                 .from('produse')
-                .select(`*, furnizori (id, nume)`)
+                .select('*')
                 .order('nume');
 
             if (prodError) throw prodError;
             setProducts(prodData || []);
 
-            // 2. Luăm furnizorii
-            const { data: supData } = await supabase.from('furnizori').select('*');
-            setSuppliers(supData || []);
-
-            // 3. --- NOU: VERIFICĂM CARE PRODUSE AU PROBLEME DE EXPIRARE ---
-            // Interogăm vederea 'view_expirari' pe care am creat-o anterior
-            const { data: expData } = await supabase
-                .from('view_expirari')
-                .select('produs_id');
-
-            // Creăm un Set cu ID-urile produselor problematice pentru căutare rapidă
+            const { data: expData } = await supabase.from('view_expirari').select('produs_id');
             if (expData) {
                 const ids = new Set(expData.map(item => item.produs_id));
                 setExpiringIds(ids);
             }
-
         } catch (err) {
             Alert.alert("Eroare", err.message);
         } finally {
@@ -75,278 +46,207 @@ export default function ProductsListScreen() {
         }
     };
 
-    // --- FUNCȚIA DE VÂNZARE FEFO (First Expired First Out) ---
-    const openSellModal = (prod) => {
-        setSellProduct(prod);
-        setSellQty('');
-        setSellModalVisible(true);
+    // --- LOGICA DE FILTRARE DINAMICĂ ---
+
+    // 1. Extragem categoriile unice
+    const categories = useMemo(() => {
+        const cats = products.map(p => p.categorie_principala).filter(Boolean);
+        return [...new Set(cats)].sort();
+    }, [products]);
+
+    // 2. Extragem subcategoriile dependente de categoria selectată
+    const subcategories = useMemo(() => {
+        if (!selectedCategory) return [];
+        const subs = products
+            .filter(p => p.categorie_principala === selectedCategory)
+            .map(p => p.categorie_secundara)
+            .filter(Boolean);
+        return [...new Set(subs)].sort();
+    }, [products, selectedCategory]);
+
+    // 3. Aplicăm filtrele (Căutare + Categorie + Subcategorie)
+    const filteredProducts = products.filter(p => {
+        const matchesSearch = p.nume.toLowerCase().includes(search.toLowerCase()) ||
+            (p.cod_bare && p.cod_bare.includes(search));
+
+        const matchesCategory = selectedCategory ? p.categorie_principala === selectedCategory : true;
+        const matchesSubcategory = selectedSubcategory ? p.categorie_secundara === selectedSubcategory : true;
+
+        return matchesSearch && matchesCategory && matchesSubcategory;
+    });
+
+    // Resetare filtre
+    const clearFilters = () => {
+        setSelectedCategory(null);
+        setSelectedSubcategory(null);
+        setFilterModalVisible(false);
     };
 
-    const handleQuickSell = async () => {
-        const qty = parseInt(sellQty);
-        if (!qty || qty <= 0) return Alert.alert("Eroare", "Cantitate invalidă");
+    const renderItem = ({ item }) => {
+        const hasExpirationIssue = expiringIds.has(item.id);
 
-        const totalStock = (sellProduct.stoc_magazin || 0) + (sellProduct.stoc_depozit || 0);
-        if (qty > totalStock) {
-            return Alert.alert("Stoc Insuficient", "Nu ai destulă marfă totală.");
-        }
+        return (
+            <View style={[styles.card, hasExpirationIssue && { borderLeftWidth: 4, borderLeftColor: '#f97316' }]}>
+                {/* Iconiță */}
+                <View style={[styles.iconBox, hasExpirationIssue && { backgroundColor: '#ffedd5' }]}>
+                    <Package size={24} color={hasExpirationIssue ? '#f97316' : '#4F46E5'} />
+                </View>
 
-        setLoading(true);
-        try {
-            // APELĂM FUNCȚIA SQL FEFO
-            const { error } = await supabase.rpc('vinde_produs_fefo', {
-                p_produs_id: sellProduct.id,
-                p_cantitate: qty
-            });
+                {/* Detalii Produs */}
+                <View style={{ flex: 1, gap: 4 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.prodName}>{item.nume}</Text>
+                        {hasExpirationIssue && <AlertTriangle size={14} color="#f97316" />}
+                    </View>
 
-            if (error) throw error;
+                    <Text style={styles.prodCode}>{item.cod_bare}</Text>
 
-            Alert.alert("Succes", `Vândut ${qty} buc. Loturile vechi au fost scăzute automat.`);
-            setSellModalVisible(false);
-            fetchData();
-        } catch (err) {
-            Alert.alert("Eroare Vânzare", err.message);
-        } finally {
-            setLoading(false);
-        }
+                    {/* CATEGORIE SI SUBCATEGORIE */}
+                    <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 5}}>
+                        {item.categorie_principala && (
+                            <Text style={styles.catTag}>{item.categorie_principala}</Text>
+                        )}
+                        {item.categorie_secundara && (
+                            <Text style={styles.subCatTag}>{item.categorie_secundara}</Text>
+                        )}
+                    </View>
+                </View>
+
+                {/* Preț și Stocuri */}
+                <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                    <Text style={styles.price}>{item.pret_vanzare} RON</Text>
+
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <Text style={styles.stockText}>
+                            Dep: <Text style={{fontWeight:'bold', color:'#374151'}}>{item.stoc_depozit}</Text>
+                        </Text>
+                        <Text style={{color:'#cbd5e1'}}>|</Text>
+                        <Text style={[styles.stockText, {color:'#4F46E5'}]}>
+                            Mag: <Text style={{fontWeight:'bold'}}>{item.stoc_magazin || 0}</Text>
+                        </Text>
+                    </View>
+                </View>
+            </View>
+        );
     };
-
-    // Funcții standard (Save, Delete, OpenModal)
-    const handleSave = async () => {
-        if (!name || !barcode) {
-            Alert.alert("Eroare", "Numele și Codul de bare sunt obligatorii!");
-            return;
-        }
-        const payload = {
-            nume: name,
-            cod_bare: barcode,
-            ultimul_pret_achizitie: parseFloat(price) || 0,
-            stoc_depozit: parseInt(stockDepozit) || 0,
-            stoc_magazin: parseInt(stockMagazin) || 0,
-            furnizor_id: selectedSupplierId
-        };
-        try {
-            if (isEditing) {
-                const { error } = await supabase.from('produse').update(payload).eq('id', editId);
-                if (error) throw error;
-            } else {
-                const { error } = await supabase.from('produse').insert([payload]);
-                if (error) throw error;
-            }
-            setModalVisible(false);
-            fetchData();
-        } catch (err) {
-            Alert.alert("Eroare Salvare", err.message);
-        }
-    };
-
-    const handleDelete = (id) => {
-        Alert.alert("Ștergere", "Sigur vrei să ștergi acest produs?", [
-            { text: "Nu", style: "cancel" },
-            { text: "Da", onPress: async () => {
-                    const { error } = await supabase.from('produse').delete().eq('id', id);
-                    if (!error) fetchData();
-                }}
-        ]);
-    };
-
-    const openModal = (prod = null) => {
-        if (prod) {
-            setIsEditing(true);
-            setEditId(prod.id);
-            setName(prod.nume);
-            setBarcode(prod.cod_bare);
-            setPrice(prod.ultimul_pret_achizitie?.toString() || '');
-            setStockDepozit(prod.stoc_depozit?.toString() || '0');
-            setStockMagazin(prod.stoc_magazin?.toString() || '0');
-            setSelectedSupplierId(prod.furnizor_id);
-        } else {
-            setIsEditing(false);
-            setEditId(null);
-            setName('');
-            setBarcode('');
-            setPrice('');
-            setStockDepozit('');
-            setStockMagazin('');
-            setSelectedSupplierId(null);
-        }
-        setModalVisible(true);
-    };
-
-    const filteredProducts = products.filter(p =>
-        p.nume.toLowerCase().includes(search.toLowerCase()) ||
-        p.cod_bare.includes(search)
-    );
 
     return (
         <SafeAreaView style={styles.container}>
+            {/* Header cu Search si Filtru */}
             <View style={styles.header}>
-                <View style={styles.searchBox}>
-                    <Search size={20} color="#9ca3af" />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Caută produse..."
-                        value={search}
-                        onChangeText={setSearch}
-                    />
+                <View style={styles.searchRow}>
+                    <View style={styles.searchBox}>
+                        <Search size={20} color="#9ca3af" />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Caută produs..."
+                            value={search}
+                            onChangeText={setSearch}
+                        />
+                        {search.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearch('')}>
+                                <X size={18} color="#9ca3af" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {/* BUTON FILTRU */}
+                    <TouchableOpacity
+                        style={[styles.filterBtn, (selectedCategory || selectedSubcategory) && styles.filterBtnActive]}
+                        onPress={() => setFilterModalVisible(true)}
+                    >
+                        <Filter size={24} color={(selectedCategory || selectedSubcategory) ? "white" : "#4F46E5"} />
+                    </TouchableOpacity>
                 </View>
-                <TouchableOpacity style={styles.addBtn} onPress={() => openModal()}>
-                    <Plus size={24} color="white" />
-                </TouchableOpacity>
+
+                {/* Indicator filtre active */}
+                {(selectedCategory || selectedSubcategory) && (
+                    <View style={{flexDirection:'row', gap:10, marginTop:10}}>
+                        <Text style={{fontSize:12, color:'#6b7280'}}>Filtrat după:</Text>
+                        {selectedCategory && <Text style={styles.activeFilterText}>{selectedCategory}</Text>}
+                        {selectedSubcategory && <Text style={styles.activeFilterText}>/ {selectedSubcategory}</Text>}
+                        <TouchableOpacity onPress={clearFilters}>
+                            <Text style={{fontSize:12, color:'#ef4444', fontWeight:'bold', marginLeft:5}}>Șterge</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
 
-            {loading && !sellModalVisible ? <ActivityIndicator size="large" color="#4F46E5" style={{marginTop:50}} /> : (
+            {loading ? (
+                <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 50 }} />
+            ) : (
                 <FlatList
                     data={filteredProducts}
                     keyExtractor={item => item.id.toString()}
-                    contentContainerStyle={{padding: 20}}
-                    renderItem={({item}) => {
-                        // Verificăm dacă produsul are loturi expirate
-                        const hasExpirationIssue = expiringIds.has(item.id);
-
-                        return (
-                            <View style={[styles.card, hasExpirationIssue && {borderLeftWidth:4, borderLeftColor:'#f97316'}]}>
-                                <TouchableOpacity style={{flex:1, flexDirection:'row', alignItems:'center', gap:15}} onPress={() => openModal(item)}>
-                                    <View style={[styles.iconBox, hasExpirationIssue && {backgroundColor:'#ffedd5'}]}>
-                                        <Package size={24} color={hasExpirationIssue ? '#f97316' : '#4F46E5'} />
-                                    </View>
-                                    <View style={{flex:1}}>
-                                        {/* Nume + Badge Expirare */}
-                                        <View style={{flexDirection:'row', alignItems:'center', gap:6}}>
-                                            <Text style={styles.prodName}>{item.nume}</Text>
-                                            {hasExpirationIssue && (
-                                                <View style={styles.expBadge}>
-                                                    <AlertTriangle size={10} color="white" />
-                                                    <Text style={styles.expText}>EXPIRĂ</Text>
-                                                </View>
-                                            )}
-                                        </View>
-
-                                        <Text style={styles.prodCode}>{item.cod_bare}</Text>
-                                        {item.furnizori && <Text style={{fontSize:10, color:'#059669', fontWeight:'bold'}}>{item.furnizori.nume}</Text>}
-                                    </View>
-                                </TouchableOpacity>
-
-                                <View style={{alignItems:'flex-end'}}>
-                                    <Text style={styles.price}>{item.ultimul_pret_achizitie} RON</Text>
-                                    <View style={{flexDirection:'row', gap:8, marginTop:4, marginBottom:8}}>
-                                        <Text style={styles.stock}>Dep: {item.stoc_depozit}</Text>
-                                        <Text style={{color:'#cbd5e1'}}>|</Text>
-                                        <Text style={[styles.stock, {color:'#4F46E5'}]}>Mag: {item.stoc_magazin || 0}</Text>
-                                    </View>
-
-                                    <TouchableOpacity
-                                        style={[styles.sellBtn, hasExpirationIssue && {backgroundColor:'#f97316'}]}
-                                        onPress={() => openSellModal(item)}
-                                    >
-                                        <ShoppingCart size={14} color="white" />
-                                        <Text style={styles.sellBtnText}>Vinde</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        );
-                    }}
+                    contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+                    renderItem={renderItem}
+                    ListEmptyComponent={
+                        <Text style={{ textAlign: 'center', marginTop: 50, color: '#9ca3af' }}>
+                            Nu au fost găsite produse.
+                        </Text>
+                    }
                 />
             )}
 
-            {/* MODAL EDITARE - NESCHIMBAT */}
-            <Modal visible={modalVisible} animationType="slide" transparent>
+            {/* --- MODAL FILTRARE --- */}
+            <Modal visible={filterModalVisible} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>{isEditing ? 'Editare Produs' : 'Produs Nou'}</Text>
-                            <TouchableOpacity onPress={() => setModalVisible(false)}>
+                            <Text style={styles.modalTitle}>Filtrare Produse</Text>
+                            <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
                                 <X size={24} color="#374151" />
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.label}>Nume Produs</Text>
-                        <TextInput style={styles.input} value={name} onChangeText={setName} />
-                        <Text style={styles.label}>Cod de Bare</Text>
-                        <TextInput style={styles.input} value={barcode} onChangeText={setBarcode} keyboardType="numeric" />
-                        <Text style={styles.label}>Preț Achiziție</Text>
-                        <TextInput style={styles.input} value={price} onChangeText={setPrice} keyboardType="numeric" />
-                        <Text style={[styles.label, {marginTop:15}]}>Stocuri</Text>
-                        <View style={styles.row}>
-                            <View style={{flex:1}}>
-                                <Text style={{fontSize:12, color:'#6b7280'}}>Depozit</Text>
-                                <TextInput style={styles.input} value={stockDepozit} onChangeText={setStockDepozit} keyboardType="numeric" />
-                            </View>
-                            <View style={{flex:1}}>
-                                <Text style={{fontSize:12, color:'#4F46E5', fontWeight:'bold'}}>Magazin</Text>
-                                <TextInput style={[styles.input, {borderColor:'#c7d2fe', backgroundColor:'#e0e7ff'}]} value={stockMagazin} onChangeText={setStockMagazin} keyboardType="numeric" />
-                            </View>
-                        </View>
-                        <Text style={[styles.label, {marginTop:15}]}>Furnizor</Text>
-                        <View style={{height: 60}}>
-                            <FlatList
-                                data={suppliers}
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                keyExtractor={item => item.id.toString()}
-                                renderItem={({item}) => (
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {/* Sectiunea Categorie */}
+                            <Text style={styles.filterLabel}>Categorie Principală</Text>
+                            <View style={styles.chipsContainer}>
+                                {categories.map(cat => (
                                     <TouchableOpacity
-                                        style={[styles.supChip, selectedSupplierId === item.id && styles.supChipActive]}
-                                        onPress={() => setSelectedSupplierId(item.id)}
+                                        key={cat}
+                                        style={[styles.chip, selectedCategory === cat && styles.chipActive]}
+                                        onPress={() => {
+                                            setSelectedCategory(cat === selectedCategory ? null : cat);
+                                            setSelectedSubcategory(null); // Reset subcat cand schimbi cat
+                                        }}
                                     >
-                                        <Text style={[styles.supChipText, selectedSupplierId === item.id && {color:'white'}]}>{item.nume}</Text>
+                                        <Text style={[styles.chipText, selectedCategory === cat && styles.chipTextActive]}>{cat}</Text>
                                     </TouchableOpacity>
-                                )}
-                            />
-                        </View>
-                        <View style={styles.actionRow}>
-                            {isEditing && (
-                                <TouchableOpacity onPress={() => handleDelete(editId)} style={styles.deleteBtn}>
-                                    <Trash2 size={24} color="#ef4444" />
-                                </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {/* Sectiunea Subcategorie (Doar daca avem Categorie selectata) */}
+                            {selectedCategory && subcategories.length > 0 && (
+                                <>
+                                    <Text style={[styles.filterLabel, {marginTop: 20}]}>Subcategorie</Text>
+                                    <View style={styles.chipsContainer}>
+                                        {subcategories.map(sub => (
+                                            <TouchableOpacity
+                                                key={sub}
+                                                style={[styles.chip, selectedSubcategory === sub && styles.chipActive]}
+                                                onPress={() => setSelectedSubcategory(sub === selectedSubcategory ? null : sub)}
+                                            >
+                                                <Text style={[styles.chipText, selectedSubcategory === sub && styles.chipTextActive]}>{sub}</Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </>
                             )}
-                            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                                <Save size={24} color="white" />
-                                <Text style={styles.saveText}>Salvează</Text>
+                        </ScrollView>
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.clearBtn} onPress={clearFilters}>
+                                <Text style={styles.clearBtnText}>Resetează</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.applyBtn} onPress={() => setFilterModalVisible(false)}>
+                                <Check size={20} color="white" />
+                                <Text style={styles.applyBtnText}>Aplică</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </View>
-            </Modal>
-
-            {/* MODAL VÂNZARE RAPIDĂ */}
-            <Modal visible={sellModalVisible} transparent animationType="fade">
-                <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, {height:'auto', paddingBottom:40}]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Simulare Vânzare (POS)</Text>
-                            <TouchableOpacity onPress={() => setSellModalVisible(false)}>
-                                <X size={24} color="#374151" />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* AVERTIZARE ÎN MODAL DACĂ SUNT LOTURI EXPIRATE */}
-                        {sellProduct && expiringIds.has(sellProduct.id) && (
-                            <View style={{flexDirection:'row', alignItems:'center', gap:8, backgroundColor:'#ffedd5', padding:10, borderRadius:8, marginBottom:15}}>
-                                <AlertTriangle size={20} color="#c2410c" />
-                                <Text style={{color:'#9a3412', fontSize:13, fontWeight:'bold', flex:1}}>
-                                    Atenție! Acest produs are loturi care expiră curând. Vor fi vândute prioritare.
-                                </Text>
-                            </View>
-                        )}
-
-                        <Text style={{fontSize:16, color:'#4b5563', marginBottom:20}}>
-                            Produs: <Text style={{fontWeight:'bold'}}>{sellProduct?.nume}</Text>
-                        </Text>
-                        <Text style={styles.label}>Cantitate Vândută</Text>
-                        <TextInput
-                            style={[styles.input, {fontSize:24, textAlign:'center', height:60}]}
-                            placeholder="0"
-                            keyboardType="numeric"
-                            value={sellQty}
-                            onChangeText={setSellQty}
-                            autoFocus
-                        />
-                        <TouchableOpacity style={[styles.saveBtn, {marginTop:20, backgroundColor: sellProduct && expiringIds.has(sellProduct.id) ? '#ea580c' : '#059669'}]} onPress={handleQuickSell}>
-                            <ShoppingCart size={24} color="white" />
-                            <Text style={styles.saveText}>Confirmă Vânzarea</Text>
-                        </TouchableOpacity>
-                    </View>
-                </KeyboardAvoidingView>
             </Modal>
         </SafeAreaView>
     );
@@ -354,38 +254,45 @@ export default function ProductsListScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f8fafc' },
-    header: { padding: 20, flexDirection: 'row', gap: 10, backgroundColor: 'white', elevation: 2 },
-    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 10 },
-    searchInput: { flex: 1, padding: 10 },
-    addBtn: { backgroundColor: '#4F46E5', padding: 12, borderRadius: 10 },
 
-    card: { flexDirection: 'row', padding: 15, backgroundColor: 'white', marginBottom: 10, borderRadius: 12, alignItems: 'center', gap: 15, elevation: 1 },
-    iconBox: { width: 40, height: 40, backgroundColor: '#e0e7ff', borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-    prodName: { fontWeight: 'bold', fontSize: 16, color: '#1f2937' },
+    // Header
+    header: { padding: 20, backgroundColor: 'white', elevation: 2, borderBottomWidth: 1, borderColor: '#e5e7eb' },
+    searchRow: { flexDirection: 'row', gap: 10 },
+    searchBox: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 15, height: 50 },
+    searchInput: { flex: 1, padding: 10, fontSize: 16, color: '#1f2937' },
+    filterBtn: { width: 50, height: 50, backgroundColor: '#e0e7ff', borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    filterBtnActive: { backgroundColor: '#4F46E5' },
+    activeFilterText: { fontSize:12, fontWeight:'bold', color:'#4F46E5', backgroundColor:'#e0e7ff', paddingHorizontal:6, borderRadius:4, overflow:'hidden' },
+
+    // Card Produs
+    card: { flexDirection: 'row', padding: 15, backgroundColor: 'white', marginBottom: 10, borderRadius: 12, alignItems: 'center', gap: 15, elevation: 1, borderWidth: 1, borderColor: '#f1f5f9' },
+    iconBox: { width: 45, height: 45, backgroundColor: '#e0e7ff', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    prodName: { fontWeight: 'bold', fontSize: 15, color: '#1f2937' },
     prodCode: { color: '#6b7280', fontSize: 12 },
-    price: { fontWeight: 'bold', color: '#059669' },
-    stock: { fontSize: 12, color: '#6b7280' },
 
-    sellBtn: { flexDirection:'row', alignItems:'center', gap:5, backgroundColor:'#10b981', paddingHorizontal:10, paddingVertical:6, borderRadius:6 },
-    sellBtnText: { color:'white', fontWeight:'bold', fontSize:12 },
+    // Tag-uri Categorii
+    catTag: { fontSize: 10, color: '#0369a1', backgroundColor: '#e0f2fe', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden', fontWeight:'600' },
+    subCatTag: { fontSize: 10, color: '#7c3aed', backgroundColor: '#f3e8ff', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, overflow: 'hidden', fontWeight:'600' },
 
-    // Stiluri pentru Badge Expirare
-    expBadge: { flexDirection:'row', alignItems:'center', gap:3, backgroundColor:'#f97316', paddingHorizontal:6, paddingVertical:2, borderRadius:4 },
-    expText: { color:'white', fontSize:9, fontWeight:'bold' },
+    price: { fontWeight: 'bold', color: '#059669', fontSize: 15 },
+    stockText: { fontSize: 12, color: '#6b7280' },
 
+    // Modal Styles
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '90%' },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-    modalTitle: { fontSize: 20, fontWeight: 'bold' },
+    modalContent: { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '80%' },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
+    filterLabel: { fontSize: 14, fontWeight: 'bold', color: '#6b7280', marginBottom: 10 },
 
-    label: { fontWeight: 'bold', color: '#374151', marginBottom: 5, marginTop: 10 },
-    input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 12, fontSize: 16 },
-    row: { flexDirection: 'row', gap: 15 },
-    supChip: { padding: 10, backgroundColor: 'white', borderWidth:1, borderColor:'#e5e7eb', borderRadius: 20, marginRight: 10, height: 40, justifyContent:'center' },
-    supChipActive: { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-    supChipText: { color: '#374151', fontWeight:'600' },
-    actionRow: { flexDirection: 'row', marginTop: 30, gap: 15, marginBottom:20 },
-    deleteBtn: { padding: 15, backgroundColor: '#fee2e2', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-    saveBtn: { flex: 1, backgroundColor: '#4F46E5', padding: 15, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 10 },
-    saveText: { color: 'white', fontWeight: 'bold', fontSize: 16 }
+    chipsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f3f4f6', borderWidth: 1, borderColor: '#e5e7eb' },
+    chipActive: { backgroundColor: '#e0e7ff', borderColor: '#4F46E5' },
+    chipText: { fontSize: 14, color: '#4b5563' },
+    chipTextActive: { color: '#4F46E5', fontWeight: 'bold' },
+
+    modalActions: { flexDirection: 'row', marginTop: 30, gap: 15 },
+    clearBtn: { flex: 1, padding: 15, alignItems: 'center', justifyContent: 'center' },
+    clearBtnText: { color: '#ef4444', fontWeight: 'bold' },
+    applyBtn: { flex: 2, backgroundColor: '#4F46E5', padding: 15, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+    applyBtnText: { color: 'white', fontWeight: 'bold', fontSize: 16 }
 });

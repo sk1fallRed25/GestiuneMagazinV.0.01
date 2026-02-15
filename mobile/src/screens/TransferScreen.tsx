@@ -3,9 +3,10 @@ import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
     TextInput, Modal, Alert, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform
 } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera'; // Import Camera
 import { supabase } from '../lib/supabase';
 import {
-    ArrowLeft, Search, ArrowRightLeft, Package, Store, Check, X
+    ArrowLeft, Search, ArrowRightLeft, Package, Store, Check, X, ScanBarcode
 } from 'lucide-react-native';
 
 export default function TransferScreen({ navigation }) {
@@ -17,6 +18,11 @@ export default function TransferScreen({ navigation }) {
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [transferQty, setTransferQty] = useState('');
+
+    // --- STATE PENTRU CAMERA ---
+    const [permission, requestPermission] = useCameraPermissions();
+    const [isCameraVisible, setIsCameraVisible] = useState(false);
+    const [scanned, setScanned] = useState(false);
 
     useEffect(() => {
         fetchProducts();
@@ -38,6 +44,27 @@ export default function TransferScreen({ navigation }) {
         }
     };
 
+    // --- 1. LOGICA CAMEREI ---
+    const handleOpenScanner = async () => {
+        if (!permission?.granted) {
+            const { granted } = await requestPermission();
+            if (!granted) {
+                Alert.alert("Permisiune", "Camera este necesară pentru a scana.");
+                return;
+            }
+        }
+        setScanned(false);
+        setIsCameraVisible(true);
+    };
+
+    const handleBarCodeScanned = ({ data }) => {
+        setScanned(true);
+        setIsCameraVisible(false); // Închidem camera
+        setSearch(data); // Punem codul în bara de căutare -> declanșează filtrarea automată
+        Alert.alert("Produs Scanat", `Cod: ${data}`);
+    };
+
+    // --- 2. LOGICA TRANSFER ---
     const openTransferModal = (prod) => {
         setSelectedProduct(prod);
         setTransferQty('');
@@ -57,11 +84,9 @@ export default function TransferScreen({ navigation }) {
 
         setLoading(true);
         try {
-            // Calculăm noile stocuri
             const newDepozit = selectedProduct.stoc_depozit - qty;
             const newMagazin = (selectedProduct.stoc_magazin || 0) + qty;
 
-            // Actualizăm în baza de date
             const { error } = await supabase
                 .from('produse')
                 .update({
@@ -74,7 +99,7 @@ export default function TransferScreen({ navigation }) {
 
             Alert.alert("Succes", `Ai transferat ${qty} buc la Raft!`);
             setModalVisible(false);
-            fetchProducts(); // Reîmprospătăm lista
+            fetchProducts();
         } catch (err) {
             Alert.alert("Eroare", err.message);
         } finally {
@@ -119,6 +144,7 @@ export default function TransferScreen({ navigation }) {
                 <Text style={styles.title}>Transfer Marfă</Text>
             </View>
 
+            {/* ZONA DE CĂUTARE + SCANARE */}
             <View style={styles.searchContainer}>
                 <Search size={20} color="#9ca3af" />
                 <TextInput
@@ -127,6 +153,17 @@ export default function TransferScreen({ navigation }) {
                     value={search}
                     onChangeText={setSearch}
                 />
+
+                {/* BUTONUL DE SCANARE SAU STERGERE */}
+                {search.length > 0 ? (
+                    <TouchableOpacity onPress={() => setSearch('')}>
+                        <X size={20} color="#6b7280" />
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity onPress={handleOpenScanner} style={{ padding: 5 }}>
+                        <ScanBarcode size={24} color="#4F46E5" />
+                    </TouchableOpacity>
+                )}
             </View>
 
             {loading && !modalVisible ? (
@@ -140,6 +177,24 @@ export default function TransferScreen({ navigation }) {
                     ListEmptyComponent={<Text style={{textAlign:'center', color:'#999', marginTop:20}}>Nu am găsit produse.</Text>}
                 />
             )}
+
+            {/* MODAL CAMERĂ (SCANNER) */}
+            <Modal visible={isCameraVisible} animationType="slide">
+                <View style={styles.cameraContainer}>
+                    <CameraView
+                        style={StyleSheet.absoluteFillObject}
+                        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+                        barcodeScannerSettings={{ barcodeTypes: ["ean13", "ean8", "qr", "upc_a"] }}
+                    />
+                    <View style={styles.overlay}>
+                        <Text style={styles.overlayText}>Scanează codul de bare</Text>
+                        <View style={styles.scanFrame} />
+                        <TouchableOpacity style={styles.closeCamera} onPress={() => setIsCameraVisible(false)}>
+                            <X color="white" size={30} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {/* MODAL TRANSFER */}
             <Modal visible={modalVisible} transparent animationType="slide">
@@ -209,5 +264,12 @@ const styles = StyleSheet.create({
     input: { flex: 1, height: 50, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 15, fontSize: 18, textAlign: 'center', backgroundColor:'#f9fafb' },
 
     confirmBtn: { backgroundColor: '#4F46E5', height: 55, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 10 },
-    btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 }
+    btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+
+    // CAMERA STYLES
+    cameraContainer: { flex: 1, backgroundColor: 'black' },
+    overlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+    overlayText: { color: 'white', fontSize: 18, fontWeight: 'bold', marginBottom: 20 },
+    scanFrame: { width: 250, height: 250, borderWidth: 2, borderColor: '#00ff00', borderRadius: 20 },
+    closeCamera: { position: 'absolute', bottom: 50, backgroundColor: '#dc2626', padding: 15, borderRadius: 30 },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TextInput, TouchableOpacity, Alert,
     ActivityIndicator, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform
@@ -16,6 +16,8 @@ export default function AddProductScreen({ navigation }: any) {
     // --- STATE FORMULAR ---
     const [barcode, setBarcode] = useState('');
     const [nume, setNume] = useState('');
+    const [categorie, setCategorie] = useState('');      // Categorie (NOU)
+    const [subcategorie, setSubcategorie] = useState(''); // Subcategorie (NOU)
     const [pret, setPret] = useState('');
     const [stoc, setStoc] = useState('');
 
@@ -42,34 +44,47 @@ export default function AddProductScreen({ navigation }: any) {
                 Alert.alert(
                     "Produs Existent",
                     `Acest produs este deja în stoc:\n"${existing.nume}"`,
-                    [{ text: "Rescanează", onPress: () => { setScanned(false); setFetchingInfo(false); } }]
+                    [{ text: "Rescanează", onPress: () => { setScanned(false); setFetchingInfo(false); resetForm(); } }]
                 );
                 return;
             }
 
             // B. Căutăm pe Serverul ROMÂNESC OpenFoodFacts
             try {
-                // SCHIMBARE AICI: folosim ro.openfoodfacts.org
                 const response = await fetch(`https://ro.openfoodfacts.org/api/v0/product/${data}.json`);
                 const json = await response.json();
 
                 if (json.status === 1 && json.product) {
-                    // LOGICĂ NOUĂ DE EXTRAGERE NUME
-                    // 1. Încercăm numele specific românesc
-                    // 2. Încercăm numele generic
-                    // 3. Dacă avem brand, îl punem în față (ex: "Borsec - Apa Minerala")
+                    const p = json.product;
 
-                    let numeFinal = json.product.product_name_ro || json.product.product_name || "";
-                    const brand = json.product.brands || "";
+                    // 1. Nume
+                    let numeFinal = p.product_name_ro || p.product_name || "";
+                    if (p.brands && !numeFinal.toLowerCase().includes(p.brands.toLowerCase())) {
+                        numeFinal = `${p.brands} ${numeFinal}`;
+                    }
+                    if (numeFinal) setNume(numeFinal);
 
-                    if (brand && numeFinal && !numeFinal.toLowerCase().includes(brand.toLowerCase())) {
-                        numeFinal = `${brand} ${numeFinal}`;
+                    // 2. Categorie și Subcategorie (Logic)
+                    // API-ul returnează tag-uri ex: "en:beverages", "en:carbonated-drinks"
+                    if (p.categories_tags && p.categories_tags.length > 0) {
+                        const cleanTag = (tag: string) => {
+                            if (!tag) return '';
+                            // Ștergem prefixul de limbă (en:, ro:, fr:)
+                            return tag.replace(/^[a-z]{2}:/, '').replace(/-/g, ' ');
+                        };
+
+                        // Setăm prima categorie găsită
+                        const catRaw = cleanTag(p.categories_tags[0]);
+                        setCategorie(catRaw.charAt(0).toUpperCase() + catRaw.slice(1));
+
+                        // Dacă există a doua, o punem la subcategorie
+                        if (p.categories_tags.length > 1) {
+                            const subRaw = cleanTag(p.categories_tags[1]);
+                            setSubcategorie(subRaw.charAt(0).toUpperCase() + subRaw.slice(1));
+                        }
                     }
 
-                    if (numeFinal) {
-                        setNume(numeFinal);
-                        Alert.alert("Produs Identificat (RO)!", `Am găsit:\n${numeFinal}`);
-                    }
+                    Alert.alert("Găsit!", `Am completat detaliile automat.`);
                 }
             } catch (apiError) {
                 console.log("Eroare API extern:", apiError);
@@ -85,7 +100,7 @@ export default function AddProductScreen({ navigation }: any) {
     // --- 2. SALVARE ---
     const handleSave = async () => {
         if (!nume || !pret || !stoc || !barcode) {
-            Alert.alert("Date Incomplete", "Completează Nume, Preț și Stoc.");
+            Alert.alert("Date Incomplete", "Numele, Prețul și Stocul sunt obligatorii.");
             return;
         }
 
@@ -94,22 +109,23 @@ export default function AddProductScreen({ navigation }: any) {
             const { error } = await supabase.from('produse').insert({
                 nume: nume,
                 cod_bare: barcode,
+                categorie_principala: categorie || 'General', // Salvăm categoria
+                categorie_secundara: subcategorie || 'Diverse', // Salvăm subcategoria
                 pret_vanzare: parseFloat(pret),
-                stoc_curent: parseInt(stoc),
-                stoc_depozit: parseInt(stoc),
+                stoc_depozit: parseInt(stoc), // Se duce în depozit
+                stoc_magazin: 0,
+                // Valori default
                 tva_procent: parseInt(tva),
                 unitate_masura: unitate,
                 stoc_minim_depozit: 5,
-                prag_optim: 10,
-                categorie_principala: 'General',
-                categorie_secundara: 'Diverse'
+                prag_optim: 10
             });
 
             if (error) throw error;
 
             Alert.alert("Succes", "Produs adăugat!", [
                 { text: "Adaugă Altul", onPress: resetForm },
-                { text: "Înapoi", style: 'cancel', onPress: () => navigation.goBack() }
+                { text: "Înapoi la Dashboard", style: 'cancel', onPress: () => navigation.goBack() }
             ]);
 
         } catch (err: any) {
@@ -123,6 +139,8 @@ export default function AddProductScreen({ navigation }: any) {
         setScanned(false);
         setBarcode('');
         setNume('');
+        setCategorie('');
+        setSubcategorie('');
         setPret('');
         setStoc('');
         setTva('19');
@@ -154,7 +172,7 @@ export default function AddProductScreen({ navigation }: any) {
                     {fetchingInfo ? (
                         <View style={styles.loadingBox}>
                             <ActivityIndicator size="large" color="#2563eb" />
-                            <Text style={{color:'white', marginTop:10}}>Căutăm produsul în România...</Text>
+                            <Text style={{color:'white', marginTop:10}}>Se verifică produsul...</Text>
                         </View>
                     ) : (
                         <>
@@ -177,7 +195,7 @@ export default function AddProductScreen({ navigation }: any) {
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => setScanned(false)} style={{flexDirection:'row', alignItems:'center'}}>
                         <ArrowLeft color="#374151" size={24} />
-                        <Text style={styles.headerTitle}> Detalii Produs</Text>
+                        <Text style={styles.headerTitle}> Adăugare Rapidă</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -187,6 +205,7 @@ export default function AddProductScreen({ navigation }: any) {
                         <Text style={styles.barcodeText}>{barcode}</Text>
                     </View>
 
+                    {/* Nume - Auto-completat */}
                     <View style={styles.inputGroup}>
                         <View style={{flexDirection:'row', justifyContent:'space-between'}}>
                             <Text style={styles.label}>Nume Produs</Text>
@@ -195,25 +214,36 @@ export default function AddProductScreen({ navigation }: any) {
                         <TextInput style={styles.input} value={nume} onChangeText={setNume} placeholder="Nume Produs" />
                     </View>
 
+                    {/* Categorie și Subcategorie - Noi */}
                     <View style={styles.row}>
                         <View style={[styles.inputGroup, { flex: 1 }]}>
-                            <Text style={styles.label}>Preț (RON)</Text>
-                            <TextInput style={styles.input} value={pret} onChangeText={setPret} keyboardType="numeric" placeholder="0.00" />
+                            <Text style={styles.label}>Categorie</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={categorie}
+                                onChangeText={setCategorie}
+                                placeholder="Ex: Băuturi"
+                            />
                         </View>
                         <View style={[styles.inputGroup, { flex: 1 }]}>
-                            <Text style={styles.label}>Stoc</Text>
-                            <TextInput style={styles.input} value={stoc} onChangeText={setStoc} keyboardType="numeric" placeholder="0" />
+                            <Text style={styles.label}>Subcategorie</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={subcategorie}
+                                onChangeText={setSubcategorie}
+                                placeholder="Ex: Sucuri"
+                            />
                         </View>
                     </View>
 
                     <View style={styles.row}>
                         <View style={[styles.inputGroup, { flex: 1 }]}>
-                            <Text style={styles.label}>TVA (%)</Text>
-                            <TextInput style={styles.input} value={tva} onChangeText={setTva} keyboardType="numeric" />
+                            <Text style={styles.label}>Preț Vânzare (RON)</Text>
+                            <TextInput style={styles.input} value={pret} onChangeText={setPret} keyboardType="numeric" placeholder="0.00" />
                         </View>
                         <View style={[styles.inputGroup, { flex: 1 }]}>
-                            <Text style={styles.label}>Unitate</Text>
-                            <TextInput style={styles.input} value={unitate} onChangeText={setUnitate} placeholder="buc" />
+                            <Text style={styles.label}>Stoc Depozit</Text>
+                            <TextInput style={styles.input} value={stoc} onChangeText={setStoc} keyboardType="numeric" placeholder="0" />
                         </View>
                     </View>
 
@@ -221,7 +251,7 @@ export default function AddProductScreen({ navigation }: any) {
                         {loading ? <ActivityIndicator color="white" /> : (
                             <>
                                 <Save color="white" size={20} />
-                                <Text style={styles.saveText}>Salvează</Text>
+                                <Text style={styles.saveText}>Salvează în Gestiune</Text>
                             </>
                         )}
                     </TouchableOpacity>

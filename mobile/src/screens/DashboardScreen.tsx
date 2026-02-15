@@ -10,7 +10,8 @@ import {
     AlertOctagon, ClipboardList, Settings, UserCircle,
     Users, Truck, BarChart3, FileWarning, ScrollText,
     ScanBarcode, RotateCcw, FileCheck, BrainCircuit, AlertTriangle,
-    ArrowRightLeft, CalendarClock // <--- Toate iconițele necesare
+    ArrowRightLeft, CalendarClock, PlusCircle,
+    Printer // <--- IMPORT NOU PENTRU IMPRIMANTĂ
 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -97,6 +98,20 @@ export default function DashboardScreen({ navigation }) {
         return '#6b7280';
     };
 
+    // Componentă Helper pentru Carduri
+    const MenuCard = ({ title, icon: Icon, color, onPress, bg, sub, fullWidth }) => (
+        <TouchableOpacity
+            style={[styles.card, fullWidth ? {width: '100%'} : {width: (width - 55) / 2}]}
+            onPress={onPress}
+        >
+            <View style={[styles.iconBox, { backgroundColor: bg }]}>
+                <Icon size={32} color={color} />
+            </View>
+            <Text style={styles.cardTitle}>{title}</Text>
+            {sub && <Text style={styles.cardSubtitle}>{sub}</Text>}
+        </TouchableOpacity>
+    );
+
     if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#4F46E5" /></View>;
 
     return (
@@ -150,55 +165,66 @@ export default function DashboardScreen({ navigation }) {
                     <>
                         <Text style={styles.sectionTitle}>Gestiune Depozit</Text>
                         <View style={styles.grid}>
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('InventoryReceipt')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#d1fae5' }]}>
-                                    <ClipboardCheck size={32} color="#059669" />
-                                </View>
-                                <Text style={styles.cardTitle}>Recepție</Text>
-                                <Text style={styles.cardSubtitle}>Intrare Marfă</Text>
-                            </TouchableOpacity>
+                            <MenuCard
+                                title="Recepție"
+                                icon={ClipboardCheck}
+                                color="#059669"
+                                bg="#d1fae5"
+                                sub="Intrare Marfă"
+                                onPress={() => navigation.navigate('InventoryReceipt')}
+                            />
 
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('StockCheckScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#e0e7ff' }]}>
-                                    <SearchCheck size={32} color="#4338ca" />
-                                </View>
-                                <Text style={styles.cardTitle}>Verificare</Text>
-                                <Text style={styles.cardSubtitle}>Info Stoc</Text>
-                            </TouchableOpacity>
+                            {/* --- AICI AM SCHIMBAT "VERIFICARE" CU "ETICHETE" (DOAR ADMIN) --- */}
+                            {isAdmin ? (
+                                <MenuCard
+                                    title="Etichete"
+                                    icon={Printer}
+                                    color="#7c3aed" // Violet
+                                    bg="#f3e8ff"    // Violet deschis
+                                    sub="Printare Raft"
+                                    onPress={() => Alert.alert("Funcție în lucru", "Modulul de imprimantă va fi disponibil curând.")}
+                                />
+                            ) : (
+                                // Opțional: Dacă nu e admin, poți lăsa un spațiu gol sau altceva.
+                                // Momentan nu afișăm nimic, deci grila se va rearanja.
+                                null
+                            )}
 
-                            {/* Transfer */}
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('TransferScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#cffafe' }]}>
-                                    <ArrowRightLeft size={32} color="#0891b2" />
-                                </View>
-                                <Text style={styles.cardTitle}>Transfer</Text>
-                                <Text style={styles.cardSubtitle}>Depozit → Raft</Text>
-                            </TouchableOpacity>
+                            <MenuCard
+                                title="Transfer"
+                                icon={ArrowRightLeft}
+                                color="#0891b2"
+                                bg="#cffafe"
+                                sub="Depozit → Raft"
+                                onPress={() => navigation.navigate('TransferScreen')}
+                            />
 
-                            {/* Expirări */}
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ExpirationsScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#fef3c7' }]}>
-                                    <CalendarClock size={32} color="#d97706" />
-                                </View>
-                                <Text style={styles.cardTitle}>Expirări</Text>
-                                <Text style={styles.cardSubtitle}>Monitorizare</Text>
-                            </TouchableOpacity>
+                            <MenuCard
+                                title="Expirări"
+                                icon={CalendarClock}
+                                color="#d97706"
+                                bg="#fef3c7"
+                                sub="Monitorizare"
+                                onPress={() => navigation.navigate('ExpirationsScreen')}
+                            />
 
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ScrapScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#fee2e2' }]}>
-                                    <AlertOctagon size={32} color="#dc2626" />
-                                </View>
-                                <Text style={styles.cardTitle}>Pierderi</Text>
-                                <Text style={styles.cardSubtitle}>Deteriorate</Text>
-                            </TouchableOpacity>
+                            <MenuCard
+                                title="Pierderi"
+                                icon={AlertOctagon}
+                                color="#dc2626"
+                                bg="#fee2e2"
+                                sub="Deteriorate"
+                                onPress={() => navigation.navigate('ScrapScreen')}
+                            />
 
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('InventoryAuditScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#f3e8ff' }]}>
-                                    <ClipboardList size={32} color="#7c3aed" />
-                                </View>
-                                <Text style={styles.cardTitle}>Inventar</Text>
-                                <Text style={styles.cardSubtitle}>Corecție Stoc</Text>
-                            </TouchableOpacity>
+                            <MenuCard
+                                title="Inventar"
+                                icon={ClipboardList}
+                                color="#7c3aed"
+                                bg="#f3e8ff"
+                                sub="Corecție Stoc"
+                                onPress={() => navigation.navigate('InventoryAuditScreen')}
+                            />
                         </View>
                     </>
                 )}
@@ -208,19 +234,8 @@ export default function DashboardScreen({ navigation }) {
                     <View style={styles.adminSection}>
                         <Text style={styles.sectionTitle}>Panou Agent</Text>
                         <View style={styles.grid}>
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AgentSupplyOrderScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#e0f2fe' }]}>
-                                    <Package size={28} color="#0284c7" />
-                                </View>
-                                <Text style={styles.cardTitle}>Comandă Nouă</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AgentSupplyHistoryScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#ffedd5' }]}>
-                                    <ScrollText size={28} color="#ea580c" />
-                                </View>
-                                <Text style={styles.cardTitle}>Istoric Comenzi</Text>
-                            </TouchableOpacity>
+                            <MenuCard title="Comandă Nouă" icon={Package} color="#0284c7" bg="#e0f2fe" onPress={() => navigation.navigate('AgentSupplyOrderScreen')} />
+                            <MenuCard title="Istoric Comenzi" icon={ScrollText} color="#ea580c" bg="#ffedd5" onPress={() => navigation.navigate('AgentSupplyHistoryScreen')} />
                         </View>
                     </View>
                 )}
@@ -231,84 +246,34 @@ export default function DashboardScreen({ navigation }) {
                         <Text style={styles.sectionTitle}>Panou Administrator</Text>
                         <View style={styles.grid}>
 
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminSupplyOrdersScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#fef3c7' }]}>
-                                    <FileCheck size={28} color="#d97706" />
-                                </View>
-                                <Text style={styles.cardTitle}>Comenzi Agenți</Text>
-                            </TouchableOpacity>
+                            {/* Buton Adăugare Rapidă (Creat anterior) */}
+                            <MenuCard
+                                title="Adăugare Rapidă"
+                                icon={PlusCircle}
+                                color="#2563eb"
+                                bg="#bfdbfe"
+                                onPress={() => navigation.navigate('AddProduct')}
+                            />
 
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminSmartRestockScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#e0e7ff' }]}>
-                                    <BrainCircuit size={28} color="#4F46E5" />
-                                </View>
-                                <Text style={styles.cardTitle}>AI Consultant</Text>
-                                <Text style={styles.cardSubtitle}>Strategie Stoc</Text>
-                            </TouchableOpacity>
+                            {/* Scanare Rapidă */}
+                            <MenuCard
+                                title="Scanare Rapidă"
+                                icon={ScanBarcode}
+                                color="#7c3aed"
+                                bg="#f3e8ff"
+                                onPress={() => navigation.navigate('AdminQuickAddScreen')}
+                            />
 
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminQuickAddScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#f3e8ff' }]}>
-                                    <ScanBarcode size={28} color="#7c3aed" />
-                                </View>
-                                <Text style={styles.cardTitle}>Scanare Rapidă</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ProductsList')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#f1f5f9' }]}>
-                                    <Package size={28} color="#475569" />
-                                </View>
-                                <Text style={styles.cardTitle}>Listă Produse</Text>
-                            </TouchableOpacity>
-
-                            {/* Retur Furnizor */}
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('SupplierReturnsScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#fee2e2' }]}>
-                                    <RotateCcw size={28} color="#ef4444" />
-                                </View>
-                                <Text style={styles.cardTitle}>Retur Furnizor</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ReportsScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#dcfce7' }]}>
-                                    <BarChart3 size={28} color="#15803d" />
-                                </View>
-                                <Text style={styles.cardTitle}>Rapoarte</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('ReceiptsHistoryScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#ffedd5' }]}>
-                                    <ScrollText size={28} color="#ea580c" />
-                                </View>
-                                <Text style={styles.cardTitle}>Istoric Recepții</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('AdminLogsScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#fee2e2' }]}>
-                                    <FileWarning size={28} color="#dc2626" />
-                                </View>
-                                <Text style={styles.cardTitle}>Jurnal Erori</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('TeamScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#fef3c7' }]}>
-                                    <Users size={28} color="#d97706" />
-                                </View>
-                                <Text style={styles.cardTitle}>Echipă</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('SupplierScreens')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#ccfbf1' }]}>
-                                    <Truck size={28} color="#0d9488" />
-                                </View>
-                                <Text style={styles.cardTitle}>Furnizori</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.card} onPress={() => navigation.navigate('SettingsScreen')}>
-                                <View style={[styles.iconBox, { backgroundColor: '#f1f5f9' }]}>
-                                    <Settings size={28} color="#475569" />
-                                </View>
-                                <Text style={styles.cardTitle}>Setări</Text>
-                            </TouchableOpacity>
+                            <MenuCard title="Comenzi Agenți" icon={FileCheck} color="#d97706" bg="#fef3c7" onPress={() => navigation.navigate('AdminSupplyOrdersScreen')} />
+                            <MenuCard title="AI Consultant" icon={BrainCircuit} color="#4F46E5" bg="#e0e7ff" sub="Strategie" onPress={() => navigation.navigate('AdminSmartRestockScreen')} />
+                            <MenuCard title="Listă Produse" icon={Package} color="#475569" bg="#f1f5f9" onPress={() => navigation.navigate('ProductsList')} />
+                            <MenuCard title="Retur Furnizor" icon={RotateCcw} color="#ef4444" bg="#fee2e2" onPress={() => navigation.navigate('SupplierReturnsScreen')} />
+                            <MenuCard title="Rapoarte" icon={BarChart3} color="#15803d" bg="#dcfce7" onPress={() => navigation.navigate('ReportsScreen')} />
+                            <MenuCard title="Istoric Recepții" icon={ScrollText} color="#ea580c" bg="#ffedd5" onPress={() => navigation.navigate('ReceiptsHistoryScreen')} />
+                            <MenuCard title="Jurnal Erori" icon={FileWarning} color="#dc2626" bg="#fee2e2" onPress={() => navigation.navigate('AdminLogsScreen')} />
+                            <MenuCard title="Echipă" icon={Users} color="#d97706" bg="#fef3c7" onPress={() => navigation.navigate('TeamScreen')} />
+                            <MenuCard title="Furnizori" icon={Truck} color="#0d9488" bg="#ccfbf1" onPress={() => navigation.navigate('SupplierScreens')} />
+                            <MenuCard title="Setări" icon={Settings} color="#475569" bg="#f1f5f9" onPress={() => navigation.navigate('SettingsScreen')} fullWidth />
                         </View>
                     </View>
                 )}
@@ -320,10 +285,7 @@ export default function DashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f8fafc' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: {
-        padding: 20, backgroundColor: 'white', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        borderBottomWidth: 1, borderColor: '#e2e8f0', elevation: 2
-    },
+    header: { padding: 20, backgroundColor: 'white', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderColor: '#e2e8f0', elevation: 2 },
     userInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     avatar: { width: 45, height: 45, borderRadius: 25, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center' },
     welcomeText: { fontSize: 12, color: '#64748b', fontWeight: '600' },
@@ -334,6 +296,8 @@ const styles = StyleSheet.create({
     scrollContent: { padding: 20, paddingBottom: 50 },
     sectionTitle: { fontSize: 16, fontWeight: '800', color: '#1e293b', marginBottom: 15, marginTop: 10, marginLeft: 5 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+
+    // Stiluri Card
     card: {
         width: (width - 55) / 2,
         backgroundColor: 'white',
@@ -349,7 +313,7 @@ const styles = StyleSheet.create({
     cardSubtitle: { fontSize: 11, color: '#94a3b8', marginTop: 2, textAlign: 'center' },
     adminSection: { marginTop: 20, paddingTop: 10, borderTopWidth: 1, borderColor: '#e2e8f0' },
 
-    // STILURI BANNER AI
+    // Stiluri AI Banner
     aiBanner: {
         backgroundColor: '#4F46E5', borderRadius: 12, padding: 15, marginBottom: 20,
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

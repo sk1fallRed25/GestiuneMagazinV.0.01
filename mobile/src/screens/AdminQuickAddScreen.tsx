@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
-import { ArrowLeft, X, Save, Barcode, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft, X, Save, Barcode, AlertTriangle } from 'lucide-react-native';
 
 export default function AdminQuickAddScreen({ navigation }) {
     const [permission, requestPermission] = useCameraPermissions();
@@ -14,7 +14,6 @@ export default function AdminQuickAddScreen({ navigation }) {
 
     // Modal & Formular
     const [modalVisible, setModalVisible] = useState(false);
-    const [isNewProduct, setIsNewProduct] = useState(false);
     const [formData, setFormData] = useState({
         id: null,
         nume: '',
@@ -34,7 +33,7 @@ export default function AdminQuickAddScreen({ navigation }) {
         setLoading(true);
 
         try {
-            // Căutăm produsul
+            // Căutăm produsul în baza de date
             const { data: existing, error } = await supabase
                 .from('produse')
                 .select('*')
@@ -42,8 +41,7 @@ export default function AdminQuickAddScreen({ navigation }) {
                 .maybeSingle();
 
             if (existing) {
-                // MODIFICARE PRODUS EXISTENT
-                setIsNewProduct(false);
+                // --- CAZ 1: PRODUS GĂSIT -> DESCHIDEM EDITAREA ---
                 setFormData({
                     id: existing.id,
                     nume: existing.nume,
@@ -52,19 +50,20 @@ export default function AdminQuickAddScreen({ navigation }) {
                     stoc_depozit: existing.stoc_depozit?.toString() || '0',
                     stoc_magazin: existing.stoc_magazin?.toString() || '0'
                 });
+                setModalVisible(true);
             } else {
-                // ADAUGARE PRODUS NOU
-                setIsNewProduct(true);
-                setFormData({
-                    id: null,
-                    nume: '',
-                    cod_bare: data,
-                    pret_vanzare: '',
-                    stoc_depozit: '0',
-                    stoc_magazin: '0'
-                });
+                // --- CAZ 2: PRODUSUL NU EXISTĂ -> ALERTĂ ---
+                Alert.alert(
+                    "Produs Necunoscut",
+                    "Acest produs nu există în gestiune.\n\nTe rog folosește butonul 'Adăugare Rapidă' (cel albastru) pentru a-l introduce în sistem.",
+                    [
+                        {
+                            text: "OK",
+                            onPress: () => setScanned(false) // Repornim scanarea după ce apasă OK
+                        }
+                    ]
+                );
             }
-            setModalVisible(true);
         } catch (err) {
             Alert.alert("Eroare", "Nu s-a putut verifica codul de bare.");
             setScanned(false);
@@ -74,6 +73,7 @@ export default function AdminQuickAddScreen({ navigation }) {
     };
 
     const handleSave = async () => {
+        // Această funcție face acum DOAR update, nu insert
         if (!formData.nume || !formData.pret_vanzare) {
             Alert.alert("Atenție", "Numele și Prețul sunt obligatorii.");
             return;
@@ -81,29 +81,17 @@ export default function AdminQuickAddScreen({ navigation }) {
 
         setLoading(true);
         try {
-            if (isNewProduct) {
-                // INSERT
-                const { error } = await supabase.from('produse').insert([{
-                    nume: formData.nume,
-                    cod_bare: formData.cod_bare,
-                    pret_vanzare: parseFloat(formData.pret_vanzare),
-                    stoc_depozit: parseInt(formData.stoc_depozit),
-                    stoc_magazin: parseInt(formData.stoc_magazin)
-                }]);
-                if (error) throw error;
-                Alert.alert("Succes", "Produs adăugat în sistem!");
-            } else {
-                // UPDATE
-                const { error } = await supabase.from('produse').update({
-                    nume: formData.nume,
-                    pret_vanzare: parseFloat(formData.pret_vanzare),
-                    stoc_depozit: parseInt(formData.stoc_depozit),
-                    stoc_magazin: parseInt(formData.stoc_magazin)
-                }).eq('id', formData.id);
-                if (error) throw error;
-                Alert.alert("Succes", "Produs actualizat!");
-            }
+            // UPDATE EXCLUSIV
+            const { error } = await supabase.from('produse').update({
+                nume: formData.nume,
+                pret_vanzare: parseFloat(formData.pret_vanzare),
+                stoc_depozit: parseInt(formData.stoc_depozit),
+                stoc_magazin: parseInt(formData.stoc_magazin)
+            }).eq('id', formData.id);
 
+            if (error) throw error;
+
+            Alert.alert("Succes", "Informațiile au fost actualizate!");
             closeModal();
         } catch (err) {
             Alert.alert("Eroare", err.message);
@@ -129,12 +117,12 @@ export default function AdminQuickAddScreen({ navigation }) {
 
     return (
         <View style={styles.container}>
-            {/* Header Transparent peste Cameră */}
+            {/* Header Transparent */}
             <View style={styles.overlayHeader}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <ArrowLeft size={24} color="white" />
                 </TouchableOpacity>
-                <Text style={styles.overlayTitle}>Scanare Rapidă Admin</Text>
+                <Text style={styles.overlayTitle}>Scanare Rapidă</Text>
             </View>
 
             <CameraView
@@ -149,13 +137,13 @@ export default function AdminQuickAddScreen({ navigation }) {
                 {loading && <ActivityIndicator size="large" color="white" style={{marginTop: 20}} />}
             </View>
 
-            {/* --- MODAL EDITARE / ADAUGARE --- */}
+            {/* --- MODAL EDITARE (DOAR DACĂ EXISTĂ) --- */}
             <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>
-                                {isNewProduct ? "🆕 PRODUS NOU" : "✏️ EDITARE PRODUS"}
+                                DETALII PRODUS
                             </Text>
                             <TouchableOpacity onPress={closeModal}><X size={24} color="#374151" /></TouchableOpacity>
                         </View>
@@ -170,7 +158,7 @@ export default function AdminQuickAddScreen({ navigation }) {
                             <TextInput
                                 style={styles.input}
                                 value={formData.nume}
-                                placeholder="Ex: Apa Plata 2L"
+                                placeholder="Nume Produs"
                                 onChangeText={t => setFormData({...formData, nume: t})}
                             />
 
@@ -208,7 +196,7 @@ export default function AdminQuickAddScreen({ navigation }) {
                                 {loading ? <ActivityIndicator color="white" /> : (
                                     <>
                                         <Save size={20} color="white" />
-                                        <Text style={styles.saveText}>SALVEAZĂ</Text>
+                                        <Text style={styles.saveText}>ACTUALIZEAZĂ</Text>
                                     </>
                                 )}
                             </TouchableOpacity>
@@ -235,7 +223,7 @@ const styles = StyleSheet.create({
 
     // Modal
     modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: 'white', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 25, height: '75%' },
+    modalContent: { backgroundColor: 'white', borderTopLeftRadius: 25, borderTopRightRadius: 25, padding: 25, height: '70%' },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     modalTitle: { fontSize: 20, fontWeight: '900', color: '#111827' },
 

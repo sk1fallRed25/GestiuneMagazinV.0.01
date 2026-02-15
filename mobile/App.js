@@ -16,11 +16,12 @@ import InventoryReceipt from './src/screens/InventoryReceipt';
 import StockCheckScreen from './src/screens/StockCheckScreen';
 import ScrapScreen from './src/screens/ScrapScreen';
 import InventoryAuditScreen from './src/screens/InventoryAuditScreen';
-import TransferScreen from './src/screens/TransferScreen';       // <--- TRANSFER
-import ExpirationsScreen from './src/screens/ExpirationsScreen'; // <--- EXPIRĂRI
+import TransferScreen from './src/screens/TransferScreen';
+import ExpirationsScreen from './src/screens/ExpirationsScreen';
 
 // --- MODULE ADMINISTRATOR (MANAGEMENT) ---
 import ProductsListScreen from './src/screens/ProductsListScreen';
+import AddProductScreen from './src/screens/AddProductScreen'; // <--- IMPORT NOU
 import TeamScreen from './src/screens/TeamScreen';
 import SupplierScreens from './src/screens/SupplierScreens';
 import ReportsScreen from './src/screens/ReportsScreen';
@@ -28,9 +29,9 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import AdminLogsScreen from './src/screens/AdminLogsScreen';
 import ReceiptsHistoryScreen from './src/screens/ReceiptsHistoryScreen';
 import AdminQuickAddScreen from './src/screens/AdminQuickAddScreen';
-import SupplierReturnsScreen from './src/screens/SupplierReturnsScreen'; // <--- RETUR FURNIZOR
+import SupplierReturnsScreen from './src/screens/SupplierReturnsScreen';
 import AdminSupplyOrdersScreen from './src/screens/AdminSupplyOrdersScreen';
-import AdminSmartRestockScreen from './src/screens/AdminSmartRestockScreen'; // <--- AI CONSULTANT
+import AdminSmartRestockScreen from './src/screens/AdminSmartRestockScreen';
 
 // --- MODULE AGENT (B2B) ---
 import AgentSupplyOrderScreen from './src/screens/AgentSupplyOrderScreen';
@@ -51,7 +52,6 @@ export default function App() {
             try {
                 const { data: { session }, error } = await supabase.auth.getSession();
                 if (error) {
-                    // Dacă token-ul e invalid, delogăm forțat
                     if (error.message.includes("Refresh Token")) {
                         await supabase.auth.signOut();
                         setSession(null);
@@ -122,6 +122,10 @@ export default function App() {
                         <Stack.Screen name="AdminSupplyOrdersScreen" component={AdminSupplyOrdersScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="AdminSmartRestockScreen" component={AdminSmartRestockScreen} options={{ headerShown: false }} />
                         <Stack.Screen name="ProductsList" component={ProductsListScreen} options={{ title: 'Catalog Produse' }} />
+
+                        {/* --- RUTA NOUĂ ADĂUGATĂ --- */}
+                        <Stack.Screen name="AddProduct" component={AddProductScreen} options={{ title: 'Adăugare Produs', headerShown: false }} />
+
                         <Stack.Screen name="SupplierReturnsScreen" component={SupplierReturnsScreen} options={{ title: 'Retur Furnizor', headerShown: false }} />
                         <Stack.Screen name="TeamScreen" component={TeamScreen} options={{ title: 'Gestionare Echipă' }} />
                         <Stack.Screen name="SupplierScreens" component={SupplierScreens} options={{ title: 'Furnizori' }} />
