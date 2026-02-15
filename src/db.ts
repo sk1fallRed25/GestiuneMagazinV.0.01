@@ -1,22 +1,35 @@
 import Dexie, { Table } from 'dexie';
 
-// Definim interfețele pentru datele locale
+// Interfața pentru produse (Local)
+// Este important să coincidă cu structura din Supabase pentru a face "bulkPut" ușor
 export interface LocalProduct {
     id: number;
     nume: string;
     cod_bare: string;
-    pret_vanzare_fara_tva: number; // MODIFICAT
-    tva_procent: number; // NOU
-    stoc_magazin: number;
+    pret_vanzare: number; // Prețul cu TVA inclus (Preț la raft)
+    tva_procent: number;
+    stoc_depozit: number; // Opțional, pentru referință
+    stoc_magazin: number; // Vital pentru POS
     unitate_masura: string;
 }
 
+// Interfața pentru Bonuri (Local -> Sync -> Supabase)
 export interface LocalBon {
-    id?: number; // ID local auto-generat
+    id?: number; // ID auto-generat de IndexedDB
     data: string;
     total: number;
-    items: any[];
+    items: CartItem[]; // Detaliile bonului
     synced: number; // 0 = Nesincronizat (Offline), 1 = Sincronizat (Online)
+}
+
+// Interfața ajutătoare pentru itemele din bon
+export interface CartItem {
+    id: number;
+    nume: string;
+    pret: number;
+    cantitate: number;
+    tva: number;
+    subtotal: number;
 }
 
 class MagazinDatabase extends Dexie {
@@ -26,22 +39,14 @@ class MagazinDatabase extends Dexie {
     constructor() {
         super('MagazinLocalDB');
 
-        // Definim schema (doar coloanele pe care facem căutări)
-        this.version(3).stores({
-            products: 'id, nume, cod_bare, stoc_magazin',
-            bonuri: '++id, synced'
-        });
-        
-        this.version(2).stores({
-            products: 'id, nume, cod_bare, stoc_magazin',
-            bonuri: '++id, synced'
-        }).upgrade(tx => {
-            // Funcție de upgrade goală, dar necesară pentru a permite Dexie să reconstruiască schema
-        });
+        // VERSIONARE SCHEMA
+        // Dacă modifici structura tabelelor, trebuie să crești versiunea (ex: 4, 5...)
+        // Dexie se ocupă automat de upgrade.
 
-        this.version(1).stores({
-            products: 'id, nume, cod_bare',
-            bonuri: '++id, synced'
+        this.version(4).stores({
+            // Indexăm doar câmpurile pe care facem căutări frecvente
+            products: 'id, nume, cod_bare, stoc_magazin',
+            bonuri: '++id, synced, data'
         });
     }
 }

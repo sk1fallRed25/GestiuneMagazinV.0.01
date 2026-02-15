@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import { Link } from 'react-router-dom'
+import { ScanBarcode, ArrowLeft, Package, CheckCircle, AlertTriangle, Save, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 // --- 1. STANDARDIZARE GRAMAJ ---
 const formateazaGramaj = (text: string) => {
@@ -52,7 +54,7 @@ export default function FastAdd() {
     const [categorie, setCategorie] = useState('General')
     const [subcategorie, setSubcategorie] = useState('Diverse')
 
-    const [status, setStatus] = useState('')
+    const [status, setStatus] = useState({ msg: '', type: '' })
     const [isNew, setIsNew] = useState(false)
     const [loadingAPI, setLoadingAPI] = useState(false)
 
@@ -73,12 +75,10 @@ export default function FastAdd() {
 
                 let numeFinal = numeProd;
 
-                // --- FIX PENTRU NUME DUBLAT ---
-                // Curățăm ambele șiruri de caractere speciale și spații pentru comparație
+                // FIX PENTRU NUME DUBLAT
                 const brandCurat = brand.toLowerCase().replace(/[^a-z0-9]/g, '');
                 const numeCurat = numeProd.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-                // Adăugăm brandul DOAR dacă nu este deja conținut în nume (ignorant spații/cratime)
                 if (brand && !numeCurat.includes(brandCurat)) {
                     numeFinal = `${brand} ${numeProd}`;
                 }
@@ -92,14 +92,14 @@ export default function FastAdd() {
                 setCategorie(cat);
                 setSubcategorie(sub);
 
-                setStatus(`🌍 Produs identificat: ${numeFinal}`);
+                setStatus({ msg: `🌍 Produs identificat: ${numeFinal}`, type: 'success' });
                 return true;
             } else {
-                setStatus('🔍 Nu l-am găsit online. Introdu manual.');
+                setStatus({ msg: '🔍 Nu l-am găsit online. Introdu manual.', type: 'warning' });
                 return false;
             }
         } catch (error) {
-            setStatus('⚠️ Fără internet.');
+            setStatus({ msg: '⚠️ Eroare conexiune internet.', type: 'error' });
             return false;
         } finally {
             setLoadingAPI(false);
@@ -109,17 +109,24 @@ export default function FastAdd() {
     // --- 4. SCANARE ---
     const handleScan = async (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && barcode) {
-            setStatus('Caut în baza locală...');
-            const { data: existent } = await supabase.from('produse').select('*').eq('cod_bare', barcode).single()
+            setStatus({ msg: 'Caut în baza locală...', type: 'info' });
+
+            // Verificăm dacă există deja
+            const { data: existent } = await supabase
+                .from('produse')
+                .select('*')
+                .eq('cod_bare', barcode)
+                .single();
 
             if (existent) {
-                setStatus(`⚠️ ${existent.nume} există deja!`);
+                setStatus({ msg: `⚠️ ${existent.nume} există deja!`, type: 'error' });
+                toast.error("Produsul este deja în stoc!");
                 setBarcode('');
                 return;
             }
 
             setIsNew(true);
-            setStatus('☁️ Caut pe serverele globale...');
+            setStatus({ msg: '☁️ Caut pe serverele globale...', type: 'info' });
             const gasit = await cautaOnline(barcode);
 
             setTimeout(() => {
@@ -131,93 +138,146 @@ export default function FastAdd() {
 
     const saveProduct = async (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (!nume) return setStatus('❌ Scrie un nume!');
+        if (!nume) {
+            toast.error("Scrie un nume pentru produs!");
+            return;
+        }
 
         try {
+            // FIX: Folosim numele corecte de coloane din DB
             const { error } = await supabase.from('produse').insert([{
                 cod_bare: barcode,
                 nume: nume,
-                gramaj: gramaj,
-                categorie: categorie,
-                subcategorie: subcategorie,
-                stoc_curent: 0,
+                unitate_masura: gramaj || 'buc', // Mapăm 'gramaj' la 'unitate_masura' sau similar
+                categorie_principala: categorie, // FIX
+                categorie_secundara: subcategorie, // FIX
+                stoc_depozit: 0,
+                stoc_magazin: 0,
                 pret_vanzare: 0,
-                pret_achizitie: 0
-            }])
+                // ultimul_pret_achizitie: 0 // Opțional
+            }]);
 
             if (error) throw error;
 
-            setStatus(`✅ Adăugat: ${nume}`);
-            setBarcode(''); setNume(''); setGramaj(''); setIsNew(false);
+            toast.success(`Produs adăugat: ${nume}`);
+            setStatus({ msg: `✅ Adăugat: ${nume}`, type: 'success' });
+
+            // Reset
+            setBarcode('');
+            setNume('');
+            setGramaj('');
+            setIsNew(false);
+            setStatus({ msg: '', type: '' });
             barcodeRef.current?.focus();
+
         } catch (err: any) {
-            setStatus('Eroare: ' + err.message);
+            console.error(err);
+            toast.error("Eroare la salvare: " + err.message);
+            setStatus({ msg: 'Eroare la salvare.', type: 'error' });
         }
     }
 
     return (
-        <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
-            {/* Design Curat */}
-            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-2xl border-t-8 border-blue-500">
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6 font-sans">
+            <div className="bg-white p-10 rounded-3xl shadow-xl w-full max-w-2xl border border-gray-100">
 
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">☁️ Adăugare Smart</h1>
-                    <Link to="/" className="text-gray-400 hover:text-gray-600">Înapoi</Link>
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                        <div className="bg-blue-100 p-2 rounded-xl text-blue-600"><ScanBarcode size={32} /></div>
+                        Adăugare Rapidă
+                    </h1>
+                    <Link to="/" className="flex items-center text-gray-400 hover:text-gray-600 font-medium transition-colors">
+                        <ArrowLeft size={18} className="mr-1" /> Înapoi
+                    </Link>
                 </div>
 
                 {/* STATUS BAR */}
-                <div className={`p-4 rounded-lg mb-6 text-center font-bold text-lg transition-all ${
-                    loadingAPI ? 'bg-blue-100 text-blue-800 animate-pulse' :
-                        status.includes('✅') ? 'bg-green-100 text-green-700' :
-                            status.includes('⚠️') ? 'bg-orange-100 text-orange-700' :
-                                'bg-gray-100 text-gray-600'
-                }`}>
-                    {status || 'Scanează un produs. Căutăm automat datele lui.'}
-                </div>
+                {status.msg && (
+                    <div className={`p-4 rounded-xl mb-8 flex items-center gap-3 font-bold text-lg transition-all animate-in fade-in zoom-in duration-300 ${
+                        status.type === 'success' ? 'bg-green-50 text-green-700 border border-green-100' :
+                            status.type === 'warning' ? 'bg-yellow-50 text-yellow-700 border border-yellow-100' :
+                                status.type === 'error' ? 'bg-red-50 text-red-700 border border-red-100' :
+                                    'bg-blue-50 text-blue-700 border border-blue-100'
+                    }`}>
+                        {status.type === 'success' && <CheckCircle size={24} />}
+                        {status.type === 'warning' && <AlertTriangle size={24} />}
+                        {status.type === 'info' && <Loader2 size={24} className="animate-spin" />}
+                        {status.msg}
+                    </div>
+                )}
 
                 {/* INPUT SCANARE */}
-                <div className="mb-6">
-                    <label className="block text-sm font-bold text-gray-500 uppercase mb-1">Scanează Cod Bare</label>
+                <div className="mb-8 relative group">
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Scanează Cod Bare</label>
                     <input
-                        ref={barcodeRef} type="text"
-                        className="w-full text-3xl font-mono border-2 border-gray-300 rounded-lg p-3 focus:border-blue-500 outline-none text-center tracking-widest"
-                        placeholder="Scanează aici..."
-                        value={barcode} onChange={e => setBarcode(e.target.value)} onKeyDown={handleScan}
-                        autoFocus disabled={isNew}
+                        ref={barcodeRef}
+                        type="text"
+                        className="w-full text-4xl font-mono font-bold border-2 border-gray-200 rounded-2xl p-5 focus:border-blue-500 outline-none text-center tracking-[0.2em] text-gray-700 placeholder-gray-200 transition-all group-hover:border-gray-300"
+                        placeholder="||||||||||||"
+                        value={barcode}
+                        onChange={e => setBarcode(e.target.value)}
+                        onKeyDown={handleScan}
+                        autoFocus
+                        disabled={isNew}
                     />
+                    <div className="absolute right-5 top-[3.2rem] text-gray-300 pointer-events-none group-focus-within:text-blue-400 transition-colors">
+                        <ScanBarcode size={32} />
+                    </div>
                 </div>
 
                 {isNew && (
-                    <form onSubmit={saveProduct} className="space-y-4 animate-fade-in-up">
+                    <form onSubmit={saveProduct} className="space-y-6 animate-in slide-in-from-bottom-4 fade-in duration-300">
 
                         <div className="relative">
-                            <label className="block text-sm font-bold text-gray-500 uppercase mb-1">Nume Produs</label>
-                            <input
-                                ref={numeRef} type="text"
-                                className={`w-full text-xl border-2 rounded-lg p-3 outline-none ${loadingAPI ? 'bg-gray-100' : 'bg-white focus:border-blue-500 border-gray-200'}`}
-                                value={nume} onChange={e => { setNume(e.target.value); const c = detecteazaCategorie(e.target.value); setCategorie(c.cat); setSubcategorie(c.sub); }}
-                            />
-                            <div className="absolute right-2 top-9 bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded shadow-sm border border-blue-200">
-                                {categorie} &gt; {subcategorie}
+                            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Denumire Produs</label>
+                            <div className="relative">
+                                <input
+                                    ref={numeRef}
+                                    type="text"
+                                    className={`w-full text-xl font-bold border-2 rounded-2xl p-4 outline-none transition-all ${loadingAPI ? 'bg-gray-50 text-gray-400 border-gray-100' : 'bg-white focus:border-blue-500 border-gray-200 text-gray-800'}`}
+                                    value={nume}
+                                    onChange={e => {
+                                        setNume(e.target.value);
+                                        const c = detecteazaCategorie(e.target.value);
+                                        setCategorie(c.cat);
+                                        setSubcategorie(c.sub);
+                                    }}
+                                    placeholder="Ex: Coca Cola 2L"
+                                />
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 bg-indigo-50 text-indigo-600 text-xs font-bold px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-1">
+                                    <Package size={12} /> {categorie} &gt; {subcategorie}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-sm font-bold text-gray-500 uppercase mb-1">Gramaj (Standardizat)</label>
-                                <input type="text" className="w-full text-lg border-2 border-gray-200 rounded-lg p-3 focus:border-blue-500 outline-none"
-                                       value={gramaj} onChange={e => setGramaj(e.target.value)}
+                                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">Cantitate / Gramaj</label>
+                                <input
+                                    type="text"
+                                    className="w-full text-lg font-medium border-2 border-gray-200 rounded-2xl p-4 focus:border-blue-500 outline-none transition-all"
+                                    value={gramaj}
+                                    onChange={e => setGramaj(e.target.value)}
+                                    placeholder="Ex: 500ml"
                                 />
                             </div>
                             <div className="flex items-end">
-                                <button id="btn-save" type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl text-lg shadow-lg transition active:scale-95">
-                                    Confirmă (Enter)
+                                <button
+                                    id="btn-save"
+                                    type="submit"
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-2xl text-lg shadow-lg shadow-blue-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                                >
+                                    <Save size={20} /> Salvează
                                 </button>
                             </div>
                         </div>
 
-                        <button type="button" onClick={() => { setIsNew(false); setBarcode(''); barcodeRef.current?.focus(); }} className="w-full text-gray-400 text-sm hover:text-red-500 mt-2">
-                            Anulează
+                        <button
+                            type="button"
+                            onClick={() => { setIsNew(false); setBarcode(''); setStatus({msg:'', type:''}); barcodeRef.current?.focus(); }}
+                            className="w-full text-gray-400 text-sm hover:text-red-500 font-medium transition-colors py-2"
+                        >
+                            Anulează și scanează alt cod
                         </button>
                     </form>
                 )}

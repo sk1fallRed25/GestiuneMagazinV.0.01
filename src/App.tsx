@@ -4,7 +4,8 @@ import { Toaster, toast } from 'react-hot-toast';
 import { supabase } from './supabaseClient';
 import {
     LayoutDashboard, Package, Truck, ShoppingCart, Settings, PackagePlus, ArrowRightLeft, ListTodo, Send, Inbox,
-    Briefcase, ChevronDown, ChevronRight, Bell, Search, LogOut, TrendingUp, AlertTriangle, X, Check, Users, ClipboardList, FileText
+    Briefcase, ChevronDown, ChevronRight, Bell, Search, LogOut, TrendingUp, AlertTriangle, X, Check, Users, ClipboardList, FileText,
+    BrainCircuit // <--- 1. AM ADĂUGAT ICONIȚA AICI
 } from 'lucide-react';
 
 // --- IMPORTURI PAGINI ---
@@ -24,7 +25,8 @@ import Comenzi from './Comenzi';
 import ReceptieComanda from './ReceptieComanda';
 import DetaliiComandaAgent from './DetaliiComandaAgent';
 import GestiuneAgenti from './GestiuneAgenti';
-import IstoricVanzari from './IstoricVanzari'; // <--- PAGINA NOUA IMPORTATĂ
+import IstoricVanzari from './IstoricVanzari';
+import AiConsultant from './AiConsultant'; // <--- 2. IMPORTUL PAGINII NOI
 
 // ==========================================
 // COMPONENTE UI (Stat Cards)
@@ -174,15 +176,15 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                                 </div>
                             </div>
 
+                            {/* --- 3. AICI ESTE BUTONUL PENTRU AI ÎN SIDEBAR --- */}
+                            <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
+
                             <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
                             <NavLink to="/comanda-furnizor" label="Comandă Furnizor" icon={<Send size={18} />} />
                             <NavLink to="/comenzi" label="Situație Comenzi" icon={<ClipboardList size={18} />} />
                             <NavLink to="/gestiune-agenti" label="Gestiune Agenți" icon={<Users size={18} />} />
                             <NavLink to="/furnizori" label="Furnizori" icon={<Truck size={18} />} />
-
-                            {/* BUTONUL NOU - ISTORIC VÂNZĂRI */}
                             <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
-
                             <NavLink to="/lista-cumparaturi" label="Listă Cumpărături" icon={<ListTodo size={18} />} />
 
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Punct de Vânzare</div>
@@ -440,17 +442,17 @@ function App() {
                                 <Route path="/comanda/:id" element={<DetaliiComanda />} />
                                 {userRole === 'admin' && (
                                     <>
+                                        {/* --- 4. RUTA PENTRU PAGINA AI --- */}
+                                        <Route path="/ai-consultant" element={<AiConsultant />} />
+
                                         <Route path="/furnizori" element={<Furnizori />} />
                                         <Route path="/vanzare" element={<Vanzare />} />
                                         <Route path="/fast-add" element={<FastAdd />} />
                                         <Route path="/lista-cumparaturi" element={<ListaCumparaturi />} />
-
-                                        {/* RUTE NOI ADAUGATE */}
                                         <Route path="/comanda-furnizor" element={<ComandaFurnizor />} />
                                         <Route path="/comenzi" element={<Comenzi />} />
                                         <Route path="/gestiune-agenti" element={<GestiuneAgenti />} />
                                         <Route path="/istoric-vanzari" element={<IstoricVanzari />} />
-
                                         <Route path="/comanda-primita/:id" element={<DetaliiComandaAgent />} />
                                     </>
                                 )}

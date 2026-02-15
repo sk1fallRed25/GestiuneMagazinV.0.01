@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react'
-import { supabase } from './supabaseClient'
+import React, { useState, useEffect, useRef } from 'react';
+import { supabase } from './supabaseClient';
 import { toast } from 'react-hot-toast';
+import {
+    Upload, Plus, Trash2, Save, Search, FileText, Truck,
+    Calendar, Package, AlertCircle, CheckCircle, Calculator, ArrowRight
+} from 'lucide-react';
 
 // --- Tipuri ---
 interface Furnizor { id: number; nume_firma: string; cui: string }
@@ -14,66 +18,76 @@ interface Produs {
     stoc_magazin: number;
 }
 interface LinieNIR {
-    id: number
-    produs: Produs
-    isBax: boolean
-    cantitateBaxuri: number
-    bucatiPerBax: number
-    cantitateTotala: number
-    pretTotalLinie: number
-    pretAchizitieUnitar: number
-    adaos: number
-    pretVanzareNou: number
+    id: number;
+    produs: Produs;
+    isBax: boolean;
+    cantitateBaxuri: number;
+    bucatiPerBax: number;
+    cantitateTotala: number;
+    pretTotalLinie: number;
+    pretAchizitieUnitar: number;
+    adaos: number;
+    pretVanzareNou: number;
 }
 
 export default function Receptie() {
     // --- STATE-URI ---
-    const [furnizori, setFurnizori] = useState<Furnizor[]>([])
-    const [selFurnizor, setSelFurnizor] = useState<string>('')
-    const [nrFactura, setNrFactura] = useState('')
-    const [dataFactura, setDataFactura] = useState(new Date().toISOString().slice(0, 10))
-    const [search, setSearch] = useState('')
-    const [rezultateCautare, setRezultateCautare] = useState<Produs[]>([])
-    const [produsSelectat, setProdusSelectat] = useState<Produs | null>(null)
-    const [isBax, setIsBax] = useState(false)
-    const [cantitateInput, setCantitateInput] = useState<number>(1)
-    const [bucatiPerBax, setBucatiPerBax] = useState<number>(1)
-    const [pretTotalInput, setPretTotalInput] = useState<number>(0)
-    const [adaos, setAdaos] = useState<number>(30)
-    const [liniiNIR, setLiniiNIR] = useState<LinieNIR[]>([])
-    const [loading, setLoading] = useState(false)
-    const [xmlStatus, setXmlStatus] = useState('')
+    const [furnizori, setFurnizori] = useState<Furnizor[]>([]);
+    const [selFurnizor, setSelFurnizor] = useState<string>('');
+    const [nrFactura, setNrFactura] = useState('');
+    const [dataFactura, setDataFactura] = useState(new Date().toISOString().slice(0, 10));
 
+    // Search & Produs
+    const [search, setSearch] = useState('');
+    const [rezultateCautare, setRezultateCautare] = useState<Produs[]>([]);
+    const [produsSelectat, setProdusSelectat] = useState<Produs | null>(null);
+
+    // Inputs Linie
+    const [isBax, setIsBax] = useState(false);
+    const [cantitateInput, setCantitateInput] = useState<number | string>('');
+    const [bucatiPerBax, setBucatiPerBax] = useState<number | string>(1);
+    const [pretTotalInput, setPretTotalInput] = useState<number | string>('');
+    const [adaos, setAdaos] = useState<number>(30); // Default 30%
+
+    const [liniiNIR, setLiniiNIR] = useState<LinieNIR[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [xmlStatus, setXmlStatus] = useState('');
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Încărcare furnizori
     useEffect(() => {
         supabase.from('furnizori').select('*').order('nume_firma').then(({ data }) => {
-            if (data) setFurnizori(data)
-        })
-    }, [])
+            if (data) setFurnizori(data);
+        });
+    }, []);
 
+    // Căutare produse (Debounce)
     useEffect(() => {
         const delayDebounce = setTimeout(async () => {
-            if (search.length < 2) { setRezultateCautare([]); return }
+            if (search.length < 2) { setRezultateCautare([]); return; }
             const { data } = await supabase
                 .from('produse')
-                .select('id, nume, cod_bare, pret_vanzare, pret_achizitie, stoc_depozit, stoc_magazin')
+                .select('*')
                 .or(`nume.ilike.%${search}%,cod_bare.eq.${search}`)
-                .limit(5)
-            if (data) setRezultateCautare(data as Produs[])
-        }, 300)
-        return () => clearTimeout(delayDebounce)
-    }, [search])
+                .limit(5);
+            if (data) setRezultateCautare(data as Produs[]);
+        }, 300);
+        return () => clearTimeout(delayDebounce);
+    }, [search]);
 
     const selecteazaProdus = (p: Produs) => {
-        setProdusSelectat(p)
-        setSearch(p.nume)
-        setRezultateCautare([])
-        setAdaos(30)
-        setPretTotalInput(0)
-        setCantitateInput(1)
-        setBucatiPerBax(1)
-        setIsBax(false)
-    }
+        setProdusSelectat(p);
+        setSearch(p.nume);
+        setRezultateCautare([]);
+        setAdaos(30);
+        setPretTotalInput('');
+        setCantitateInput('');
+        setBucatiPerBax(1);
+        setIsBax(false);
+    };
 
+    // --- XML PARSER ---
     const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
@@ -83,118 +97,171 @@ export default function Receptie() {
             await parseXMLInvoice(text);
         };
         reader.readAsText(file);
+        // Reset input
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const parseXMLInvoice = async (xmlText: string) => {
         setXmlStatus('⏳ Se analizează factura...');
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+        try {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
-        const supplierName = xmlDoc.getElementsByTagName("cbc:RegistrationName")[0]?.textContent;
-        const supplierCUI = xmlDoc.getElementsByTagName("cbc:CompanyID")[0]?.textContent;
-        const invoiceID = xmlDoc.getElementsByTagName("cbc:ID")[0]?.textContent;
-        const invoiceDate = xmlDoc.getElementsByTagName("cbc:IssueDate")[0]?.textContent;
+            const supplierName = xmlDoc.getElementsByTagName("cbc:RegistrationName")[0]?.textContent;
+            const supplierCUI = xmlDoc.getElementsByTagName("cbc:CompanyID")[0]?.textContent;
+            const invoiceID = xmlDoc.getElementsByTagName("cbc:ID")[0]?.textContent;
+            const invoiceDate = xmlDoc.getElementsByTagName("cbc:IssueDate")[0]?.textContent;
 
-        if (invoiceID) setNrFactura(invoiceID);
-        if (invoiceDate) setDataFactura(invoiceDate);
+            if (invoiceID) setNrFactura(invoiceID);
+            if (invoiceDate) setDataFactura(invoiceDate);
 
-        let furnizorGasit = null;
-        if (supplierCUI) {
-            const { data: fCui } = await supabase.from('furnizori').select('*').ilike('cui', `%${supplierCUI}%`).single();
-            furnizorGasit = fCui;
-        }
-        if (!furnizorGasit && supplierName) {
-            const { data: fNume } = await supabase.from('furnizori').select('*').ilike('nume_firma', `%${supplierName}%`).single();
-            furnizorGasit = fNume;
-        }
+            // Căutare furnizor
+            let furnizorGasit = null;
+            if (supplierCUI) {
+                const { data: fCui } = await supabase.from('furnizori').select('*').ilike('cui', `%${supplierCUI}%`).maybeSingle();
+                furnizorGasit = fCui;
+            }
+            if (!furnizorGasit && supplierName) {
+                const { data: fNume } = await supabase.from('furnizori').select('*').ilike('nume_firma', `%${supplierName}%`).maybeSingle();
+                furnizorGasit = fNume;
+            }
 
-        if (furnizorGasit) {
-            setSelFurnizor(furnizorGasit.id.toString());
-            toast.success(`Furnizor identificat: ${furnizorGasit.nume_firma}`);
-        } else {
-            toast.error(`Furnizor necunoscut (${supplierName}). Selectează manual.`);
-        }
+            if (furnizorGasit) {
+                setSelFurnizor(furnizorGasit.id.toString());
+                toast.success(`Furnizor identificat: ${furnizorGasit.nume_firma}`);
+            } else {
+                toast(`Furnizor neidentificat: ${supplierName}. Te rog selectează manual.`, { icon: '⚠️' });
+            }
 
-        const lines = xmlDoc.getElementsByTagName("cac:InvoiceLine");
-        let produseNoi: LinieNIR[] = [];
-        let produseNeidentificate: string[] = [];
+            // Procesare Linii
+            const lines = xmlDoc.getElementsByTagName("cac:InvoiceLine");
+            let produseNoi: LinieNIR[] = [];
+            let produseNeidentificate: string[] = [];
 
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const name = line.getElementsByTagName("cbc:Name")[0]?.textContent;
-            const quantity = parseFloat(line.getElementsByTagName("cbc:InvoicedQuantity")[0]?.textContent || '0');
-            const lineTotalAmount = parseFloat(line.getElementsByTagName("cbc:LineExtensionAmount")[0]?.textContent || '0');
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const name = line.getElementsByTagName("cbc:Name")[0]?.textContent;
+                const quantity = parseFloat(line.getElementsByTagName("cbc:InvoicedQuantity")[0]?.textContent || '0');
+                const lineTotalAmount = parseFloat(line.getElementsByTagName("cbc:LineExtensionAmount")[0]?.textContent || '0');
 
-            if (name) {
-                const { data: prodExistent } = await supabase.from('produse').select('id, nume, cod_bare, pret_vanzare, pret_achizitie, stoc_depozit, stoc_magazin').ilike('nume', name).maybeSingle();
-                if (prodExistent) {
-                    const pretUnit = lineTotalAmount / quantity;
-                    const pretVanz = Number((pretUnit * 1.3).toFixed(2));
-                    produseNoi.push({
-                        id: Date.now() + i, produs: prodExistent as Produs, isBax: false, cantitateBaxuri: 0, bucatiPerBax: 1,
-                        cantitateTotala: quantity, pretTotalLinie: lineTotalAmount, pretAchizitieUnitar: pretUnit, adaos: 30, pretVanzareNou: pretVanz
-                    });
-                } else {
-                    produseNeidentificate.push(name);
+                if (name) {
+                    const { data: prodExistent } = await supabase.from('produse').select('*').ilike('nume', name).maybeSingle();
+                    if (prodExistent) {
+                        const pretUnit = lineTotalAmount / quantity;
+                        const pretVanz = Number((pretUnit * 1.3).toFixed(2)); // Default 30% adaos
+                        produseNoi.push({
+                            id: Date.now() + i,
+                            produs: prodExistent as Produs,
+                            isBax: false,
+                            cantitateBaxuri: 0,
+                            bucatiPerBax: 1,
+                            cantitateTotala: quantity,
+                            pretTotalLinie: lineTotalAmount,
+                            pretAchizitieUnitar: pretUnit,
+                            adaos: 30,
+                            pretVanzareNou: pretVanz
+                        });
+                    } else {
+                        produseNeidentificate.push(name);
+                    }
                 }
             }
-        }
 
-        if (produseNoi.length > 0) {
-            setLiniiNIR(prev => [...prev, ...produseNoi]);
-            toast.success(`${produseNoi.length} produse importate automat!`);
+            if (produseNoi.length > 0) {
+                setLiniiNIR(prev => [...prev, ...produseNoi]);
+                toast.success(`${produseNoi.length} produse importate automat!`);
+            }
+            if (produseNeidentificate.length > 0) {
+                toast.error(`${produseNeidentificate.length} produse nu au fost găsite în baza de date locală.`);
+            }
+            setXmlStatus('✅ Procesare XML completă');
+        } catch (error) {
+            console.error(error);
+            setXmlStatus('❌ Eroare la citire XML');
+            toast.error("Fișierul XML nu este valid sau formatul e-Factura diferă.");
         }
-        if (produseNeidentificate.length > 0) {
-            toast.error(`Produse neidentificate: ${produseNeidentificate.join(', ')}. Adaugă-le manual.`);
-        }
-        setXmlStatus('');
     };
 
-    const cantitateReala = isBax ? cantitateInput * bucatiPerBax : cantitateInput
-    const pretAchizitieUnitar = pretTotalInput > 0 && cantitateReala > 0 ? (pretTotalInput / cantitateReala) : 0
-    const pretVanzareCalculat = Number((pretAchizitieUnitar * (1 + adaos / 100)).toFixed(2))
+    // --- CALCULE ---
+    const cantInputVal = Number(cantitateInput) || 0;
+    const bucPerBaxVal = Number(bucatiPerBax) || 1;
+    const pretTotalVal = Number(pretTotalInput) || 0;
+
+    const cantitateReala = isBax ? cantInputVal * bucPerBaxVal : cantInputVal;
+    const pretAchizitieUnitar = (pretTotalVal > 0 && cantitateReala > 0) ? (pretTotalVal / cantitateReala) : 0;
+    const pretVanzareCalculat = Number((pretAchizitieUnitar * (1 + adaos / 100)).toFixed(2));
 
     const adaugaLinie = () => {
-        if (!produsSelectat || cantitateReala <= 0) return toast.error("Selectează un produs și cantitatea!")
+        if (!produsSelectat) return toast.error("Selectează un produs!");
+        if (cantitateReala <= 0) return toast.error("Cantitatea trebuie să fie pozitivă.");
+        if (pretTotalVal <= 0) return toast.error("Valoarea liniei trebuie să fie pozitivă.");
+
         const linieNoua: LinieNIR = {
-            id: Date.now(), produs: produsSelectat, isBax, cantitateBaxuri: isBax ? cantitateInput : 0, bucatiPerBax: isBax ? bucatiPerBax : 1,
-            cantitateTotala: cantitateReala, pretTotalLinie: pretTotalInput, pretAchizitieUnitar, adaos, pretVanzareNou: pretVanzareCalculat
-        }
-        setLiniiNIR([...liniiNIR, linieNoua])
-        setProdusSelectat(null)
-        setSearch('')
-        setCantitateInput(1)
-        setPretTotalInput(0)
-        document.getElementById('search-input')?.focus()
-    }
+            id: Date.now(),
+            produs: produsSelectat,
+            isBax,
+            cantitateBaxuri: isBax ? cantInputVal : 0,
+            bucatiPerBax: isBax ? bucPerBaxVal : 1,
+            cantitateTotala: cantitateReala,
+            pretTotalLinie: pretTotalVal,
+            pretAchizitieUnitar,
+            adaos,
+            pretVanzareNou: pretVanzareCalculat
+        };
+
+        setLiniiNIR([...liniiNIR, linieNoua]);
+
+        // Reset parțial
+        setProdusSelectat(null);
+        setSearch('');
+        setCantitateInput('');
+        setPretTotalInput('');
+        document.getElementById('search-input')?.focus();
+    };
 
     const stergeLinie = (id: number) => {
-        setLiniiNIR(liniiNIR.filter(l => l.id !== id))
-    }
+        setLiniiNIR(liniiNIR.filter(l => l.id !== id));
+    };
 
     const salveazaNIR = async () => {
-        if (!selFurnizor || !nrFactura) return toast.error("Completează Furnizorul și Nr. Factură!")
-        if (liniiNIR.length === 0) return toast.error("Nu ai adăugat niciun produs!")
+        if (!selFurnizor || !nrFactura) return toast.error("Completează Furnizorul și Nr. Factură!");
+        if (liniiNIR.length === 0) return toast.error("Nu ai adăugat niciun produs!");
 
-        setLoading(true)
+        setLoading(true);
         const promise = new Promise(async (resolve, reject) => {
             try {
+                // 1. Header Receptie
                 const { data: receptie, error: errR } = await supabase.from('receptii').insert([{
-                    furnizor_id: parseInt(selFurnizor), numar_factura: nrFactura, data_factura: dataFactura,
+                    furnizor_id: parseInt(selFurnizor),
+                    numar_factura: nrFactura,
+                    data_factura: dataFactura,
                     total_valoare: liniiNIR.reduce((acc, l) => acc + l.pretTotalLinie, 0)
-                }]).select().single()
-                if (errR) throw errR
+                }]).select().single();
 
+                if (errR) throw errR;
+
+                // 2. Detalii Receptie + Update Stoc (Loop)
                 for (const linie of liniiNIR) {
                     await supabase.from('receptii_detalii').insert([{
-                        receptie_id: receptie.id, produs_id: linie.produs.id, cantitate_baxuri: linie.cantitateBaxuri, bucati_per_bax: linie.bucatiPerBax,
-                        cantitate_totala: linie.cantitateTotala, pret_achizitie_unitar: linie.pretAchizitieUnitar, pret_vanzare_vechi: linie.produs.pret_vanzare,
-                        pret_vanzare_nou: linie.pretVanzareNou, adaos_procentual: linie.adaos
-                    }])
+                        receptie_id: receptie.id,
+                        produs_id: linie.produs.id,
+                        cantitate_baxuri: linie.cantitateBaxuri,
+                        bucati_per_bax: linie.bucatiPerBax,
+                        cantitate_totala: linie.cantitateTotala,
+                        pret_achizitie_unitar: linie.pretAchizitieUnitar,
+                        pret_vanzare_vechi: linie.produs.pret_vanzare,
+                        pret_vanzare_nou: linie.pretVanzareNou,
+                        adaos_procentual: linie.adaos
+                    }]);
+
+                    // Actualizare stoc prin RPC (funcție stocată în DB)
                     const { error: rpcError } = await supabase.rpc('adauga_stoc_depozit', {
-                        p_produs_id: linie.produs.id, p_cantitate: linie.cantitateTotala,
-                        p_pret_achizitie: linie.pretAchizitieUnitar, p_pret_vanzare: linie.pretVanzareNou
+                        p_produs_id: linie.produs.id,
+                        p_cantitate: linie.cantitateTotala,
+                        p_pret_achizitie: linie.pretAchizitieUnitar,
+                        p_pret_vanzare: linie.pretVanzareNou
                     });
+
                     if (rpcError) throw rpcError;
                 }
                 resolve("Recepție salvată!");
@@ -206,97 +273,311 @@ export default function Receptie() {
         toast.promise(promise, {
             loading: 'Se salvează recepția...',
             success: 'Recepție salvată! Stocul a fost actualizat.',
-            error: (err) => `Eroare: ${err.message}`
+            error: (err: any) => `Eroare: ${err.message}`
         }).then(() => {
             setLiniiNIR([]); setNrFactura(''); setSelFurnizor(''); setXmlStatus('');
         }).finally(() => {
             setLoading(false);
         });
-    }
+    };
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">Recepție Marfă (NIR)</h1>
-                <div className="relative overflow-hidden group">
-                    <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-bold shadow-md flex items-center gap-2 transition">Importă e-Factura (XML)</button>
-                    <input type="file" accept=".xml" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" title="Încarcă XML din SPV" />
+        <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50/50 pb-20">
+
+            {/* --- HEADER PAGINĂ --- */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                        <span className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-200"><Truck size={28} /></span>
+                        Recepție Marfă (NIR)
+                    </h1>
+                    <p className="text-gray-500 mt-2 ml-1">Introdu facturile de la furnizori pentru a actualiza stocul.</p>
+                </div>
+
+                <div className="flex gap-3">
+                    <label className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 cursor-pointer transition active:scale-95">
+                        <Upload size={20} />
+                        Importă XML (SPV)
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".xml"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                        />
+                    </label>
                 </div>
             </div>
-            {xmlStatus && <div className="mb-4 p-3 bg-purple-50 border-purple-200 text-purple-800 rounded-lg text-sm font-bold">{xmlStatus}</div>}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Furnizor</label>
-                    <select className="w-full border p-2 rounded outline-none focus:border-blue-500" value={selFurnizor} onChange={e => setSelFurnizor(e.target.value)}>
-                        <option value="">-- Alege Furnizor --</option>
-                        {furnizori.map(f => <option key={f.id} value={f.id}>{f.nume_firma}</option>)}
-                    </select>
+
+            {xmlStatus && (
+                <div className={`mb-6 p-4 rounded-xl border flex items-center gap-2 font-bold ${xmlStatus.includes('❌') ? 'bg-red-50 text-red-700 border-red-100' : 'bg-green-50 text-green-700 border-green-100'}`}>
+                    <FileText size={20} />
+                    {xmlStatus}
                 </div>
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nr. Factură</label>
-                    <input type="text" className="w-full border p-2 rounded outline-none" placeholder="Ex: F1024" value={nrFactura} onChange={e => setNrFactura(e.target.value)} />
-                </div>
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Data Factură</label>
-                    <input type="date" className="w-full border p-2 rounded outline-none" value={dataFactura} onChange={e => setDataFactura(e.target.value)} />
-                </div>
-            </div>
-            <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 mb-6 shadow-sm">
-                <h3 className="font-bold text-blue-800 mb-4 flex items-center gap-2">Adaugă Manual</h3>
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                    <div className="md:col-span-4 relative">
-                        <label className="block text-xs font-bold text-blue-700 uppercase mb-1">Caută Produs</label>
-                        <input id="search-input" type="text" className="w-full border p-2 rounded font-bold" placeholder="Nume sau Cod Bare..." value={search} onChange={e => setSearch(e.target.value)} autoComplete="off" />
-                        {rezultateCautare.length > 0 && <div className="absolute z-10 w-full bg-white shadow-xl border rounded-lg mt-1 max-h-60 overflow-y-auto">
-                            {rezultateCautare.map(p => <div key={p.id} className="p-3 hover:bg-blue-50 cursor-pointer border-b" onClick={() => selecteazaProdus(p)}>
-                                <div className="font-bold text-gray-800">{p.nume}</div>
-                                <div className="text-xs text-gray-500">Preț Vânzare: {p.pret_vanzare} RON</div>
-                            </div>)}
-                        </div>}
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                {/* --- SECTIUNEA 1: DATE FACTURĂ --- */}
+                <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-100 h-fit">
+                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <FileText className="text-blue-500" size={20} />
+                        Detalii Factură
+                    </h3>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Furnizor</label>
+                            <div className="relative">
+                                <select
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 appearance-none font-medium text-gray-700"
+                                    value={selFurnizor}
+                                    onChange={e => setSelFurnizor(e.target.value)}
+                                >
+                                    <option value="">-- Selectează --</option>
+                                    {furnizori.map(f => <option key={f.id} value={f.id}>{f.nume_firma}</option>)}
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">▼</div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Număr</label>
+                                <input
+                                    type="text"
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                                    placeholder="Ex: 1024"
+                                    value={nrFactura}
+                                    onChange={e => setNrFactura(e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Data</label>
+                                <input
+                                    type="date"
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                                    value={dataFactura}
+                                    onChange={e => setDataFactura(e.target.value)}
+                                />
+                            </div>
+                        </div>
                     </div>
-                    <div className="md:col-span-2 flex flex-col items-center pb-2">
-                        <label className="text-xs font-bold text-blue-700 uppercase mb-1 cursor-pointer"><input type="checkbox" className="mr-2" checked={isBax} onChange={e => setIsBax(e.target.checked)} />Intrare la Bax?</label>
-                    </div>
-                    {isBax ? <>
-                        <div className="md:col-span-1"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Baxuri</label><input type="number" className="w-full border p-2 rounded text-center" value={cantitateInput} onChange={e => setCantitateInput(Number(e.target.value))} /></div>
-                        <div className="md:col-span-1"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Buc/Bax</label><input type="number" className="w-full border p-2 rounded text-center bg-white" value={bucatiPerBax} onChange={e => setBucatiPerBax(Number(e.target.value))} /></div>
-                    </> : <div className="md:col-span-2"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cantitate</label><input type="number" className="w-full border p-2 rounded text-center" value={cantitateInput} onChange={e => setCantitateInput(Number(e.target.value))} /></div>}
-                    <div className="md:col-span-2"><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Valoare Linie</label><input type="number" className="w-full border p-2 rounded text-right font-mono" placeholder="0.00" value={pretTotalInput || ''} onChange={e => setPretTotalInput(Number(e.target.value))} /></div>
-                    <div className="md:col-span-2"><button onClick={adaugaLinie} className="w-full bg-blue-600 text-white py-2 rounded shadow-md hover:bg-blue-700 font-bold transition">+ Adaugă</button></div>
                 </div>
-                {produsSelectat && <div className="mt-4 p-3 bg-white rounded border border-blue-100 flex justify-between items-center text-sm">
-                    <div>Intră în stoc: <span className="font-bold text-lg">{cantitateReala} buc</span></div>
-                    <div>Cost Unitar: <span className="font-bold text-lg text-orange-600">{pretAchizitieUnitar.toFixed(2)} RON</span></div>
-                    <div className="flex items-center gap-2">Adaos: <input type="number" className="w-16 border p-1 rounded text-center bg-gray-50" value={adaos} onChange={e => setAdaos(Number(e.target.value))} /> % ➜ Preț Nou: <span className="font-bold text-lg text-green-600">{pretVanzareCalculat.toFixed(2)} RON</span></div>
-                </div>}
+
+                {/* --- SECTIUNEA 2: ADĂUGARE PRODUS --- */}
+                <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <Plus className="text-green-500" size={20} />
+                        Adaugă Linie pe Factură
+                    </h3>
+
+                    <div className="space-y-6">
+                        {/* Căutare */}
+                        <div className="relative">
+                            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Caută Produs (Nume / Cod Bare)</label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                                <input
+                                    id="search-input"
+                                    type="text"
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-gray-700"
+                                    placeholder="Scrie pentru a căuta..."
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    autoComplete="off"
+                                />
+                            </div>
+
+                            {/* Rezultate Căutare */}
+                            {rezultateCautare.length > 0 && (
+                                <div className="absolute z-20 w-full bg-white shadow-2xl border border-gray-100 rounded-xl mt-2 max-h-60 overflow-y-auto">
+                                    {rezultateCautare.map(p => (
+                                        <div
+                                            key={p.id}
+                                            className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
+                                            onClick={() => selecteazaProdus(p)}
+                                        >
+                                            <div className="font-bold text-gray-800">{p.nume}</div>
+                                            <div className="flex justify-between mt-1 text-xs text-gray-500">
+                                                <span>Cod: {p.cod_bare}</span>
+                                                <span className="font-bold text-blue-600">Vânzare: {p.pret_vanzare} RON</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Detalii Linie */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+                            <div className="col-span-2 md:col-span-1">
+                                <label className="flex items-center gap-2 text-xs font-bold text-gray-600 uppercase mb-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                                        checked={isBax}
+                                        onChange={e => setIsBax(e.target.checked)}
+                                    />
+                                    Intrare la Bax?
+                                </label>
+                                {isBax ? (
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="number"
+                                            className="w-1/2 p-3 bg-blue-50 border border-blue-100 rounded-xl outline-none focus:border-blue-500 text-center font-bold"
+                                            placeholder="Baxuri"
+                                            value={cantitateInput}
+                                            onChange={e => setCantitateInput(e.target.value)}
+                                        />
+                                        <input
+                                            type="number"
+                                            className="w-1/2 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-500 text-center text-sm"
+                                            placeholder="Buc/Bax"
+                                            value={bucatiPerBax}
+                                            onChange={e => setBucatiPerBax(e.target.value)}
+                                        />
+                                    </div>
+                                ) : (
+                                    <input
+                                        type="number"
+                                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-500 font-bold"
+                                        placeholder="Cantitate (buc)"
+                                        value={cantitateInput}
+                                        onChange={e => setCantitateInput(e.target.value)}
+                                    />
+                                )}
+                            </div>
+
+                            <div className="col-span-2 md:col-span-1">
+                                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Valoare Totală Linie</label>
+                                <input
+                                    type="number"
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-500 text-right font-mono font-bold"
+                                    placeholder="0.00"
+                                    value={pretTotalInput}
+                                    onChange={e => setPretTotalInput(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="col-span-2 md:col-span-2 flex items-end">
+                                <button
+                                    onClick={adaugaLinie}
+                                    disabled={!produsSelectat}
+                                    className="w-full bg-gray-900 hover:bg-black text-white py-3 rounded-xl shadow-lg transition active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-2"
+                                >
+                                    <Plus size={18} /> Adaugă Linie
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Previzualizare Calcule */}
+                        {produsSelectat && (
+                            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4 animate-in fade-in zoom-in duration-300">
+                                <div className="text-sm text-gray-600">
+                                    Produs: <span className="font-bold text-gray-900">{produsSelectat.nume}</span>
+                                    <div className="text-xs text-gray-400 mt-0.5">Stoc Actual: {produsSelectat.stoc_depozit}</div>
+                                </div>
+
+                                <div className="flex items-center gap-2 text-sm bg-white px-3 py-1.5 rounded-lg border border-blue-100 shadow-sm">
+                                    <span className="text-gray-500">Intrare:</span>
+                                    <span className="font-bold text-blue-700">{cantitateReala} buc</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-gray-500">Cost:</span>
+                                    <span className="font-bold text-orange-600">{pretAchizitieUnitar.toFixed(2)} RON</span>
+                                </div>
+
+                                <div className="flex items-center gap-2 text-sm">
+                                    <div className="flex items-center bg-white rounded-lg border border-gray-200 overflow-hidden">
+                                        <span className="px-2 bg-gray-50 text-gray-500 text-xs font-bold border-r">Adaos%</span>
+                                        <input
+                                            type="number"
+                                            className="w-14 p-1.5 text-center font-bold outline-none"
+                                            value={adaos}
+                                            onChange={e => setAdaos(Number(e.target.value))}
+                                        />
+                                    </div>
+                                    <ArrowRight size={16} className="text-gray-400" />
+                                    <div className="font-bold text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+                                        {pretVanzareCalculat.toFixed(2)} RON
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-100 text-gray-500 uppercase text-xs"><tr>
-                        <th className="p-4">Produs</th><th className="p-4 text-center">Cantitate</th><th className="p-4 text-right">Preț Achiziție</th>
-                        <th className="p-4 text-right">Adaos</th><th className="p-4 text-right">Preț Vânzare</th><th className="p-4 text-right">Total</th><th className="p-4"></th>
-                    </tr></thead>
-                    <tbody className="divide-y divide-gray-100">
-                    {liniiNIR.length === 0 ? <tr><td colSpan={7} className="p-8 text-center text-gray-400 italic">Lista e goală. Adaugă manual sau importă XML.</td></tr> :
-                        liniiNIR.map(linie => <tr key={linie.id} className="hover:bg-gray-50">
-                            <td className="p-4 font-bold text-gray-800">{linie.produs.nume} {linie.isBax && <span className="text-xs text-blue-500 font-normal">(Bax)</span>}</td>
-                            <td className="p-4 text-center font-bold">{linie.cantitateTotala}</td><td className="p-4 text-right">{linie.pretAchizitieUnitar.toFixed(2)}</td>
-                            <td className="p-4 text-right">{linie.adaos}%</td><td className="p-4 text-right font-bold text-green-600">{linie.pretVanzareNou.toFixed(2)}</td>
-                            <td className="p-4 text-right font-mono">{linie.pretTotalLinie.toFixed(2)}</td>
-                            <td className="p-4 text-right"><button onClick={() => stergeLinie(linie.id)} className="text-red-500 font-bold">✕</button></td>
-                        </tr>)}
-                    </tbody>
-                    {liniiNIR.length > 0 && <tfoot className="bg-gray-50 font-bold text-gray-800"><tr>
-                        <td colSpan={5} className="p-4 text-right uppercase text-xs tracking-wider">Total Factură:</td>
-                        <td className="p-4 text-right text-xl">{liniiNIR.reduce((acc, x) => acc + x.pretTotalLinie, 0).toFixed(2)} RON</td><td></td>
-                    </tr></tfoot>}
-                </table>
-            </div>
-            <div className="mt-6 flex justify-end">
-                <button onClick={salveazaNIR} disabled={loading} className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg transition">
-                    {loading ? "Se salvează..." : "✅ Finalizează Recepția"}
-                </button>
+
+            {/* --- LISTA PRODUSE INTRODUSE --- */}
+            <div className="mt-8 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                        <Package className="text-purple-500" size={20} />
+                        Linii NIR ({liniiNIR.length})
+                    </h3>
+                    <div className="text-sm font-bold text-gray-500">
+                        Total Factură: <span className="text-gray-900 text-lg ml-2">{liniiNIR.reduce((acc, x) => acc + x.pretTotalLinie, 0).toFixed(2)} RON</span>
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                        <tr className="bg-white text-gray-400 text-xs uppercase font-bold border-b border-gray-100">
+                            <th className="p-4 pl-6">Produs</th>
+                            <th className="p-4 text-center">Cantitate</th>
+                            <th className="p-4 text-right">Preț Achiziție</th>
+                            <th className="p-4 text-right">Adaos</th>
+                            <th className="p-4 text-right">Preț Vânzare Nou</th>
+                            <th className="p-4 text-right">Valoare Linie</th>
+                            <th className="p-4 text-center">Acțiuni</th>
+                        </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50 text-sm">
+                        {liniiNIR.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="p-12 text-center text-gray-400 italic">
+                                    Nu ai adăugat niciun produs încă.
+                                </td>
+                            </tr>
+                        ) : (
+                            liniiNIR.map(linie => (
+                                <tr key={linie.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="p-4 pl-6 font-bold text-gray-700">
+                                        {linie.produs.nume}
+                                        {linie.isBax && <span className="ml-2 px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded uppercase font-bold">Bax</span>}
+                                    </td>
+                                    <td className="p-4 text-center font-bold text-gray-800">{linie.cantitateTotala}</td>
+                                    <td className="p-4 text-right text-orange-600 font-mono">{linie.pretAchizitieUnitar.toFixed(2)}</td>
+                                    <td className="p-4 text-right text-gray-500">{linie.adaos}%</td>
+                                    <td className="p-4 text-right font-bold text-green-600">{linie.pretVanzareNou.toFixed(2)}</td>
+                                    <td className="p-4 text-right font-bold text-gray-900 font-mono">{linie.pretTotalLinie.toFixed(2)}</td>
+                                    <td className="p-4 text-center">
+                                        <button
+                                            onClick={() => stergeLinie(linie.id)}
+                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end">
+                    <button
+                        onClick={salveazaNIR}
+                        disabled={loading || liniiNIR.length === 0}
+                        className="bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-xl shadow-green-200 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3"
+                    >
+                        {loading ? "Se salvează..." : <><Save size={24} /> Finalizează Recepția</>}
+                    </button>
+                </div>
             </div>
         </div>
-    )
+    );
 }

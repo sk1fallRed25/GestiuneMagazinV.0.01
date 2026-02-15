@@ -1,9 +1,17 @@
 import React, { useState } from 'react';
 import { supabase } from './supabaseClient';
+import { User, Lock, LogIn, Loader2, AlertCircle, Building2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-// Am adăugat 'gestionar' la tipul rolului
-export default function Login({ onLogin }: { onLogin: (role: 'admin' | 'casier' | 'agent' | 'gestionar', id?: number) => void }) {
-    const [username, setUsername] = useState('');
+// Definim tipurile acceptate de aplicație
+type UserRole = 'admin' | 'casier' | 'agent' | 'gestionar';
+
+interface LoginProps {
+    onLogin: (role: UserRole, id?: number) => void;
+}
+
+export default function Login({ onLogin }: LoginProps) {
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -13,82 +21,155 @@ export default function Login({ onLogin }: { onLogin: (role: 'admin' | 'casier' 
         setError('');
         setLoading(true);
 
-        // 1. ADMIN
-        if (username.toLowerCase() === 'admin' && password === 'admin') {
+        const userLower = email.toLowerCase().trim();
+        const passTrim = password.trim();
+
+        // --- 1. VERIFICARE CONTURI INTERNE (Hardcodate pentru moment) ---
+        // Notă: În producție, acestea ar trebui mutate în tabela 'utilizatori' din Supabase
+        if (userLower === 'admin' && passTrim === 'admin') {
             onLogin('admin');
             return;
         }
-
-        // 2. CASIER
-        if (username.toLowerCase() === 'casier' && password === '1234') {
+        if (userLower === 'casier' && passTrim === '1234') {
             onLogin('casier');
             return;
         }
-
-        // 3. GESTIONAR (NOU)
-        if (username.toLowerCase() === 'gestionar' && password === 'gestionar') {
+        if (userLower === 'gestionar' && passTrim === 'gestionar') {
             onLogin('gestionar');
             return;
         }
 
         try {
-            // 4. AGENT (Căutare în DB)
-            const { data: agent } = await supabase
+            // --- 2. VERIFICARE AGENȚI (Supabase) ---
+            const { data: agent, error: dbError } = await supabase
                 .from('agenti')
                 .select('*')
-                .eq('email', username)
-                .eq('parola', password)
-                .single();
+                .eq('email', userLower)
+                .eq('parola', passTrim) // Notă: Recomandăm hashing în viitor
+                .maybeSingle(); // Folosim maybeSingle ca să nu primim eroare 406 dacă nu găsește
+
+            if (dbError) throw dbError;
 
             if (agent) {
                 onLogin('agent', agent.id);
                 return;
             }
 
-            // 5. Verificare Status Cerere (Dacă nu e cont activ)
-            const { data: cerere } = await supabase.from('cereri_furnizori').select('status').eq('email', username).eq('parola', password).single();
+            // --- 3. VERIFICARE CERERI ÎN AȘTEPTARE ---
+            const { data: cerere } = await supabase
+                .from('cereri_furnizori')
+                .select('status')
+                .eq('email', userLower)
+                .eq('parola', passTrim)
+                .maybeSingle();
 
             if (cerere) {
-                if (cerere.status === 'pending') setError("⏳ Contul tău așteaptă aprobarea administratorului.");
-                else if (cerere.status === 'rejected') setError("⛔ Acces Refuzat de administrator.");
-                else setError("Eroare status.");
+                if (cerere.status === 'pending') {
+                    setError("⏳ Contul tău este în curs de verificare de către administrator.");
+                } else if (cerere.status === 'rejected') {
+                    setError("⛔ Cererea de înregistrare a fost respinsă.");
+                } else {
+                    setError("⚠️ Cont inactiv. Contactează administratorul.");
+                }
             } else {
-                setError("Utilizator sau parolă incorectă!");
+                setError("Utilizator sau parolă incorectă.");
             }
 
         } catch (err: any) {
-            setError("Eroare de conexiune.");
+            console.error("Login Error:", err);
+            setError("Eroare de conexiune la server.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900 relative overflow-hidden">
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
-                <div className="transform -rotate-12 opacity-[0.03] text-white font-black text-[120px] whitespace-nowrap">IONITA STEFAN</div>
+        <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative overflow-hidden font-sans">
+
+            {/* Background Decorativ */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-indigo-500/20 rounded-full blur-[100px]"></div>
+                <div className="absolute top-[40%] -right-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[100px]"></div>
             </div>
 
-            <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md z-10 relative border-t-4 border-blue-600">
-                <div className="text-center mb-6">
-                    <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4">M</div>
-                    <h1 className="text-2xl font-bold text-gray-800">Autentificare</h1>
-                    <p className="text-gray-500 font-bold mt-1 text-sm tracking-widest">By SyS</p>
+            <div className="bg-white/95 backdrop-blur-sm p-8 md:p-10 rounded-3xl shadow-2xl w-full max-w-md z-10 relative border border-white/20">
+
+                {/* Logo / Header */}
+                <div className="text-center mb-8">
+                    <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-blue-600 rounded-2xl flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4 shadow-lg shadow-indigo-500/30 transform rotate-3">
+                        M
+                    </div>
+                    <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Magazin<span className="text-indigo-600">Pro</span></h1>
+                    <p className="text-gray-500 font-medium mt-1">Portal de Gestiune & Vânzare</p>
                 </div>
 
-                {error && <div className="p-3 bg-red-50 text-red-600 rounded border border-red-100 text-sm font-bold text-center mb-4">{error}</div>}
+                {/* Mesaj Eroare */}
+                {error && (
+                    <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm rounded-r flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                        <AlertCircle size={20} className="shrink-0 mt-0.5" />
+                        <span className="font-medium">{error}</span>
+                    </div>
+                )}
 
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <input type="text" className="w-full border p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" placeholder="Utilizator / Email" value={username} onChange={e => setUsername(e.target.value)} autoFocus />
-                    <input type="password" className="w-full border p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" placeholder="Parolă" value={password} onChange={e => setPassword(e.target.value)} />
-                    <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition">
-                        {loading ? '...' : 'Conectare'}
+                <form onSubmit={handleLogin} className="space-y-5">
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Utilizator / Email</label>
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <User className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                            </div>
+                            <input
+                                type="text"
+                                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm font-medium"
+                                placeholder="Introduceți numele sau email-ul"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Parolă</label>
+                        <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                            </div>
+                            <input
+                                type="password"
+                                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm font-medium"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={e => setPassword(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className={`w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white transition-all transform active:scale-[0.98] ${
+                            loading
+                                ? 'bg-indigo-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 hover:shadow-indigo-500/40'
+                        }`}
+                    >
+                        {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <><LogIn className="h-5 w-5" /> Autentificare</>}
                     </button>
                 </form>
 
-                <div className="mt-6 pt-4 border-t border-gray-100 text-center text-sm">
-                    <a href="/partener" className="text-blue-600 hover:underline font-medium">Partener nou? Creează cont</a>
+                {/* Footer Link */}
+                <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+                    <Link to="/partener" className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-indigo-600 font-semibold transition-colors group">
+                        <Building2 size={16} className="group-hover:scale-110 transition-transform" />
+                        Ești furnizor? Creează cont partener
+                    </Link>
                 </div>
+            </div>
+
+            {/* Copyright discret */}
+            <div className="absolute bottom-4 text-slate-500 text-xs opacity-40 font-mono">
+                System v2.4 • By SyS
             </div>
         </div>
     );
