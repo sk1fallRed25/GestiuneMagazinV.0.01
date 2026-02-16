@@ -5,7 +5,8 @@ import { supabase } from './supabaseClient';
 import {
     LayoutDashboard, Package, Truck, ShoppingCart, Settings, PackagePlus, ArrowRightLeft, ListTodo, Send, Inbox,
     Briefcase, ChevronDown, ChevronRight, Bell, Search, LogOut, TrendingUp, AlertTriangle, X, Check, Users, ClipboardList, FileText,
-    BrainCircuit // <--- 1. AM ADĂUGAT ICONIȚA AICI
+    BrainCircuit,
+    Link as LinkIcon // Redenumit pentru a evita conflictul cu Link din react-router-dom
 } from 'lucide-react';
 
 // --- IMPORTURI PAGINI ---
@@ -26,7 +27,8 @@ import ReceptieComanda from './ReceptieComanda';
 import DetaliiComandaAgent from './DetaliiComandaAgent';
 import GestiuneAgenti from './GestiuneAgenti';
 import IstoricVanzari from './IstoricVanzari';
-import AiConsultant from './AiConsultant'; // <--- 2. IMPORTUL PAGINII NOI
+import AiConsultant from './AiConsultant';
+import GestiuneProduseFurnizor from './GestiuneProduseFurnizor'; // Import nou
 
 // ==========================================
 // COMPONENTE UI (Stat Cards)
@@ -176,19 +178,22 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                                 </div>
                             </div>
 
-                            {/* --- 3. AICI ESTE BUTONUL PENTRU AI ÎN SIDEBAR --- */}
                             <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
-
                             <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
+
+                            {/* --- SECTIUNE PARTENERI & ALOCARI --- */}
+                            <NavLink to="/furnizori" label="Furnizori" icon={<Truck size={18} />} />
+                            <NavLink to="/gestiune-produse-furnizor" label="Alocare Directă" icon={<LinkIcon size={18} />} />
+                            <NavLink to="/gestiune-agenti" label="Gestiune Agenți" icon={<Users size={18} />} />
+
+                            <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Aprovizionare</div>
                             <NavLink to="/comanda-furnizor" label="Comandă Furnizor" icon={<Send size={18} />} />
                             <NavLink to="/comenzi" label="Situație Comenzi" icon={<ClipboardList size={18} />} />
-                            <NavLink to="/gestiune-agenti" label="Gestiune Agenți" icon={<Users size={18} />} />
-                            <NavLink to="/furnizori" label="Furnizori" icon={<Truck size={18} />} />
-                            <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
                             <NavLink to="/lista-cumparaturi" label="Listă Cumpărături" icon={<ListTodo size={18} />} />
 
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Punct de Vânzare</div>
                             <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
+                            <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
 
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Sistem</div>
                             <NavLink to="/fast-add" label="Adăugare Rapidă" icon={<Settings size={18} />} />
@@ -259,23 +264,18 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
 
     const fetchDashboardData = useCallback(async () => {
         try {
-            // 1. Alerte Stoc
             const { data: produse } = await supabase.from('produse').select('stoc_depozit, stoc_minim_depozit');
             const alerteCount = produse?.filter((p: any) => p.stoc_depozit <= p.stoc_minim_depozit).length || 0;
 
-            // 2. Comenzi Agenți
             const { count: comenziCount } = await supabase.from('comenzi_agenti').select('*', { count: 'exact', head: true }).eq('status', 'pending_admin');
 
-            // 3. COMENZI FURNIZOR
             const { count: comenziFurnizorCount } = await supabase
-                .from('comenzi_furnizor')
+                .from('comenzi_catre_furnizor') // Schimbat in tabelul tau corect
                 .select('*', { count: 'exact', head: true })
                 .eq('status', 'pending');
 
-            // 4. Vânzări Astăzi
             const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-            const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-            const { data: vanzari } = await supabase.from('vanzari').select('total').eq('status', 'finalizat').gte('data_vanzare', todayStart.toISOString()).lte('data_vanzare', todayEnd.toISOString());
+            const { data: vanzari } = await supabase.from('vanzari').select('total').eq('status', 'finalizat').gte('data_vanzare', todayStart.toISOString());
             const totalVanzari = vanzari?.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0) || 0;
 
             setStats({
@@ -287,22 +287,18 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
             });
 
         } catch (error) {
-            console.error("Eroare generala dashboard:", error);
+            console.error("Eroare dashboard:", error);
             setStats(s => ({ ...s, loading: false }));
         }
     }, []);
 
-    // --- REALTIME LISTENER ---
     useEffect(() => {
         fetchDashboardData();
-
         const channel = supabase.channel('dashboard-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'produse' }, () => fetchDashboardData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'comenzi_agenti' }, () => fetchDashboardData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'comenzi_furnizor' }, () => fetchDashboardData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vanzari' }, () => fetchDashboardData())
             .subscribe();
-
         return () => { supabase.removeChannel(channel); };
     }, [fetchDashboardData]);
 
@@ -314,14 +310,13 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-
                 <Link to="/produse">
                     <StatCard
                         title="Alerte Stoc Critic"
                         value={`${stats.alerteStoc} Produse`}
                         icon={AlertTriangle}
                         color={stats.alerteStoc > 0 ? "bg-red-500 text-red-600" : "bg-green-500 text-green-600"}
-                        trend={{ isPositive: stats.alerteStoc === 0, value: stats.alerteStoc > 0 ? "Necesită aprovizionare" : "Stoc Optim", label: "status curent" }}
+                        trend={{ isPositive: stats.alerteStoc === 0, value: stats.alerteStoc > 0 ? "Necesită aprovizionare" : "Stoc Optim" }}
                         loading={stats.loading}
                     />
                 </Link>
@@ -331,18 +326,16 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
                     value={`${stats.comenziAgenti} Noi`}
                     icon={Inbox}
                     color="bg-purple-500 text-purple-600"
-                    valueColor="text-gray-800"
-                    trend={{ isPositive: true, value: "În așteptare", label: "" }}
+                    trend={{ isPositive: true, value: "În așteptare" }}
                     loading={stats.loading}
                 />
 
                 <StatCard
                     title="Vânzări Astăzi"
-                    value={`${stats.vanzariAstazi.toFixed(2)} RON`}
+                    value={`${stats.vanzariAstazi.toFixed(2)} Lei`}
                     icon={TrendingUp}
                     color="bg-green-100 text-green-600"
-                    valueColor="text-indigo-600"
-                    trend={{ isPositive: true, value: "Astăzi", label: "total încasări" }}
+                    trend={{ isPositive: true, value: "Total încasări" }}
                     loading={stats.loading}
                 />
 
@@ -350,22 +343,22 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
                     <Link to="/comenzi">
                         <StatCard
                             title="Comenzi Furnizor"
-                            value={`${stats.comenziFurnizor} În Așteptare`}
+                            value={`${stats.comenziFurnizor} Pend.`}
                             icon={Truck}
-                            color="bg-blue-500 text-blue-600"
-                            valueColor="text-gray-800"
-                            trend={{ isPositive: true, value: "Livrare Pend.", label: "" }}
+                            color="bg-blue-50 text-blue-600"
+                            trend={{ isPositive: true, value: "În livrare" }}
                             loading={stats.loading}
                         />
                     </Link>
                 )}
             </div>
 
+            {/* Grafic si Top Produse */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 min-h-[300px]">
-                    <h3 className="font-bold text-lg text-gray-800 mb-4">Activitate Recentă</h3>
-                    <div className="flex items-center justify-center h-full text-gray-400 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                        Grafic vânzări (În dezvoltare...)
+                    <h3 className="font-bold text-lg text-gray-800 mb-4 text-center">Activitate Analitică (AI)</h3>
+                    <div className="flex items-center justify-center h-[200px] text-gray-400 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200 italic">
+                        Motorul AI analizează vânzările zilnice pentru prognoză...
                     </div>
                 </div>
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
@@ -373,10 +366,10 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
                     <div className="space-y-4">
                         {[1, 2, 3].map((_, i) => (
                             <div key={i} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group">
-                                <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center font-bold">#{i+1}</div>
-                                <div>
-                                    <div className="h-4 w-24 bg-gray-200 rounded mb-1 group-hover:bg-gray-300 transition-colors"></div>
-                                    <div className="h-3 w-12 bg-gray-100 rounded"></div>
+                                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center font-bold">#{i+1}</div>
+                                <div className="flex-1">
+                                    <div className="h-4 w-3/4 bg-gray-100 rounded mb-1"></div>
+                                    <div className="h-3 w-1/4 bg-gray-50 rounded"></div>
                                 </div>
                             </div>
                         ))}
@@ -416,7 +409,7 @@ function App() {
         }
     };
 
-    if (loading) { return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-600 font-medium">Se încarcă aplicația...</div>; }
+    if (loading) { return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-600 font-medium">Sincronizare MagazinPro...</div>; }
 
     return (
         <Router>
@@ -442,9 +435,8 @@ function App() {
                                 <Route path="/comanda/:id" element={<DetaliiComanda />} />
                                 {userRole === 'admin' && (
                                     <>
-                                        {/* --- 4. RUTA PENTRU PAGINA AI --- */}
                                         <Route path="/ai-consultant" element={<AiConsultant />} />
-
+                                        <Route path="/gestiune-produse-furnizor" element={<GestiuneProduseFurnizor />} />
                                         <Route path="/furnizori" element={<Furnizori />} />
                                         <Route path="/vanzare" element={<Vanzare />} />
                                         <Route path="/fast-add" element={<FastAdd />} />
