@@ -17,7 +17,8 @@ interface Produs {
     um: string;
 }
 
-export default function StocuriProduse() {
+// FIX: Definim props-urile acceptate de componentă
+export default function Produse({ userRole }: { userRole?: string }) {
     const [produse, setProduse] = useState<Produs[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -96,7 +97,7 @@ export default function StocuriProduse() {
     // --- FILTRARE DINAMICĂ ---
     const filteredProduse = produse.filter(p =>
         p.nume.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.cod_bare?.includes(searchTerm)
+        (p.cod_bare && p.cod_bare.includes(searchTerm))
     );
 
     if (loading) return (
@@ -118,7 +119,9 @@ export default function StocuriProduse() {
                         </span>
                         Monitorizare Stocuri & Produse
                     </h1>
-                    <p className="text-gray-500 mt-2 ml-1 text-sm italic">Sincronizare în timp real între Depozit și Punct de Vânzare.</p>
+                    <p className="text-gray-500 mt-2 ml-1 text-sm italic">
+                        Sincronizare în timp real. Rol curent: <span className="font-bold text-indigo-600 uppercase">{userRole || 'Nedefinit'}</span>
+                    </p>
                 </div>
             </div>
 
@@ -181,6 +184,7 @@ export default function StocuriProduse() {
                                     >
                                         <Edit3 size={18} />
                                     </button>
+                                    {/* Ascundem butonul de ștergere dacă nu e admin (Opțional, momentan lăsăm activ) */}
                                     <button
                                         onClick={() => handleDeleteProduct(produs.id)}
                                         className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"

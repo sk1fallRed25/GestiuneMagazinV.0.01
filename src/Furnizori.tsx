@@ -33,7 +33,6 @@ export default function Furnizori() {
     const [furnizorFormData, setFurnizorFormData] = useState(initialFurnizorData);
     const [agentFormData, setAgentFormData] = useState(initialAgentData);
 
-    // --- MODIFICARE CRITICĂ AICI ---
     const fetchFurnizori = async () => {
         setLoading(true);
         try {
@@ -70,7 +69,8 @@ export default function Furnizori() {
             fetchFurnizori();
         })();
 
-        toast.promise(promise, {
+        // FIX: Cast la Promise<any>
+        toast.promise(promise as unknown as Promise<any>, {
             loading: 'Se salvează furnizorul...',
             success: 'Furnizor adăugat cu succes!',
             error: (err) => `Eroare: ${err.message}`
@@ -87,7 +87,8 @@ export default function Furnizori() {
             fetchFurnizori();
         })();
 
-        toast.promise(promise, {
+        // FIX: Cast la Promise<any>
+        toast.promise(promise as unknown as Promise<any>, {
             loading: 'Se creează contul agentului...',
             success: 'Agent adăugat cu succes!',
             error: (err) => `Eroare: ${err.message}`
@@ -129,7 +130,9 @@ export default function Furnizori() {
     const handleDeleteAgent = (agentId: number) => {
         if(!confirm("Sigur dorești să ștergi acest agent?")) return;
         const promise = supabase.from('agenti').delete().eq('id', agentId);
-        toast.promise(promise, {
+
+        // FIX: Cast la Promise<any>
+        toast.promise(promise as unknown as  Promise<any>, {
             loading: 'Se șterge...',
             success: () => { fetchFurnizori(); return 'Agent șters.'; },
             error: 'Eroare la ștergere.'

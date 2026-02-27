@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
+import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
 import { Toaster, toast } from 'react-hot-toast';
 import { supabase } from './supabaseClient';
 import {
     LayoutDashboard, Package, Truck, ShoppingCart, Settings, PackagePlus, ArrowRightLeft, ListTodo, Send, Inbox,
     Briefcase, ChevronDown, ChevronRight, Bell, Search, LogOut, TrendingUp, AlertTriangle, X, Check, Users, ClipboardList, FileText,
-    BrainCircuit,
-    Link as LinkIcon // Redenumit pentru a evita conflictul cu Link din react-router-dom
+    BrainCircuit, CalendarClock, AlertOctagon, History,
+    Link as LinkIcon
 } from 'lucide-react';
 
 // --- IMPORTURI PAGINI ---
@@ -28,7 +28,10 @@ import DetaliiComandaAgent from './DetaliiComandaAgent';
 import GestiuneAgenti from './GestiuneAgenti';
 import IstoricVanzari from './IstoricVanzari';
 import AiConsultant from './AiConsultant';
-import GestiuneProduseFurnizor from './GestiuneProduseFurnizor'; // Import nou
+import GestiuneProduseFurnizor from './GestiuneProduseFurnizor';
+import Expirari from './Expirari';
+import Pierderi from './Pierderi';
+import IstoricPierderi from './IstoricPierderi'; // Import Nou pentru Audit
 
 // ==========================================
 // COMPONENTE UI (Stat Cards)
@@ -89,34 +92,37 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const fetchNotifications = useCallback(async () => {
-        const { data: produse } = await supabase.from('produse').select('id, nume, stoc_depozit, stoc_minim_depozit');
-        const critice = produse?.filter(p => p.stoc_depozit <= p.stoc_minim_depozit).map(p => ({
-            id: p.id,
-            type: 'alert',
-            message: `Stoc critic: ${p.nume} (${p.stoc_depozit} buc)`,
-            time: 'Acum',
-            read: false
-        })) || [];
-        setNotifications(critice);
-    }, []);
-
+    // --- MONITORIZARE REALTIME: PIERDERI NOMINALE ȘI STOCURI ---
     useEffect(() => {
-        fetchNotifications();
-        const subscription = supabase.channel('global-notifications')
+        const channel = supabase.channel('audit-monitoring')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pierderi' }, async (payload) => {
+                const { user_id, motiv } = payload.new;
+
+                // Interogăm numele angajatului pe baza UUID-ului din tabela utilizatori
+                const { data: user } = await supabase.from('utilizatori').select('nume').eq('id', user_id).single();
+                const numeAngajat = user?.nume || "Angajat necunoscut";
+
+                const msg = `⚠️ PIERDERE raportată de ${numeAngajat}: ${motiv}`;
+                toast.error(msg, { duration: 6000, position: 'bottom-right' });
+
+                setNotifications(prev => [{
+                    id: Date.now(),
+                    type: 'alert',
+                    message: msg,
+                    time: 'Acum',
+                    read: false
+                }, ...prev]);
+            })
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'produse' }, (payload) => {
                 const newProd = payload.new;
                 if (newProd.stoc_depozit <= newProd.stoc_minim_depozit) {
-                    toast.error(`ATENȚIE: ${newProd.nume} a ajuns la stocul ${newProd.stoc_depozit}!`, { duration: 5000, position: 'top-right' });
-                    setNotifications(prev => {
-                        const filtered = prev.filter(n => !n.message.includes(newProd.nume));
-                        return [{ id: new Date().getTime(), type: 'alert', message: `ATENȚIE: ${newProd.nume} a ajuns la stocul ${newProd.stoc_depozit}!`, time: 'Chiar acum', read: false }, ...filtered];
-                    });
+                    toast.error(`ATENȚIE: ${newProd.nume} la stoc critic!`, { duration: 5000 });
                 }
             })
             .subscribe();
-        return () => { supabase.removeChannel(subscription); }
-    }, [fetchNotifications]);
+
+        return () => { supabase.removeChannel(channel); };
+    }, []);
 
     const NavLink = ({ to, label, icon, className = "" }: any) => {
         const isActive = location.pathname === to;
@@ -129,7 +135,7 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
         )
     }
 
-    const LinkuriOperatiuni = ({ isSubmenu = false }) => (
+    const LinkuriOperatiuni = ({ isSubmenu = false }: any) => (
         <>
             <NavLink to="/receptie" label="Recepție Manuală" icon={<PackagePlus size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
             <NavLink to="/receptie-comanda" label="Recepție Comandă" icon={<Inbox size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
@@ -142,12 +148,10 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
             {/* SIDEBAR */}
             <aside className="w-72 bg-[#0f172a] text-white flex flex-col shadow-2xl z-30 shrink-0 transition-all duration-300">
                 <div className="p-8 pb-4 flex items-center gap-4">
-                    <div className="w-10 h-10 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                        <span className="font-bold text-xl text-white">M</span>
-                    </div>
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-xl">M</div>
                     <div>
-                        <h2 className="text-lg font-bold tracking-tight">Magazin<span className="text-indigo-400">Pro</span></h2>
-                        <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">{userRole}</span>
+                        <h2 className="text-lg font-bold tracking-tight">MagazinPro</h2>
+                        <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{userRole}</span>
                     </div>
                 </div>
                 <div className="px-6 py-4"><div className="h-[1px] bg-slate-800 w-full"></div></div>
@@ -156,17 +160,23 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                     <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">General</div>
                     <NavLink to="/" label="Dashboard" icon={<LayoutDashboard size={18} />} />
 
+                    <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Stocuri</div>
+                    <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
+                    <NavLink to="/expirari" label="Produse Expirate" icon={<CalendarClock size={18} />} />
+                    <NavLink to="/pierderi" label="Raportare Pierderi" icon={<AlertOctagon size={18} />} />
+
                     {userRole === 'gestionar' && (
                         <>
-                            <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Gestiune Stoc</div>
+                            <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Operațiuni</div>
                             <LinkuriOperatiuni />
-                            <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
                         </>
                     )}
 
                     {userRole === 'admin' && (
                         <>
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
+
+                            <NavLink to="/istoric-pierderi" label="Audit Pierderi" icon={<History size={18} />} />
 
                             <div className="mx-2 mb-1">
                                 <button onClick={() => setIsGestionarMenuOpen(!isGestionarMenuOpen)} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-sm font-medium ${isGestionarMenuOpen ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
@@ -179,9 +189,6 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                             </div>
 
                             <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
-                            <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
-
-                            {/* --- SECTIUNE PARTENERI & ALOCARI --- */}
                             <NavLink to="/furnizori" label="Furnizori" icon={<Truck size={18} />} />
                             <NavLink to="/gestiune-produse-furnizor" label="Alocare Directă" icon={<LinkIcon size={18} />} />
                             <NavLink to="/gestiune-agenti" label="Gestiune Agenți" icon={<Users size={18} />} />
@@ -191,7 +198,7 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                             <NavLink to="/comenzi" label="Situație Comenzi" icon={<ClipboardList size={18} />} />
                             <NavLink to="/lista-cumparaturi" label="Listă Cumpărături" icon={<ListTodo size={18} />} />
 
-                            <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Punct de Vânzare</div>
+                            <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Vânzare</div>
                             <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
                             <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
 
@@ -205,7 +212,6 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                 </div>
             </aside>
 
-            {/* MAIN CONTENT AREA */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
                 <header className={`h-20 flex items-center justify-between px-8 z-20 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur-md border-b border-gray-200' : 'bg-transparent'}`}>
                     <div className="flex items-center bg-white border border-gray-200 rounded-full px-4 py-2 w-96 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
@@ -252,11 +258,12 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
     )
 };
 
-// --- DASHBOARD (CU COMANDA FURNIZOR LIVE) ---
+// --- DASHBOARD (ACTUALIZAT CU STATISTICI PIERDERI) ---
 const Dashboard = ({ userRole }: { userRole: string }) => {
     const [stats, setStats] = useState({
         alerteStoc: 0,
-        comenziAgenti: 0,
+        alerteExpirari: 0,
+        pierderiLuna: 0, // Statistică nouă
         vanzariAstazi: 0,
         comenziFurnizor: 0,
         loading: true
@@ -267,12 +274,13 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
             const { data: produse } = await supabase.from('produse').select('stoc_depozit, stoc_minim_depozit');
             const alerteCount = produse?.filter((p: any) => p.stoc_depozit <= p.stoc_minim_depozit).length || 0;
 
-            const { count: comenziCount } = await supabase.from('comenzi_agenti').select('*', { count: 'exact', head: true }).eq('status', 'pending_admin');
+            const { count: expirariCount } = await supabase.from('view_expirari').select('*', { count: 'exact', head: true });
 
-            const { count: comenziFurnizorCount } = await supabase
-                .from('comenzi_catre_furnizor') // Schimbat in tabelul tau corect
-                .select('*', { count: 'exact', head: true })
-                .eq('status', 'pending');
+            // Calcul pierderi luna curentă pentru audit
+            const primaZi = new Date(); primaZi.setDate(1);
+            const { count: pierderiCount } = await supabase.from('pierderi').select('*', { count: 'exact', head: true }).gte('created_at', primaZi.toISOString());
+
+            const { count: comenziFurnizorCount } = await supabase.from('comenzi_catre_furnizor').select('*', { count: 'exact', head: true }).eq('status', 'pending');
 
             const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
             const { data: vanzari } = await supabase.from('vanzari').select('total').eq('status', 'finalizat').gte('data_vanzare', todayStart.toISOString());
@@ -280,7 +288,8 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
 
             setStats({
                 alerteStoc: alerteCount,
-                comenziAgenti: comenziCount || 0,
+                alerteExpirari: expirariCount || 0,
+                pierderiLuna: pierderiCount || 0,
                 vanzariAstazi: totalVanzari,
                 comenziFurnizor: comenziFurnizorCount || 0,
                 loading: false
@@ -296,7 +305,7 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
         fetchDashboardData();
         const channel = supabase.channel('dashboard-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'produse' }, () => fetchDashboardData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'comenzi_agenti' }, () => fetchDashboardData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'pierderi' }, () => fetchDashboardData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vanzari' }, () => fetchDashboardData())
             .subscribe();
         return () => { supabase.removeChannel(channel); };
@@ -305,75 +314,65 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
     return (
         <div className="p-8 max-w-7xl mx-auto pb-20">
             <div className="mb-10">
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">Bine ai revenit! 👋</h1>
-                <p className="text-gray-500">Iată situația magazinului în timp real.</p>
+                <h1 className="text-3xl font-black text-gray-800 mb-2 tracking-tight">Consolă Gestiune v0.1.2</h1>
+                <p className="text-gray-500 font-medium">Sinteza riscurilor și monitorizarea integrității stocurilor.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
                 <Link to="/produse">
                     <StatCard
-                        title="Alerte Stoc Critic"
-                        value={`${stats.alerteStoc} Produse`}
+                        title="Stocuri Critice"
+                        value={`${stats.alerteStoc} Repere`}
                         icon={AlertTriangle}
-                        color={stats.alerteStoc > 0 ? "bg-red-500 text-red-600" : "bg-green-500 text-green-600"}
-                        trend={{ isPositive: stats.alerteStoc === 0, value: stats.alerteStoc > 0 ? "Necesită aprovizionare" : "Stoc Optim" }}
+                        color={stats.alerteStoc > 0 ? "bg-red-500" : "bg-green-500"}
+                        trend={{ isPositive: stats.alerteStoc === 0, value: stats.alerteStoc > 0 ? "Alertă Stoc" : "Optim" }}
+                        loading={stats.loading}
+                    />
+                </Link>
+
+                <Link to="/expirari">
+                    <StatCard
+                        title="Termene Expirare"
+                        value={`${stats.alerteExpirari} Loturi`}
+                        icon={CalendarClock}
+                        color={stats.alerteExpirari > 0 ? "bg-orange-500" : "bg-green-500"}
+                        trend={{ isPositive: stats.alerteExpirari === 0, value: stats.alerteExpirari > 0 ? "Risc detectat" : "Sigur" }}
+                        loading={stats.loading}
+                    />
+                </Link>
+
+                <Link to="/istoric-pierderi">
+                    <StatCard
+                        title="Audit Pierderi"
+                        value={`${stats.pierderiLuna} Luna aceasta`}
+                        icon={History}
+                        color="bg-indigo-600"
+                        trend={{ isPositive: true, value: "Monitorizat", label: "trasabilitate activă" }}
                         loading={stats.loading}
                     />
                 </Link>
 
                 <StatCard
-                    title="Comenzi Agenți"
-                    value={`${stats.comenziAgenti} Noi`}
-                    icon={Inbox}
-                    color="bg-purple-500 text-purple-600"
-                    trend={{ isPositive: true, value: "În așteptare" }}
-                    loading={stats.loading}
-                />
-
-                <StatCard
                     title="Vânzări Astăzi"
                     value={`${stats.vanzariAstazi.toFixed(2)} Lei`}
                     icon={TrendingUp}
-                    color="bg-green-100 text-green-600"
-                    trend={{ isPositive: true, value: "Total încasări" }}
+                    color="bg-green-500"
+                    trend={{ isPositive: true, value: "Incasări" }}
                     loading={stats.loading}
                 />
-
-                {userRole === 'admin' && (
-                    <Link to="/comenzi">
-                        <StatCard
-                            title="Comenzi Furnizor"
-                            value={`${stats.comenziFurnizor} Pend.`}
-                            icon={Truck}
-                            color="bg-blue-50 text-blue-600"
-                            trend={{ isPositive: true, value: "În livrare" }}
-                            loading={stats.loading}
-                        />
-                    </Link>
-                )}
             </div>
 
-            {/* Grafic si Top Produse */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-gray-100 min-h-[300px]">
-                    <h3 className="font-bold text-lg text-gray-800 mb-4 text-center">Activitate Analitică (AI)</h3>
-                    <div className="flex items-center justify-center h-[200px] text-gray-400 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200 italic">
-                        Motorul AI analizează vânzările zilnice pentru prognoză...
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-white rounded-3xl p-8 border shadow-sm flex flex-col items-center justify-center text-center">
+                    <BrainCircuit size={48} className="text-indigo-600 mb-4 animate-pulse" />
+                    <h3 className="text-xl font-bold text-gray-800">Sistem de Trasabilitate</h3>
+                    <p className="text-gray-400 mt-2 max-w-xs font-medium italic">Fiecare declasare de stoc este acum atribuită nominal angajatului responsabil.</p>
                 </div>
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                    <h3 className="font-bold text-lg text-gray-800 mb-4">Top Produse</h3>
-                    <div className="space-y-4">
-                        {[1, 2, 3].map((_, i) => (
-                            <div key={i} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group">
-                                <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center font-bold">#{i+1}</div>
-                                <div className="flex-1">
-                                    <div className="h-4 w-3/4 bg-gray-100 rounded mb-1"></div>
-                                    <div className="h-3 w-1/4 bg-gray-50 rounded"></div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                <div className="bg-[#0f172a] rounded-3xl p-8 shadow-xl text-white relative overflow-hidden flex flex-col justify-center">
+                    <AlertTriangle size={120} className="absolute -right-10 -bottom-10 opacity-10" />
+                    <h3 className="text-2xl font-black mb-4">Protocol de Casare</h3>
+                    <p className="text-slate-400 mb-6 font-medium">Administratorul poate audita cine a identificat produsele cu defect sau expirate.</p>
+                    <Link to="/pierderi" className="bg-white text-slate-900 px-6 py-3 rounded-xl font-black text-center w-fit hover:bg-slate-200 transition-all">Lansează Raport Pierderi</Link>
                 </div>
             </div>
         </div>
@@ -384,55 +383,82 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
 // APP PRINCIPAL
 // ==========================================
 function App() {
-    const [userRole, setUserRole] = useState<'admin' | 'casier' | 'agent' | 'gestionar' | null>(null);
-    const [agentId, setAgentId] = useState<number | null>(null);
+    const [userRole, setUserRole] = useState<'admin' | 'casier' | 'agent' | 'gestionar' | 'furnizor' | null>(null);
+    const [agentId, setAgentId] = useState<string | number | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const savedRole = localStorage.getItem('magazin_role') as any;
         const savedId = localStorage.getItem('magazin_agent_id');
         if (savedRole) setUserRole(savedRole);
-        if (savedId) setAgentId(parseInt(savedId));
+        if (savedId) setAgentId(savedId);
         setLoading(false);
     }, []);
 
-    const handleLogin = (role: 'admin' | 'casier' | 'agent' | 'gestionar', id?: number) => {
+    const handleLogin = (role: any, id?: any) => {
         setUserRole(role);
         localStorage.setItem('magazin_role', role);
-        if (id) { setAgentId(id); localStorage.setItem('magazin_agent_id', id.toString()); }
-    };
-
-    const handleLogout = () => {
-        if (confirm("Sigur dorești să te deconectezi?")) {
-            setUserRole(null); setAgentId(null);
-            localStorage.removeItem('magazin_role'); localStorage.removeItem('magazin_agent_id');
+        if (id) {
+            setAgentId(id);
+            localStorage.setItem('magazin_agent_id', id.toString());
         }
     };
 
-    if (loading) { return <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-600 font-medium">Sincronizare MagazinPro...</div>; }
+    const handleLogout = () => {
+        if (confirm("Deconectare MagazinPro?")) {
+            setUserRole(null); setAgentId(null);
+            localStorage.clear();
+        }
+    };
+
+    if (loading) return <div className="h-screen flex items-center justify-center font-black text-slate-400">MagazinPro 0.1.2...</div>;
 
     return (
         <Router>
             <Routes>
                 <Route path="/login" element={!userRole ? <Login onLogin={handleLogin} /> : <Navigate to="/" />} />
                 <Route path="/partener" element={<InregistrareAgent />} />
+
                 {!userRole ? <Route path="*" element={<Navigate to="/login" />} /> : userRole === 'casier' ? (
                     <>
-                        <Route path="/vanzare" element={<div className="h-screen flex flex-col bg-gray-900"><div className="bg-gray-900 text-white px-4 py-2 flex justify-between items-center text-xs border-b border-gray-800"><span>Mod Casier: <strong>Activ</strong></span><button onClick={handleLogout} className="text-red-400 hover:text-white">Ieșire Tură</button></div><div className="flex-1 overflow-hidden bg-gray-100"><Vanzare /></div></div>} />
-                        <Route path="*" element={<Navigate to="/vanzare" replace />} />
+                        <Route path="/pos" element={<div className="h-screen flex flex-col bg-gray-900"><div className="bg-gray-800 text-white px-6 py-2 flex justify-between items-center text-[10px] font-black border-b border-gray-700"><span>MOD CASIER ACTIV</span><button onClick={handleLogout} className="text-red-400 uppercase tracking-widest">Iesire</button></div><div className="flex-1 bg-gray-100 overflow-hidden"><Vanzare /></div></div>} />
+                        <Route path="*" element={<Navigate to="/pos" replace />} />
                     </>
+                ) : (userRole === 'furnizor' || userRole === 'gestionar') ? (
+                    /* --- ADĂUGAT: RUTA DE MENTENANȚĂ PENTRU GESTIONAR & FURNIZOR --- */
+                    <Route path="/*" element={
+                        <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 text-white font-sans p-6 text-center">
+                            <div className="w-20 h-20 bg-orange-600/20 rounded-3xl flex items-center justify-center mb-8 animate-pulse">
+                                <Briefcase size={40} className="text-orange-400" />
+                            </div>
+                            <h1 className="text-4xl font-black mb-4 uppercase">
+                                {userRole === 'gestionar' ? 'Acces Gestionar' : 'Portal Furnizori'}
+                            </h1>
+                            <p className="text-slate-400 max-w-md font-medium leading-relaxed">
+                                {userRole === 'gestionar'
+                                    ? 'Varianta Web pentru gestionar este momentan în lucru. Vă rugăm să utilizați terminalul mobil pentru operațiuni de depozit.'
+                                    : 'Modulul pentru furnizori externi este în curs de dezvoltare pentru varianta desktop.'}
+                            </p>
+                            <button onClick={handleLogout} className="mt-10 px-10 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-orange-500 hover:text-white transition-all shadow-xl">
+                                Închide Sesiunea
+                            </button>
+                            <div className="absolute bottom-8 text-slate-700 text-[10px] font-black uppercase tracking-widest">
+                                MagazinPro Security Framework v0.1.2
+                            </div>
+                        </div>
+                    } />
                 ) : userRole === 'agent' ? (
-                    <Route path="/*" element={agentId ? <AgentDashboard agentId={agentId} onLogout={handleLogout} /> : <div>Eroare ID Agent</div>} />
+                    <Route path="/*" element={agentId ? <AgentDashboard agentId={Number(agentId)} onLogout={handleLogout} /> : <Navigate to="/login" />} />
                 ) : (
                     <Route path="/*" element={
                         <MainLayout onLogout={handleLogout} userRole={userRole}>
                             <Routes>
                                 <Route path="/" element={<Dashboard userRole={userRole} />} />
                                 <Route path="/produse" element={<Produse userRole={userRole} />} />
-                                <Route path="/receptie" element={<Receptie />} />
-                                <Route path="/receptie-comanda" element={<ReceptieComanda />} />
-                                <Route path="/transfer" element={<TransferMarfa />} />
-                                <Route path="/comanda/:id" element={<DetaliiComanda />} />
+                                <Route path="/expirari" element={<Expirari />} />
+                                <Route path="/pierderi" element={<Pierderi />} />
+                                <Route path="/istoric-pierderi" element={<IstoricPierderi />} />
+
                                 {userRole === 'admin' && (
                                     <>
                                         <Route path="/ai-consultant" element={<AiConsultant />} />
@@ -448,6 +474,11 @@ function App() {
                                         <Route path="/comanda-primita/:id" element={<DetaliiComandaAgent />} />
                                     </>
                                 )}
+
+                                <Route path="/receptie" element={<Receptie />} />
+                                <Route path="/receptie-comanda" element={<ReceptieComanda />} />
+                                <Route path="/transfer" element={<TransferMarfa />} />
+                                <Route path="/comanda/:id" element={<DetaliiComanda />} />
                                 <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
                         </MainLayout>
@@ -458,13 +489,11 @@ function App() {
     );
 }
 
-function AppWrapper() {
+export default function AppWrapper() {
     return (
         <>
-            <Toaster position="top-right" reverseOrder={false} toastOptions={{ style: { background: '#333', color: '#fff', borderRadius: '10px' } }} />
+            <Toaster position="top-right" />
             <App />
         </>
     )
 }
-
-export default AppWrapper;
