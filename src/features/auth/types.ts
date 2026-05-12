@@ -2,7 +2,6 @@ import { Session, User } from '@supabase/supabase-js';
 
 export type UserRole = 
   | 'platform_owner'
-  | 'tenant_admin'
   | 'admin'
   | 'manager'
   | 'gestionar'
@@ -10,12 +9,27 @@ export type UserRole =
 
 export interface AuthProfile {
   id: string;
-  tenant_id: string | null;
-  store_id?: string | null;
   email: string;
-  full_name: string;
+  full_name: string | null;
   role: UserRole;
   active: boolean;
+}
+
+export interface Store {
+  id: string;
+  name: string;
+  address: string | null;
+  fiscal_code: string | null;
+  settings?: Record<string, unknown> | null;
+  active: boolean;
+}
+
+export interface StoreMembership {
+  store_id: string;
+  profile_id: string;
+  role: Exclude<UserRole, 'platform_owner'>;
+  active: boolean;
+  store?: Store;
 }
 
 export interface AuthState {
@@ -23,8 +37,14 @@ export interface AuthState {
   user: User | null;
   profile: AuthProfile | null;
   role: UserRole | null;
-  tenantId: string | null;
-  storeId: string | null;
+  currentStoreId: string | null;
+  currentStore: Store | null;
+  storeRole: UserRole | null;
+  availableStores: StoreMembership[];
   loading: boolean;
   error: string | null;
+  
+  // Legacy aliases (pentru compatibilitate build temporară)
+  tenantId?: string | null;
+  storeId?: string | null;
 }

@@ -5,7 +5,7 @@ import { UserRole } from '../features/auth/types';
 import ProtectedRoute from '../features/auth/ProtectedRoute';
 import MainLayout from './MainLayout';
 
-// Importuri Pagini (temporar din src/)
+// Importuri Pagini
 import Login from '../Login';
 import Dashboard from '../features/dashboard/DashboardPage';
 import { ProductsPage as Produse } from '../features/products';
@@ -34,7 +34,7 @@ const AppRoutes = () => {
         }
     };
 
-    const ROLES_ADMIN: UserRole[] = ['admin', 'platform_owner', 'tenant_admin'];
+    const ROLES_ADMIN: UserRole[] = ['admin', 'platform_owner'];
     const ROLES_STAFF: UserRole[] = [...ROLES_ADMIN, 'manager', 'gestionar'];
     const ROLES_POS: UserRole[] = [...ROLES_ADMIN, 'casier'];
 
@@ -46,7 +46,7 @@ const AppRoutes = () => {
                 <ProtectedRoute allowedRoles={ROLES_POS}>
                     <div className="h-screen flex flex-col bg-gray-900">
                         <div className="bg-gray-800 text-white px-6 py-2 flex justify-between items-center text-[10px] font-black border-b border-gray-700">
-                            <span>MOD CASIER ACTIV (SECURE)</span>
+                            <span>MOD CASIER ACTIV (V2)</span>
                             <button onClick={handleLogout} className="text-red-400 uppercase tracking-widest hover:text-red-300 transition-colors">Iesire</button>
                         </div>
                         <div className="flex-1 bg-gray-100 overflow-hidden">
@@ -58,10 +58,10 @@ const AppRoutes = () => {
 
             <Route path="/*" element={
                 <ProtectedRoute>
-                    <MainLayout onLogout={handleLogout} userRole={userRole}>
+                    <MainLayout>
                         <Routes>
                             <Route path="/" element={
-                                <ProtectedRoute allowedRoles={['admin', 'platform_owner', 'tenant_admin', 'manager']}>
+                                <ProtectedRoute allowedRoles={['admin', 'platform_owner', 'manager']}>
                                     <Dashboard userRole={userRole} />
                                 </ProtectedRoute>
                             } />

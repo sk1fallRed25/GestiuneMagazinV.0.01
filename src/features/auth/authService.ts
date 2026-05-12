@@ -1,5 +1,5 @@
 import { supabase } from '../../supabaseClient';
-import { AuthProfile, UserRole } from './types';
+import { AuthProfile, StoreMembership, UserRole } from './types';
 
 export const authService = {
   /**
@@ -27,40 +27,63 @@ export const authService = {
   },
 
   /**
-   * Obține profilul de business din tabela 'profiles'
-   * Handle error dacă tabela nu există încă
+   * Obține profilul din tabela public.profiles (v2)
    */
   async getCurrentProfile(userId: string): Promise<AuthProfile | null> {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, role, active')
+      .eq('id', userId)
+      .single();
 
-      if (error) {
-        // Dacă tabela nu există, Supabase returnează de obicei un cod de eroare (ex: 'PGRST116' sau '42P01')
-        console.warn("Profilul nu a putut fi încărcat (posibil tabelă lipsă):", error.message);
-        return null;
-      }
-
-      return data as AuthProfile;
-    } catch (err) {
-      console.error("Eroare neașteptată la încărcarea profilului:", err);
+    if (error) {
+      console.error("Eroare la încărcarea profilului:", error.message);
       return null;
     }
+
+    if (!data.active) {
+      throw new Error("Contul dumneavoastră este inactiv. Contactați administratorul.");
+    }
+
+    return data as AuthProfile;
   },
 
   /**
-   * Mapare roluri vechi -> roluri noi (pentru compatibilitate)
+   * Obține apartenența la magazine din public.store_members (v2)
    */
-  mapLegacyRoleToNewRole(role: string): UserRole {
-    const roleMap: Record<string, UserRole> = {
-      'admin': 'admin',
-      'casier': 'casier',
-      'gestionar': 'gestionar'
-    };
+  async getUserStoreMemberships(userId: string): Promise<StoreMembership[]> {
+    const { data, error } = await supabase
+      .from('store_members')
+      .select(`
+        store_id,
+        profile_id,
+        role,
+        active,
+        store:stores (*)
+      `)
+      .eq('profile_id', userId)
+      .eq('active', true);
 
-    return roleMap[role.toLowerCase()] || 'casier';
+    if (error) {
+      console.error("Eroare la încărcarea apartenenței la magazine:", error.message);
+      return [];
+    }
+
+    // Supabase poate returna 'store' ca array dacă relația nu este recunoscută ca 1-la-1 în query-ul de select
+    return (data || []).map((m: any) => ({
+      ...m,
+      store: Array.isArray(m.store) ? m.store[0] : m.store
+    })) as StoreMembership[];
+  },
+
+  /**
+   * Selectează automat primul magazin disponibil
+   */
+  async getFirstAvailableStore(userId: string, role: UserRole): Promise<StoreMembership | null> {
+    const memberships = await this.getUserStoreMemberships(userId);
+    if (memberships.length > 0) {
+      return memberships[0];
+    }
+    return null;
   }
 };

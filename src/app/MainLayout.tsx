@@ -8,10 +8,11 @@ import {
 } from 'lucide-react';
 import { supabase } from '../shared/supabase/supabaseClient';
 import { isAdminLike, isManagerLike, isStockOperator, isCashierLike } from '../features/auth/permissions';
+import { useAuth } from '../features/auth/AuthContext';
 
-const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNode, onLogout: () => void, userRole: string }) => {
+const MainLayout = ({ children }: { children: React.ReactNode }) => {
+    const { role, profile, currentStore, logout } = useAuth();
     const location = useLocation();
-    const [isGestionarMenuOpen, setIsGestionarMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);
 
     const [notifications, setNotifications] = useState<any[]>([]);
@@ -34,17 +35,17 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    // --- MONITORIZARE REALTIME: PIERDERI NOMINALE ȘI STOCURI ---
+    // --- MONITORIZARE REALTIME: PIERDERI ȘI STOCURI (Schema v2) ---
     useEffect(() => {
-        const channel = supabase.channel('audit-monitoring')
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pierderi' }, async (payload) => {
-                const { user_id, motiv } = payload.new;
+        const channel = supabase.channel('v2-monitoring')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'waste_events' }, async (payload) => {
+                const { profile_id, reason } = payload.new;
 
-                // Interogăm numele angajatului pe baza UUID-ului din tabela utilizatori
-                const { data: user } = await supabase.from('utilizatori').select('nume').eq('id', user_id).single();
-                const numeAngajat = user?.nume || "Angajat necunoscut";
+                // Interogăm profilul (v2)
+                const { data: userProfile } = await supabase.from('profiles').select('full_name').eq('id', profile_id).single();
+                const numeAngajat = userProfile?.full_name || "Angajat necunoscut";
 
-                const msg = `⚠️ PIERDERE raportată de ${numeAngajat}: ${motiv}`;
+                const msg = `⚠️ PIERDERE raportată de ${numeAngajat}: ${reason}`;
                 toast.error(msg, { duration: 6000, position: 'bottom-right' });
 
                 setNotifications(prev => [{
@@ -55,11 +56,10 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                     read: false
                 }, ...prev]);
             })
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'produse' }, (payload) => {
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'products' }, (payload) => {
                 const newProd = payload.new;
-                if (newProd.stoc_depozit <= newProd.stoc_minim_depozit) {
-                    toast.error(`ATENȚIE: ${newProd.nume} la stoc critic!`, { duration: 5000 });
-                }
+                // Logica de stoc minim va fi adaptată în Etapa 2B când avem stock_batches
+                // Momentan păstrăm placeholder pentru a nu crăpa UI
             })
             .subscribe();
 
@@ -93,7 +93,7 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                     <div>
                         <h2 className="text-lg font-bold tracking-tight">MagazinPro</h2>
                         <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">
-                            {userRole || 'rol necunoscut'}
+                            {role || 'rol necunoscut'}
                         </span>
                     </div>
                 </div>
@@ -101,27 +101,27 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
 
                 <nav className="flex-1 px-2 space-y-1 overflow-y-auto custom-scrollbar pb-4">
                     <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">General</div>
-                    {isManagerLike(userRole) && <NavLink to="/" label="Dashboard" icon={<LayoutDashboard size={18} />} />}
+                    {isManagerLike(role) && <NavLink to="/" label="Dashboard" icon={<LayoutDashboard size={18} />} />}
 
                     <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Stocuri</div>
-                    {isStockOperator(userRole) && (
+                    {isStockOperator(role) && (
                         <>
                             <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
                             <NavLink to="/expirari" label="Produse Expirate" icon={<CalendarClock size={18} />} />
                         </>
                     )}
-                    {(isAdminLike(userRole) || userRole === 'gestionar') && (
+                    {(isAdminLike(role) || role === 'gestionar') && (
                         <NavLink to="/pierderi" label="Raportare Pierderi" icon={<AlertOctagon size={18} />} />
                     )}
 
-                    {(isAdminLike(userRole) || userRole === 'gestionar') && (
+                    {(isAdminLike(role) || role === 'gestionar') && (
                         <>
                             <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Operațiuni</div>
                             <LinkuriOperatiuni />
                         </>
                     )}
 
-                    {isManagerLike(userRole) && (
+                    {isManagerLike(role) && (
                         <>
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
                             <NavLink to="/istoric-pierderi" label="Audit Pierderi" icon={<History size={18} />} />
@@ -129,18 +129,18 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                         </>
                     )}
 
-                    {isCashierLike(userRole) && (
+                    {isCashierLike(role) && (
                         <>
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Vânzare</div>
                             <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
                         </>
                     )}
                     
-                    {isManagerLike(userRole) && (
+                    {isManagerLike(role) && (
                         <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
                     )}
 
-                    {isAdminLike(userRole) && (
+                    {isAdminLike(role) && (
                         <>
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Sistem</div>
                             <NavLink to="/fast-add" label="Adăugare Rapidă" icon={<Settings size={18} />} />
@@ -148,7 +148,7 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                     )}
                 </nav>
                 <div className="p-4 bg-[#0a0f1c]">
-                    <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all text-sm font-medium border border-transparent hover:border-red-500/20"><LogOut size={18} /><span>Deconectare</span></button>
+                    <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all text-sm font-medium border border-transparent hover:border-red-500/20"><LogOut size={18} /><span>Deconectare</span></button>
                 </div>
             </aside>
 
@@ -184,8 +184,13 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                         </div>
                         <div className="h-8 w-[1px] bg-gray-300 mx-2"></div>
                         <div className="flex items-center gap-3 pl-2">
-                            <div className="text-right hidden md:block"><p className="text-sm font-bold text-gray-700">Administrator</p><p className="text-xs text-gray-400">Magazin Central</p></div>
-                            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center border-2 border-white shadow-sm text-indigo-600 font-bold">A</div>
+                            <div className="text-right hidden md:block">
+                                <p className="text-sm font-bold text-gray-700">{profile?.full_name || 'Utilizator'}</p>
+                                <p className="text-xs text-gray-400">{currentStore?.name || (role === 'platform_owner' ? 'Platform Administration' : 'Fără magazin')}</p>
+                            </div>
+                            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center border-2 border-white shadow-sm text-indigo-600 font-bold">
+                                {(profile?.full_name || 'U').charAt(0).toUpperCase()}
+                            </div>
                         </div>
                     </div>
                 </header>

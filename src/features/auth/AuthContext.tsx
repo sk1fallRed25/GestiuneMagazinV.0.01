@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../../supabaseClient';
-import { AuthState, AuthProfile, UserRole } from './types';
+import { AuthState, AuthProfile, UserRole, StoreMembership } from './types';
 import { authService } from './authService';
 
 interface AuthContextType extends AuthState {
   login: (email: string, pass: string) => Promise<{ error: any }>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  switchStore: (storeId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,25 +18,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user: null,
     profile: null,
     role: null,
-    tenantId: null,
-    storeId: null,
+    currentStoreId: null,
+    currentStore: null,
+    storeRole: null,
+    availableStores: [],
     loading: true,
     error: null,
+    tenantId: null, // Legacy alias
+    storeId: null,  // Legacy alias
   });
 
-  const loadProfile = useCallback(async (userId: string) => {
-    const profile = await authService.getCurrentProfile(userId);
-    if (profile) {
+  const loadProfileAndStores = useCallback(async (userId: string) => {
+    try {
+      // 1. Încarcă Profilul
+      const profile = await authService.getCurrentProfile(userId);
+      if (!profile) {
+        setState(prev => ({ 
+          ...prev, 
+          loading: false, 
+          error: "Profilul nu a putut fi găsit în sistem." 
+        }));
+        return;
+      }
+
+      // 2. Încarcă Magazinele la care are acces
+      const memberships = await authService.getUserStoreMemberships(userId);
+      
+      // 3. Verifică accesul (non-platform_owner trebuie să aibă cel puțin un magazin)
+      if (profile.role !== 'platform_owner' && memberships.length === 0) {
+        setState(prev => ({ 
+          ...prev, 
+          profile,
+          role: profile.role,
+          loading: false, 
+          error: "Utilizatorul nu este asociat cu niciun magazin activ." 
+        }));
+        return;
+      }
+
+      // 4. Selectează Magazinul Curent (primul disponibil sau cel salvat anterior)
+      const currentMembership = memberships[0] || null;
+
       setState(prev => ({
         ...prev,
         profile,
         role: profile.role,
-        tenantId: profile.tenant_id,
-        storeId: profile.store_id || null,
-        loading: false
+        availableStores: memberships,
+        currentStoreId: currentMembership?.store_id || null,
+        currentStore: currentMembership?.store || null,
+        storeRole: (currentMembership?.role as UserRole) || null,
+        // Legacy aliases
+        tenantId: null,
+        storeId: currentMembership?.store_id || null,
+        loading: false,
+        error: null
       }));
-    } else {
-      setState(prev => ({ ...prev, loading: false }));
+    } catch (err: any) {
+      console.error("Eroare critică la inițializare Auth:", err);
+      setState(prev => ({ 
+        ...prev, 
+        loading: false, 
+        error: err.message || "Eroare neașteptată la autentificare." 
+      }));
     }
   }, []);
 
@@ -45,7 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setState(prev => ({ ...prev, session, user: session.user }));
-        loadProfile(session.user.id);
+        loadProfileAndStores(session.user.id);
       } else {
         setState(prev => ({ ...prev, loading: false }));
       }
@@ -55,23 +98,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setState(prev => ({ ...prev, session, user: session.user }));
-        loadProfile(session.user.id);
+        loadProfileAndStores(session.user.id);
       } else {
         setState({
           session: null,
           user: null,
           profile: null,
           role: null,
-          tenantId: null,
-          storeId: null,
+          currentStoreId: null,
+          currentStore: null,
+          storeRole: null,
+          availableStores: [],
           loading: false,
           error: null,
+          tenantId: null,
+          storeId: null
         });
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [loadProfile]);
+  }, [loadProfileAndStores]);
 
   const login = async (email: string, pass: string) => {
     setState(prev => ({ ...prev, loading: true, error: null }));
@@ -83,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (data.user) {
-      await loadProfile(data.user.id);
+      await loadProfileAndStores(data.user.id);
     }
 
     return { error: null };
@@ -96,21 +143,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       user: null,
       profile: null,
       role: null,
-      tenantId: null,
-      storeId: null,
+      currentStoreId: null,
+      currentStore: null,
+      storeRole: null,
+      availableStores: [],
       loading: false,
       error: null,
+      tenantId: null,
+      storeId: null
     });
   };
 
   const refreshProfile = async () => {
     if (state.user) {
-      await loadProfile(state.user.id);
+      await loadProfileAndStores(state.user.id);
+    }
+  };
+
+  const switchStore = async (storeId: string) => {
+    const membership = state.availableStores.find(m => m.store_id === storeId);
+    if (membership) {
+      setState(prev => ({
+        ...prev,
+        currentStoreId: membership.store_id,
+        currentStore: membership.store || null,
+        storeRole: (membership.role as UserRole),
+        storeId: membership.store_id // legacy alias
+      }));
     }
   };
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ ...state, login, logout, refreshProfile, switchStore }}>
       {children}
     </AuthContext.Provider>
   );

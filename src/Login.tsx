@@ -1,32 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { supabase } from './supabaseClient';
+import { useNavigate } from 'react-router-dom';
 import { 
-  User, Lock, LogIn, Loader2, AlertCircle, Building2 
+  User, Lock, LogIn, Loader2, AlertCircle 
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { useAuth } from './features/auth/useAuth';
 
-// Tipuri de roluri pentru compatibilitate legacy
-type UserRole = 'admin' | 'casier' | 'gestionar';
-
-interface LoginProps {
-    // onLogin a fost eliminat pentru a centraliza totul în AuthContext
-}
-
-export default function Login({}: LoginProps) {
+export default function Login() {
     const navigate = useNavigate();
-    const { login, user, role: authRole, loading: authLoading } = useAuth();
+    const { login, user, loading: authLoading } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    // Citim variabila de mediu pentru fallback legacy
     const allowLegacy = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === 'true';
 
     useEffect(() => {
-        // Redirecționare dacă suntem deja logați (Auth real sau Legacy)
         const legacyRole = allowLegacy ? localStorage.getItem('magazin_role') : null;
         if (user || legacyRole) {
             navigate('/');
@@ -43,20 +33,16 @@ export default function Login({}: LoginProps) {
 
         try {
             // 1. Încercăm login prin noul AuthContext (Supabase Auth)
-            console.log("Încercare Login (Supabase Auth)...");
             const { error: authError } = await login(userLower, passTrim);
 
             if (!authError) {
-                toast.success("Autentificare reușită (Supabase Auth)");
+                toast.success("Autentificare reușită (v2)");
                 navigate('/');
                 return;
             }
 
-            // 2. Dacă a eșuat și legacy este permis, încercăm logică veche
+            // 2. Fallback Legacy Hardcoded (doar pentru dev/test)
             if (allowLegacy) {
-                console.log("Încercare Login Legacy (Fallback)...");
-                
-                // Cazul A: Conturi Hardcodate
                 if (userLower === 'admin' && passTrim === 'admin') {
                     localStorage.setItem('magazin_role', 'admin');
                     toast.success("Autentificare Admin (Legacy)");
@@ -69,35 +55,9 @@ export default function Login({}: LoginProps) {
                     navigate('/');
                     return;
                 }
-                if (userLower === 'gestionar' && passTrim === 'gestionar') {
-                    localStorage.setItem('magazin_role', 'gestionar');
-                    toast.success("Autentificare Gestionar (Legacy)");
-                    navigate('/');
-                    return;
-                }
-
-                // Cazul B: Verificare în tabela 'utilizatori' (Legacy - Parole în clar)
-                const { data: dbUser } = await supabase
-                    .from('utilizatori')
-                    .select('*')
-                    .eq('email', userLower)
-                    .eq('parola', passTrim)
-                    .maybeSingle();
-
-                if (dbUser) {
-                    localStorage.setItem('magazin_role', dbUser.rol);
-                    localStorage.setItem('magazin_agent_id', dbUser.id);
-                    toast.success(`Autentificare ${dbUser.rol} (Legacy DB)`);
-                    navigate('/');
-                    return;
-                }
-
-                throw new Error("Credențiale incorecte (Legacy).");
-            } else {
-                // Dacă legacy nu este permis, afișăm mesaj clar
-                console.warn("Login legacy blocat (VITE_ALLOW_LEGACY_LOGIN=false)");
-                throw new Error("Login legacy este dezactivat. Folosește cont Supabase Auth.");
             }
+
+            throw new Error(authError.message || "Credențiale incorecte.");
 
         } catch (err: any) {
             setError(err.message);
@@ -107,11 +67,12 @@ export default function Login({}: LoginProps) {
         }
     };
 
+    if (authLoading) return null;
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative overflow-hidden font-sans">
             <Toaster position="top-right" />
             
-            {/* Design fundal decorativ */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-indigo-500/20 rounded-full blur-[100px]"></div>
                 <div className="absolute top-[40%] -right-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[100px]"></div>
@@ -143,7 +104,7 @@ export default function Login({}: LoginProps) {
                             <input
                                 type="text"
                                 className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all sm:text-sm font-bold text-gray-700"
-                                placeholder="Introduceți email sau user"
+                                placeholder="Introduceți email"
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 autoFocus
@@ -183,7 +144,7 @@ export default function Login({}: LoginProps) {
             </div>
 
             <div className="absolute bottom-4 text-slate-600 text-[10px] opacity-40 font-mono font-bold uppercase tracking-widest">
-                MagazinPro v0.2.0 • Hybrid Auth System
+                MagazinPro v0.2.0 • Stage 2A
             </div>
         </div>
     );
