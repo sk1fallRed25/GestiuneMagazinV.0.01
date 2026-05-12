@@ -5,63 +5,52 @@ import { TransferProductSelector } from './components/TransferProductSelector';
 import { TransferDirectionSelector } from './components/TransferDirectionSelector';
 import { TransferQuantityForm } from './components/TransferQuantityForm';
 import { TransferStockStatusCard } from './components/TransferStockStatusCard';
-import { Loader } from 'lucide-react';
 
-const TransferPage: React.FC = () => {
+export const TransferPage = () => {
     const {
-        products,
-        loading,
-        selectedProductId,
+        search, setSearch,
+        filteredProducts,
+        selectedProductId, setSelectedProductId,
         selectedProduct,
-        quantity,
-        direction,
-        submitting,
-        setSelectedProductId,
-        setQuantity,
-        setDirection,
-        submitTransfer
+        quantity, setQuantity,
+        direction, setDirection,
+        submitting, submitTransfer
     } = useTransfer();
 
-    if (loading) {
-        return (
-            <div className="flex h-screen items-center justify-center text-gray-500 gap-2">
-                <Loader className="animate-spin" /> Se încarcă stocurile...
-            </div>
-        );
-    }
-
     return (
-        <div className="p-8 max-w-5xl mx-auto">
-            <TransferHeader />
+        <div className="min-h-screen bg-[#F8FAFC] pb-20">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+                <TransferHeader />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* --- INPUT CARD (LEFT) --- */}
-                <div className="lg:col-span-2 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 h-fit">
-                    <TransferProductSelector 
-                        products={products} 
-                        selectedProductId={selectedProductId} 
-                        onChange={setSelectedProductId} 
-                    />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-8">
+                        <TransferProductSelector
+                            search={search}
+                            setSearch={setSearch}
+                            filteredProducts={filteredProducts}
+                            onSelect={setSelectedProductId}
+                            selectedProduct={selectedProduct}
+                        />
 
-                    <TransferDirectionSelector 
-                        direction={direction} 
-                        onChange={setDirection} 
-                    />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <TransferDirectionSelector
+                                direction={direction}
+                                setDirection={setDirection}
+                            />
+                            <TransferQuantityForm
+                                quantity={quantity}
+                                setQuantity={setQuantity}
+                                onSubmit={submitTransfer}
+                                submitting={submitting}
+                                disabled={!selectedProductId}
+                            />
+                        </div>
+                    </div>
 
-                    <TransferQuantityForm 
-                        quantity={quantity} 
-                        onQuantityChange={setQuantity} 
-                        onSubmit={submitTransfer} 
-                        submitting={submitting} 
-                        disabled={!selectedProduct} 
-                    />
+                    <div className="lg:col-span-1">
+                        <TransferStockStatusCard product={selectedProduct} />
+                    </div>
                 </div>
-
-                {/* --- INFO CARD (RIGHT) --- */}
-                <TransferStockStatusCard 
-                    product={selectedProduct} 
-                    direction={direction} 
-                />
             </div>
         </div>
     );

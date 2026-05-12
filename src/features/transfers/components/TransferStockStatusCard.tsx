@@ -1,63 +1,69 @@
 import React from 'react';
-import { AlertCircle, Warehouse, ArrowRightLeft, Store, Package } from 'lucide-react';
-import { TransferProduct, TransferDirection } from '../types';
+import { Warehouse, Store, Info } from 'lucide-react';
+import { TransferProduct } from '../types';
 
 interface TransferStockStatusCardProps {
     product: TransferProduct | null;
-    direction: TransferDirection;
 }
 
-export const TransferStockStatusCard: React.FC<TransferStockStatusCardProps> = ({
-    product,
-    direction
-}) => {
+export const TransferStockStatusCard = ({ product }: TransferStockStatusCardProps) => {
+    if (!product) {
+        return (
+            <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] p-12 flex flex-col items-center justify-center text-center">
+                <div className="bg-white p-4 rounded-full shadow-sm text-slate-300 mb-4">
+                    <Info size={32} />
+                </div>
+                <h3 className="font-bold text-slate-400">Niciun produs selectat</h3>
+                <p className="text-xs text-slate-300 mt-1 max-w-[200px]">Selectează un produs din listă pentru a vedea disponibilitatea pe zone.</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="bg-slate-900 text-white rounded-3xl p-8 shadow-2xl flex flex-col justify-between relative overflow-hidden h-[450px]">
-            {/* Background Effects */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-600 rounded-full blur-[80px] opacity-20 -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500 rounded-full blur-[60px] opacity-10 translate-y-1/2 -translate-x-1/2 pointer-events-none"></div>
+        <div className="bg-white rounded-[2rem] p-8 shadow-xl border border-gray-100 flex flex-col gap-8 h-full animate-in zoom-in-95 duration-300">
+            <h3 className="font-bold text-slate-800 border-b border-gray-50 pb-4 flex items-center gap-2">
+                <Info className="text-blue-500" size={18} />
+                Status Stoc Curent
+            </h3>
 
-            <div className="relative z-10">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-8 flex items-center gap-2">
-                    <AlertCircle size={16} /> Status Stoc
-                </h3>
-
-                {product ? (
-                    <div className="space-y-4">
-                        <div className={`p-5 rounded-2xl border transition-all ${direction === 'depozit_spre_magazin' ? 'bg-indigo-600/20 border-indigo-500/50' : 'bg-slate-800/50 border-slate-700'}`}>
-                            <div className="flex items-center gap-3 text-slate-400 mb-1 text-xs font-bold uppercase tracking-wide">
-                                <Warehouse size={14} /> Depozit
-                            </div>
-                            <div className="text-4xl font-black text-white tracking-tight">
-                                {product.stoc_depozit}
-                                <span className="text-sm font-medium text-slate-500 ml-2 align-middle">buc</span>
-                            </div>
+            <div className="space-y-6">
+                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-200 transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white p-3 rounded-xl shadow-sm text-slate-400 group-hover:text-amber-500 transition-colors">
+                            <Warehouse size={24} />
                         </div>
-
-                        <div className="flex justify-center -my-2 opacity-50">
-                            <ArrowRightLeft className="text-slate-400 rotate-90" size={24} />
-                        </div>
-
-                        <div className={`p-5 rounded-2xl border transition-all ${direction === 'magazin_spre_depozit' ? 'bg-indigo-600/20 border-indigo-500/50' : 'bg-slate-800/50 border-slate-700'}`}>
-                            <div className="flex items-center gap-3 text-slate-400 mb-1 text-xs font-bold uppercase tracking-wide">
-                                <Store size={14} /> Magazin
-                            </div>
-                            <div className="text-4xl font-black text-white tracking-tight">
-                                {product.stoc_magazin}
-                                <span className="text-sm font-medium text-slate-500 ml-2 align-middle">buc</span>
-                            </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Depozit</p>
+                            <p className="font-bold text-slate-800">Zona de Recepție</p>
                         </div>
                     </div>
-                ) : (
-                    <div className="h-64 flex flex-col items-center justify-center text-slate-600 text-center space-y-4 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-800/20">
-                        <Package size={48} className="opacity-20" />
-                        <p className="text-sm px-4">Selectează un produs pentru a vedea distribuția stocului.</p>
+                    <div className="text-right">
+                        <p className="text-2xl font-black text-slate-900 font-mono">{product.stoc_depozit}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">{product.um}</p>
                     </div>
-                )}
+                </div>
+
+                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-amber-200 transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="bg-white p-3 rounded-xl shadow-sm text-slate-400 group-hover:text-amber-500 transition-colors">
+                            <Store size={24} />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Magazin</p>
+                            <p className="font-bold text-slate-800">Zona de Vânzare</p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-2xl font-black text-slate-900 font-mono">{product.stoc_magazin}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">{product.um}</p>
+                    </div>
+                </div>
             </div>
 
-            <div className="relative z-10 pt-6 border-t border-slate-800/50 text-[10px] text-slate-500 text-center font-mono">
-                SYNC: REAL-TIME • DATABASE: CONNECTED
+            <div className="mt-auto p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                <p className="text-[10px] text-blue-700 leading-relaxed italic">
+                    * Stocul este calculat prin agregarea tuturor loturilor (FEFO) disponibile în magazinul curent.
+                </p>
             </div>
         </div>
     );

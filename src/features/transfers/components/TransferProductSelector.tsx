@@ -1,38 +1,64 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { Search, Package } from 'lucide-react';
 import { TransferProduct } from '../types';
 
 interface TransferProductSelectorProps {
-    products: TransferProduct[];
-    selectedProductId: string;
-    onChange: (id: string) => void;
+    search: string;
+    setSearch: (s: string) => void;
+    filteredProducts: TransferProduct[];
+    onSelect: (id: string) => void;
+    selectedProduct: TransferProduct | null;
 }
 
-export const TransferProductSelector: React.FC<TransferProductSelectorProps> = ({
-    products,
-    selectedProductId,
-    onChange
-}) => {
-    return (
-        <div className="mb-8">
-            <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 ml-1">
-                Produsul de transferat
-            </label>
-            <div className="relative group">
-                <select
-                    className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 appearance-none font-bold text-gray-700 transition-all cursor-pointer hover:bg-gray-100"
-                    value={selectedProductId}
-                    onChange={(e) => onChange(e.target.value)}
-                >
-                    <option value="">-- Selectează din listă --</option>
-                    {products.map(p => (
-                        <option key={p.id} value={p.id}>
-                            {p.nume}
-                        </option>
+export const TransferProductSelector = ({
+    search, setSearch, filteredProducts, onSelect, selectedProduct
+}: TransferProductSelectorProps) => (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <label className="block text-xs font-bold text-gray-400 uppercase mb-3 ml-1">Pas 1: Selectează Produsul</label>
+        
+        <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+                type="text"
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 font-bold text-gray-700 transition-all"
+                placeholder="Caută după nume sau cod bare..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                autoComplete="off"
+            />
+
+            {filteredProducts.length > 0 && (
+                <div className="absolute z-20 w-full bg-white shadow-2xl border border-gray-100 rounded-2xl mt-2 max-h-60 overflow-y-auto">
+                    {filteredProducts.map(p => (
+                        <div
+                            key={p.id}
+                            className="p-4 hover:bg-amber-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
+                            onClick={() => {
+                                onSelect(p.id);
+                                setSearch(p.nume);
+                            }}
+                        >
+                            <div className="font-bold text-gray-800">{p.nume}</div>
+                            <div className="flex justify-between mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                                <span>Cod: {p.cod_bare}</span>
+                                <span className="text-amber-600">Total: {p.stoc_depozit + p.stoc_magazin} {p.um}</span>
+                            </div>
+                        </div>
                     ))}
-                </select>
-                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 rotate-90 pointer-events-none" size={20} />
-            </div>
+                </div>
+            )}
         </div>
-    );
-};
+
+        {selectedProduct && (
+            <div className="mt-4 p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-center gap-3 animate-in fade-in slide-in-from-top-1">
+                <div className="p-2 bg-white rounded-lg shadow-sm text-amber-500">
+                    <Package size={20} />
+                </div>
+                <div>
+                    <p className="text-xs font-bold text-amber-800">{selectedProduct.nume}</p>
+                    <p className="text-[10px] text-amber-600 font-bold uppercase tracking-tighter">UM: {selectedProduct.um}</p>
+                </div>
+            </div>
+        )}
+    </div>
+);
