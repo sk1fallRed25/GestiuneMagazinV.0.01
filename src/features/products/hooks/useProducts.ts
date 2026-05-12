@@ -42,7 +42,9 @@ export const useProducts = () => {
 
     const updateProduct = async (productId: string, input: ProductUpdateInput) => {
         if (!currentStoreId) {
-            toast.error("Magazinul curent nu este selectat.");
+            toast.error(role === 'platform_owner' 
+                ? "Selectează un magazin pentru a vedea produsele." 
+                : "Magazinul curent nu este selectat.");
             return;
         }
 
@@ -52,7 +54,10 @@ export const useProducts = () => {
             await toast.promise(promise, {
                 loading: 'Se procesează actualizarea...',
                 success: 'Datele produsului au fost modificate.',
-                error: (err: Error) => `Eroare: ${err.message}`
+                error: (err: unknown) => {
+                    const message = err instanceof Error ? err.message : "Eroare la actualizare";
+                    return `Eroare: ${message}`;
+                }
             });
 
             await fetchProducts();
@@ -73,7 +78,10 @@ export const useProducts = () => {
             await toast.promise(promise, {
                 loading: 'Se elimină produsul...',
                 success: 'Produs eliminat cu succes.',
-                error: (err: Error) => `Eroare la ștergere: ${err.message}`
+                error: (err: unknown) => {
+                    const message = err instanceof Error ? err.message : "Eroare la ștergere";
+                    return `Eroare la ștergere: ${message}`;
+                }
             });
 
             await fetchProducts();

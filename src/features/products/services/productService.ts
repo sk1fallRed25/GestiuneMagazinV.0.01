@@ -3,9 +3,9 @@ import {
     Product, 
     ProductUpdateInput, 
     ProductDbRow, 
-    ProductPriceDbRow, 
-    StockBatchDbRow 
 } from '../types';
+
+type ProductCoreUpdate = Partial<Pick<ProductDbRow, 'name' | 'barcode' | 'unit' | 'status'>>;
 
 export const productService = {
     /**
@@ -35,10 +35,11 @@ export const productService = {
 
         if (prError) throw prError;
 
-        // 3. Luăm loturile de stoc
+        // 3. Luăm loturile de stoc - filtrat per magazin
         const { data: stocksData, error: sError } = await supabase
             .from('stock_batches')
             .select('*')
+            .eq('store_id', storeId)
             .in('product_id', productIds);
 
         if (sError) throw sError;
@@ -78,8 +79,8 @@ export const productService = {
     async updateProduct(storeId: string, productId: string, input: ProductUpdateInput, userId?: string): Promise<void> {
         if (!storeId || !productId) throw new Error("Store ID și Product ID sunt obligatorii.");
 
-        // 1. Update Product core
-        const productUpdates: any = {};
+        // 1. Update Product core (fără any)
+        const productUpdates: ProductCoreUpdate = {};
         if (input.nume !== undefined) productUpdates.name = input.nume;
         if (input.cod_bare !== undefined) productUpdates.barcode = input.cod_bare;
         if (input.um !== undefined) productUpdates.unit = input.um;
@@ -90,20 +91,33 @@ export const productService = {
             const { error: pError } = await supabase
                 .from('products')
                 .update(productUpdates)
-                .eq('id', productId);
+                .eq('id', productId)
+                .eq('store_id', storeId);
             if (pError) throw pError;
         }
 
-        // 2. Update/Upsert Preț
+        // 2. Update/Upsert Preț cu protecție contra suprascrierii
         if (input.pret_vanzare !== undefined || input.pret_achizitie !== undefined) {
+            // Citim prețul existent
+            const { data: existingPrice } = await supabase
+                .from('product_prices')
+                .select('*')
+                .eq('store_id', storeId)
+                .eq('product_id', productId)
+                .maybeSingle();
+
+            const priceSale = input.pret_vanzare !== undefined ? input.pret_vanzare : (Number(existingPrice?.price_sale) || 0);
+            const pricePurchase = input.pret_achizitie !== undefined ? input.pret_achizitie : (Number(existingPrice?.price_purchase) || 0);
+            const vatPercent = Number(existingPrice?.vat_percent) || 19;
+
             const { error: prError } = await supabase
                 .from('product_prices')
                 .upsert({
                     store_id: storeId,
                     product_id: productId,
-                    price_sale: input.pret_vanzare || 0,
-                    price_purchase: input.pret_achizitie || 0,
-                    vat_percent: 19, // Default logic
+                    price_sale: priceSale,
+                    price_purchase: pricePurchase,
+                    vat_percent: vatPercent,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'store_id,product_id' });
             if (prError) throw prError;
@@ -124,44 +138,43 @@ export const productService = {
     async adjustStock(storeId: string, productId: string, zone: 'depozit' | 'magazin', targetQty: number, userId?: string) {
         if (targetQty < 0) throw new Error("Stocul nu poate fi negativ.");
 
-        // Calculăm stocul curent în zonă
-        const { data: currentBatches } = await supabase
+        // 1. Verificăm toate loturile existente în această zonă
+        const { data: allBatches } = await supabase
             .from('stock_batches')
-            .select('quantity')
+            .select('*')
+            .eq('store_id', storeId)
             .eq('product_id', productId)
             .eq('zone', zone);
         
-        const currentQty = currentBatches?.reduce((acc, curr) => acc + (Number(curr.quantity) || 0), 0) || 0;
+        const otherBatches = allBatches?.filter(b => b.batch_number !== 'compat-default') || [];
+        
+        if (otherBatches.length > 0) {
+            throw new Error("Stocul acestui produs este gestionat pe loturi reale. Modifică stocul prin Recepție/Transfer, nu direct din Produse.");
+        }
+
+        const compatBatch = allBatches?.find(b => b.batch_number === 'compat-default');
+        const currentQty = compatBatch ? (Number(compatBatch.quantity) || 0) : 0;
         const diff = targetQty - currentQty;
 
         if (diff === 0) return;
 
-        // Găsim sau creăm un lot "compat-default" pentru această zonă
-        const { data: batch } = await supabase
-            .from('stock_batches')
-            .select('id, quantity')
-            .eq('product_id', productId)
-            .eq('zone', zone)
-            .eq('batch_number', 'compat-default')
-            .maybeSingle();
-
-        if (batch) {
+        if (compatBatch) {
             // Actualizăm lotul existent
-            const newBatchQty = (Number(batch.quantity) || 0) + diff;
             const { error: bError } = await supabase
                 .from('stock_batches')
-                .update({ quantity: newBatchQty })
-                .eq('id', batch.id);
+                .update({ quantity: targetQty })
+                .eq('id', compatBatch.id)
+                .eq('store_id', storeId);
             if (bError) throw bError;
         } else {
-            // Creăm un lot nou dacă nu există (sau dacă diferența trebuie pusă undeva)
+            // Creăm un lot nou compat-default
             const { error: iError } = await supabase
                 .from('stock_batches')
                 .insert({
                     store_id: storeId,
                     product_id: productId,
                     zone,
-                    quantity: targetQty, // Dacă nu exista deloc, punem direct target-ul
+                    quantity: targetQty,
                     batch_number: 'compat-default'
                 });
             if (iError) throw iError;
@@ -198,8 +211,6 @@ export const productService = {
      * Wrapper pentru compatibilitate legacy.
      */
     async deleteProductUnsafe(productId: string): Promise<void> {
-        // În v2, forțăm arhivarea. Metoda primește doar id-ul în semnătura veche.
-        // Încercăm să deducem store_id sau lăsăm RLS să protejeze dacă lipsește (va eșua).
         const { error } = await supabase
             .from('products')
             .update({ status: 'deleted' })
