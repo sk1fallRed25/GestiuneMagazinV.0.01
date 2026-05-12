@@ -53,3 +53,25 @@ Nu există erori TypeScript sau importuri rupte.
 - Designul vizual premium a fost păstrat integral.
 - Logica de business din POS, Recepție sau alte module a rămas neatinsă.
 - Nu au fost aplicate migrații în baza de date.
+
+## Corecții post-verificare
+
+În urma feedback-ului, am aplicat următoarele corecții de securitate și stabilitate:
+
+### 1. Controlul Accesului (RBAC)
+- **Ștergere Restricționată**: Butonul de ștergere definitivă (unsafe delete) este acum ascuns complet pentru rolurile care nu au permisiuni administrative (`manager`, `gestionar`, `casier`).
+- **Vizibilitate Admin**: Doar rolurile `admin`, `platform_owner` și `tenant_admin` pot vedea și accesa funcția de ștergere.
+- **Editare**: Toate rolurile cu acces la pagina de Produse pot folosi în continuare funcția de editare.
+
+### 2. Eliminarea tipului 'any' din productService
+- **Tipuri Explicite**: Am definit `ProductDbRow` și `ProductUpdateDbInput` în `types.ts` pentru a reprezenta exact structura tabelei din Supabase.
+- **Mapping Strict**: Toate operațiunile din `productService.ts` folosesc acum aceste tipuri. Maparea între `um` (UI) și `unitate_masura` (DB) este gestionată explicit la citire și la scriere.
+- **Siguranță la Update**: La actualizarea unui produs, se trimit către Supabase doar câmpurile care există în schema bazei de date, evitând erorile de tip "unknown column".
+
+### 3. Îmbunătățirea useProducts
+- **Error Handling**: Am implementat gestionarea erorilor folosind tipul `unknown` și verificări de tip (`instanceof Error`), asigurând un feedback clar în UI fără a sacrifica siguranța tipurilor.
+- **Type Safety**: Toate referințele la `any` au fost eliminate din hook.
+
+### 4. Status Build
+- Toate modificările au fost validate prin procesul de build.
+- **Rezultat**: `npm run build` terminat cu succes (Exit code: 0).

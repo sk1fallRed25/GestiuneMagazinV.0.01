@@ -10,7 +10,8 @@ interface ProductTableProps {
 }
 
 const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProps) => {
-    const isAdmin = ['admin', 'platform_owner', 'tenant_admin'].includes(userRole || '');
+    // Definire roluri cu permisiuni de ștergere (unsafe)
+    const canDelete = ['admin', 'platform_owner', 'tenant_admin'].includes(userRole || '');
 
     return (
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
@@ -53,6 +54,7 @@ const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProp
                             </td>
                             <td className="px-6 py-4 text-center">
                                 <div className="flex justify-center gap-2">
+                                    {/* Butonul Edit este vizibil pentru toți cei care pot accesa pagina */}
                                     <button
                                         onClick={() => onEdit(produs)}
                                         className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
@@ -60,13 +62,17 @@ const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProp
                                     >
                                         <Edit3 size={18} />
                                     </button>
-                                    <button
-                                        onClick={() => onDelete(produs.id)}
-                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                        title={isAdmin ? "Ștergere definitivă" : "Acțiune restricționată"}
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
+
+                                    {/* Butonul Delete este vizibil DOAR pentru Admin / Owner */}
+                                    {canDelete && (
+                                        <button
+                                            onClick={() => onDelete(produs.id)}
+                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                            title="Ștergere definitivă (ADMIN)"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    )}
                                 </div>
                             </td>
                         </tr>

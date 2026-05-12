@@ -1,5 +1,5 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
-import { Product, ProductUpdateInput } from '../types';
+import { Product, ProductUpdateInput, ProductDbRow, ProductUpdateDbInput } from '../types';
 
 export const productService = {
     async listProducts(): Promise<Product[]> {
@@ -10,22 +10,29 @@ export const productService = {
 
         if (error) throw error;
         
-        // Mapăm unitate_masura la um pentru compatibilitate cu UI-ul existent
-        return (data || []).map((p: Record<string, any>) => ({
+        // Mapăm datele din DB către interfața de UI (Product)
+        const rows = (data || []) as ProductDbRow[];
+        
+        return rows.map((p) => ({
             ...p,
-            um: p.unitate_masura || p.um || ''
-        })) as Product[];
+            um: p.unitate_masura || '' // UI folosește 'um'
+        }));
     },
 
     async updateProduct(productId: number, input: ProductUpdateInput): Promise<void> {
-        // Ne asigurăm că trimitem unitate_masura către DB dacă um a fost modificat în UI
+        // Extragem 'um' pentru a-l mapa la 'unitate_masura' și eliminăm orice alte câmpuri de UI/inutile
         const { um, ...rest } = input;
-        const updateData: Record<string, any> = { ...rest };
         
-        if (um) {
+        // Construim obiectul de update pentru DB folosind tipul strict
+        const updateData: ProductUpdateDbInput = { ...rest };
+        
+        if (um !== undefined) {
             updateData.unitate_masura = um;
         }
 
+        // Eliminăm câmpul 'unitate_masura' din rest dacă exista deja (pentru a evita dubluri/confuzii)
+        // dar în tipul ProductUpdateInput ambele pot exista. Prioritizăm ce vine din UI ca 'um'.
+        
         const { error } = await supabase
             .from('produse')
             .update(updateData)

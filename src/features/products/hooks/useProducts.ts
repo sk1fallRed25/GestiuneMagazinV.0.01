@@ -14,8 +14,8 @@ export const useProducts = () => {
             const data = await productService.listProducts();
             setProducts(data);
         } catch (error: unknown) {
-            const err = error as Error;
-            toast.error("Eroare la sincronizarea stocului: " + err.message);
+            const message = error instanceof Error ? error.message : "Eroare necunoscută la sincronizare";
+            toast.error("Eroare la sincronizarea stocului: " + message);
         } finally {
             setLoading(false);
         }
@@ -33,27 +33,35 @@ export const useProducts = () => {
     }, [products, searchTerm]);
 
     const updateProduct = async (productId: number, input: ProductUpdateInput) => {
-        const promise = productService.updateProduct(productId, input);
-        
-        await toast.promise(promise, {
-            loading: 'Se procesează actualizarea...',
-            success: 'Datele produsului au fost modificate.',
-            error: (err: Error) => `Eroare SQL: ${err.message}`
-        });
+        try {
+            const promise = productService.updateProduct(productId, input);
+            
+            await toast.promise(promise, {
+                loading: 'Se procesează actualizarea...',
+                success: 'Datele produsului au fost modificate.',
+                error: (err: Error) => `Eroare SQL: ${err.message}`
+            });
 
-        await fetchProducts();
+            await fetchProducts();
+        } catch (error: unknown) {
+            console.error("Update error:", error);
+        }
     };
 
     const deleteProduct = async (productId: number) => {
-        const promise = productService.deleteProductUnsafe(productId);
-        
-        await toast.promise(promise, {
-            loading: 'Se elimină produsul...',
-            success: 'Produs eliminat cu succes.',
-            error: (err: Error) => `Eroare la ștergere: ${err.message}`
-        });
+        try {
+            const promise = productService.deleteProductUnsafe(productId);
+            
+            await toast.promise(promise, {
+                loading: 'Se elimină produsul...',
+                success: 'Produs eliminat cu succes.',
+                error: (err: Error) => `Eroare la ștergere: ${err.message}`
+            });
 
-        await fetchProducts();
+            await fetchProducts();
+        } catch (error: unknown) {
+            console.error("Delete error:", error);
+        }
     };
 
     return {
