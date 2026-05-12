@@ -1,2 +1,3 @@
-// src/features/reception/index.ts
-export {};
+export * from './ReceptionPage';
+export * from './types';
+export * from './services/receptionService';
