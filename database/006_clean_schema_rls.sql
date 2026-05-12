@@ -1,5 +1,5 @@
 -- ############################################################################
--- SECURIZARE RLS v2 - ROW LEVEL SECURITY (COMPLETĂ)
+-- SECURIZARE RLS v2 - ROW LEVEL SECURITY (EXHAUSTIVĂ)
 -- ############################################################################
 
 -- 1. FUNCȚII HELPER PENTRU POLITICI
@@ -33,7 +33,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
--- 2. ACTIVARE RLS PE TOATE TABELELE
+-- 2. ACTIVARE RLS PE TOATE TABELELE (23 TABELE)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.store_members ENABLE ROW LEVEL SECURITY;
@@ -59,57 +59,79 @@ ALTER TABLE public.error_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.device_sync_status ENABLE ROW LEVEL SECURITY;
 
 
--- 3. POLITICI GENERICE (PLATFORM OWNER - TOATE TABELELE)
--- Pentru simplitate, folosim un loop în procesul de dezvoltare sau definim per tabel.
--- Aici definim politicile principale per categorie de tabel.
+-- 3. DEFINIRE POLITICI EXPLICITE PER TABEL
 
 -- ############################################################################
--- CATEGORIA 1: CORE (Profiles, Stores, Members)
+-- CORE MODULE
 -- ############################################################################
 
-CREATE POLICY "Platform Owner ALL" ON public.profiles FOR ALL USING (is_platform_owner());
-CREATE POLICY "Users view own profile" ON public.profiles FOR SELECT USING (id = auth.uid());
-CREATE POLICY "Admins view store profiles" ON public.profiles FOR SELECT USING (
+-- PROFILES
+CREATE POLICY "Profiles: owner access" ON public.profiles FOR ALL USING (is_platform_owner());
+CREATE POLICY "Profiles: user view self" ON public.profiles FOR SELECT USING (id = auth.uid());
+CREATE POLICY "Profiles: store staff view" ON public.profiles FOR SELECT USING (
     id IN (SELECT profile_id FROM public.store_members WHERE store_id IN (SELECT store_id FROM current_user_store_ids()))
-    AND current_user_role() IN ('admin', 'manager')
 );
 
-CREATE POLICY "Stores access" ON public.stores FOR SELECT USING (id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
-CREATE POLICY "Admins manage store" ON public.stores FOR UPDATE USING (has_store_role(id, ARRAY['admin']) OR is_platform_owner());
+-- STORES
+CREATE POLICY "Stores: view" ON public.stores FOR SELECT USING (id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Stores: admin manage" ON public.stores FOR UPDATE USING (has_store_role(id, ARRAY['admin']) OR is_platform_owner());
+
+-- STORE_MEMBERS
+CREATE POLICY "Members: view" ON public.store_members FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Members: admin manage" ON public.store_members FOR ALL USING (has_store_role(store_id, ARRAY['admin']) OR is_platform_owner());
+
+-- DEVICES & APP_SETTINGS
+CREATE POLICY "Devices: view" ON public.devices FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Settings: view" ON public.app_settings FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
 
 -- ############################################################################
--- CATEGORIA 2: INVENTORY (Categories, Products, Stock)
+-- INVENTORY MODULE
 -- ############################################################################
 
-CREATE POLICY "Inventory view" ON public.products FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
-CREATE POLICY "Inventory manage" ON public.products FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
+-- CATEGORIES & PRODUCTS & PRICES
+CREATE POLICY "Catalog: view" ON public.products FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Catalog: staff manage" ON public.products FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
 
-CREATE POLICY "Stock view" ON public.stock_batches FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
-CREATE POLICY "Stock manage" ON public.stock_batches FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
+CREATE POLICY "Categories: access" ON public.categories FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Prices: access" ON public.product_prices FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
 
-CREATE POLICY "Movements view" ON public.stock_movements FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
-CREATE POLICY "Movements insert" ON public.stock_movements FOR INSERT WITH CHECK (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar', 'casier']) OR is_platform_owner());
+-- STOCK BATCHES & MOVEMENTS
+CREATE POLICY "Stock: view" ON public.stock_batches FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Stock: staff manage" ON public.stock_batches FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
 
--- ############################################################################
--- CATEGORIA 3: SALES & POS (Shifts, Sales, Payments)
--- ############################################################################
-
-CREATE POLICY "Sales view" ON public.sales FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
-CREATE POLICY "Sales create" ON public.sales FOR INSERT WITH CHECK (has_store_role(store_id, ARRAY['admin', 'manager', 'casier']) OR is_platform_owner());
-
-CREATE POLICY "Shifts access" ON public.cashier_shifts FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Movements: view" ON public.stock_movements FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Movements: staff insert" ON public.stock_movements FOR INSERT WITH CHECK (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar', 'casier']) OR is_platform_owner());
 
 -- ############################################################################
--- CATEGORIA 4: RECEPTION & WASTE
+-- SALES MODULE
 -- ############################################################################
 
-CREATE POLICY "Reception access" ON public.receptions FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
-CREATE POLICY "Waste access" ON public.waste_events FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
+-- SALES, SALE_ITEMS, PAYMENTS
+CREATE POLICY "Sales: view" ON public.sales FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Sales: cashier create" ON public.sales FOR INSERT WITH CHECK (has_store_role(store_id, ARRAY['admin', 'manager', 'casier']) OR is_platform_owner());
+
+CREATE POLICY "SaleItems: access" ON public.sale_items FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Payments: access" ON public.payments FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+
+-- SHIFTS
+CREATE POLICY "Shifts: access" ON public.cashier_shifts FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
 
 -- ############################################################################
--- CATEGORIA 5: SYNC & AUDIT
+-- RECEPTION & WASTE MODULE
 -- ############################################################################
 
-CREATE POLICY "Client events create" ON public.client_events FOR INSERT WITH CHECK (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
-CREATE POLICY "Audit view" ON public.audit_logs FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
-CREATE POLICY "Error reporting" ON public.error_reports FOR INSERT WITH CHECK (true); -- Oricine poate raporta o eroare
+CREATE POLICY "Receptions: access" ON public.receptions FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
+CREATE POLICY "ReceptionItems: access" ON public.reception_items FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+
+CREATE POLICY "Waste: access" ON public.waste_events FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
+CREATE POLICY "WasteItems: access" ON public.waste_items FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+
+-- ############################################################################
+-- SYNC & AUDIT MODULE
+-- ############################################################################
+
+CREATE POLICY "ClientEvents: cashier create" ON public.client_events FOR INSERT WITH CHECK (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "SyncConflicts: staff access" ON public.sync_conflicts FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager']) OR is_platform_owner());
+CREATE POLICY "Audit: view" ON public.audit_logs FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Errors: create" ON public.error_reports FOR INSERT WITH CHECK (true);
+CREATE POLICY "SyncStatus: access" ON public.device_sync_status FOR ALL USING (EXISTS (SELECT 1 FROM public.devices d WHERE d.id = device_id AND d.store_id IN (SELECT store_id FROM current_user_store_ids())) OR is_platform_owner());
