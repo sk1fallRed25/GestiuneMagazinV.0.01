@@ -3,10 +3,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { 
     LayoutDashboard, Package, CalendarClock, AlertOctagon, PackagePlus, 
-    ArrowRightLeft, Briefcase, ChevronDown, BrainCircuit, Truck, 
+    ArrowRightLeft, BrainCircuit, 
     ShoppingCart, FileText, Settings, LogOut, Search, Bell, AlertTriangle, History 
 } from 'lucide-react';
 import { supabase } from '../shared/supabase/supabaseClient';
+import { isAdminLike, isManagerLike, isStockOperator, isCashierLike } from '../features/auth/permissions';
 
 const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNode, onLogout: () => void, userRole: string }) => {
     const location = useLocation();
@@ -91,49 +92,56 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                     <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-xl">M</div>
                     <div>
                         <h2 className="text-lg font-bold tracking-tight">MagazinPro</h2>
-                        <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{userRole}</span>
+                        <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">
+                            {userRole || 'rol necunoscut'}
+                        </span>
                     </div>
                 </div>
                 <div className="px-6 py-4"><div className="h-[1px] bg-slate-800 w-full"></div></div>
 
                 <nav className="flex-1 px-2 space-y-1 overflow-y-auto custom-scrollbar pb-4">
                     <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">General</div>
-                    <NavLink to="/" label="Dashboard" icon={<LayoutDashboard size={18} />} />
+                    {isManagerLike(userRole) && <NavLink to="/" label="Dashboard" icon={<LayoutDashboard size={18} />} />}
 
                     <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Stocuri</div>
-                    <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
-                    <NavLink to="/expirari" label="Produse Expirate" icon={<CalendarClock size={18} />} />
-                    <NavLink to="/pierderi" label="Raportare Pierderi" icon={<AlertOctagon size={18} />} />
+                    {isStockOperator(userRole) && (
+                        <>
+                            <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
+                            <NavLink to="/expirari" label="Produse Expirate" icon={<CalendarClock size={18} />} />
+                        </>
+                    )}
+                    {(isAdminLike(userRole) || userRole === 'gestionar') && (
+                        <NavLink to="/pierderi" label="Raportare Pierderi" icon={<AlertOctagon size={18} />} />
+                    )}
 
-                    {userRole === 'gestionar' && (
+                    {(isAdminLike(userRole) || userRole === 'gestionar') && (
                         <>
                             <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Operațiuni</div>
                             <LinkuriOperatiuni />
                         </>
                     )}
 
-                    {userRole === 'admin' && (
+                    {isManagerLike(userRole) && (
                         <>
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
-
                             <NavLink to="/istoric-pierderi" label="Audit Pierderi" icon={<History size={18} />} />
-
-                            <div className="mx-2 mb-1">
-                                <button onClick={() => setIsGestionarMenuOpen(!isGestionarMenuOpen)} className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-sm font-medium ${isGestionarMenuOpen ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-                                    <div className="flex items-center gap-3"><Briefcase size={18} /><span>Atribuții Gestionar</span></div>
-                                    <div className={`transition-transform duration-300 ${isGestionarMenuOpen ? 'rotate-180' : ''}`}><ChevronDown size={16} /></div>
-                                </button>
-                                <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isGestionarMenuOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-                                    <div className="overflow-hidden bg-slate-900/50 rounded-b-xl mb-2"><div className="py-2 space-y-1"><LinkuriOperatiuni isSubmenu={true} /></div></div>
-                                </div>
-                            </div>
-
                             <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
+                        </>
+                    )}
 
+                    {isCashierLike(userRole) && (
+                        <>
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Vânzare</div>
                             <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
-                            <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
+                        </>
+                    )}
+                    
+                    {isManagerLike(userRole) && (
+                        <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
+                    )}
 
+                    {isAdminLike(userRole) && (
+                        <>
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Sistem</div>
                             <NavLink to="/fast-add" label="Adăugare Rapidă" icon={<Settings size={18} />} />
                         </>

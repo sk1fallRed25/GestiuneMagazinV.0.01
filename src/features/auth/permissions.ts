@@ -32,3 +32,27 @@ export const canAccessRoute = (role: UserRole | null, path: string): boolean => 
 
   return routePermissions[exactPath].includes(role);
 };
+
+/**
+ * Helperi pentru roluri agregate (RBAC)
+ */
+
+export const isAdminLike = (role: UserRole | string | null): boolean => {
+  if (!role) return false;
+  return ['admin', 'tenant_admin', 'platform_owner'].includes(role as UserRole);
+};
+
+export const isManagerLike = (role: UserRole | string | null): boolean => {
+  if (!role) return false;
+  return isAdminLike(role) || role === 'manager';
+};
+
+export const isStockOperator = (role: UserRole | string | null): boolean => {
+  if (!role) return false;
+  return isManagerLike(role) || role === 'gestionar';
+};
+
+export const isCashierLike = (role: UserRole | string | null): boolean => {
+  if (!role) return false;
+  return isAdminLike(role) || role === 'casier';
+};
