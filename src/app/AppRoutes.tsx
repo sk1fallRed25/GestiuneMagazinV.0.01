@@ -8,7 +8,7 @@ import MainLayout from './MainLayout';
 // Importuri Pagini (temporar din src/)
 import Login from '../Login';
 import Dashboard from '../features/dashboard/DashboardPage';
-import Produse from '../Produse';
+import { ProductsPage as Produse } from '../features/products';
 import Expirari from '../Expirari';
 import Pierderi from '../Pierderi';
 import IstoricPierderi from '../IstoricPierderi';
