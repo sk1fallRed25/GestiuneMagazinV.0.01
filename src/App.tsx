@@ -15,23 +15,16 @@ import Produse from './Produse'
 import Receptie from './Receptie'
 import Vanzare from './Vanzare'
 import Login from './Login'
-import InregistrareAgent from './InregistrareAgent'
-import AgentDashboard from './AgentDashboard'
 import FastAdd from './FastAdd'
 import TransferMarfa from './TransferMarfa'
-import ListaCumparaturi from './ListaCumparaturi'
-import DetaliiComanda from './DetaliiComanda';
-import ComandaFurnizor from './ComandaFurnizor';
-import Comenzi from './Comenzi';
-import ReceptieComanda from './ReceptieComanda';
-import DetaliiComandaAgent from './DetaliiComandaAgent';
-import GestiuneAgenti from './GestiuneAgenti';
 import IstoricVanzari from './IstoricVanzari';
 import AiConsultant from './AiConsultant';
-import GestiuneProduseFurnizor from './GestiuneProduseFurnizor';
 import Expirari from './Expirari';
 import Pierderi from './Pierderi';
 import IstoricPierderi from './IstoricPierderi'; // Import Nou pentru Audit
+import { AuthProvider, useAuth } from './features/auth/AuthContext';
+import ProtectedRoute from './features/auth/ProtectedRoute';
+import { UserRole } from './features/auth/types';
 
 // ==========================================
 // COMPONENTE UI (Stat Cards)
@@ -137,8 +130,7 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
 
     const LinkuriOperatiuni = ({ isSubmenu = false }: any) => (
         <>
-            <NavLink to="/receptie" label="Recepție Manuală" icon={<PackagePlus size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
-            <NavLink to="/receptie-comanda" label="Recepție Comandă" icon={<Inbox size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
+            <NavLink to="/receptie" label="Recepție Marfă" icon={<PackagePlus size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
             <NavLink to="/transfer" label="Transfer Marfă" icon={<ArrowRightLeft size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
         </>
     );
@@ -189,14 +181,11 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                             </div>
 
                             <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
-                            <NavLink to="/furnizori" label="Furnizori" icon={<Truck size={18} />} />
-                            <NavLink to="/gestiune-produse-furnizor" label="Alocare Directă" icon={<LinkIcon size={18} />} />
-                            <NavLink to="/gestiune-agenti" label="Gestiune Agenți" icon={<Users size={18} />} />
+                            <NavLink to="/furnizori" label="Gestiune Furnizori" icon={<Truck size={18} />} />
 
-                            <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Aprovizionare</div>
-                            <NavLink to="/comanda-furnizor" label="Comandă Furnizor" icon={<Send size={18} />} />
-                            <NavLink to="/comenzi" label="Situație Comenzi" icon={<ClipboardList size={18} />} />
-                            <NavLink to="/lista-cumparaturi" label="Listă Cumpărături" icon={<ListTodo size={18} />} />
+                            <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Vânzare</div>
+                            <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
+                            <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
 
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Vânzare</div>
                             <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
@@ -263,9 +252,8 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
     const [stats, setStats] = useState({
         alerteStoc: 0,
         alerteExpirari: 0,
-        pierderiLuna: 0, // Statistică nouă
+        pierderiLuna: 0,
         vanzariAstazi: 0,
-        comenziFurnizor: 0,
         loading: true
     });
 
@@ -280,8 +268,6 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
             const primaZi = new Date(); primaZi.setDate(1);
             const { count: pierderiCount } = await supabase.from('pierderi').select('*', { count: 'exact', head: true }).gte('created_at', primaZi.toISOString());
 
-            const { count: comenziFurnizorCount } = await supabase.from('comenzi_catre_furnizor').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-
             const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
             const { data: vanzari } = await supabase.from('vanzari').select('total').eq('status', 'finalizat').gte('data_vanzare', todayStart.toISOString());
             const totalVanzari = vanzari?.reduce((acc, curr) => acc + (Number(curr.total) || 0), 0) || 0;
@@ -291,7 +277,6 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
                 alerteExpirari: expirariCount || 0,
                 pierderiLuna: pierderiCount || 0,
                 vanzariAstazi: totalVanzari,
-                comenziFurnizor: comenziFurnizorCount || 0,
                 loading: false
             });
 
@@ -383,107 +368,132 @@ const Dashboard = ({ userRole }: { userRole: string }) => {
 // APP PRINCIPAL
 // ==========================================
 function App() {
-    const [userRole, setUserRole] = useState<'admin' | 'casier' | 'agent' | 'gestionar' | 'furnizor' | null>(null);
-    const [agentId, setAgentId] = useState<string | number | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { role: authRole, user, loading: authLoading, logout: authLogout } = useAuth();
+    
+    // Citim variabila de mediu pentru fallback legacy
+    const allowLegacy = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === 'true';
+    const legacyRole = allowLegacy ? (localStorage.getItem('magazin_role') as any) : null;
+    
+    // Rolul final pentru UI și rute
+    const userRole = authRole || legacyRole;
 
-    useEffect(() => {
-        const savedRole = localStorage.getItem('magazin_role') as any;
-        const savedId = localStorage.getItem('magazin_agent_id');
-        if (savedRole) setUserRole(savedRole);
-        if (savedId) setAgentId(savedId);
-        setLoading(false);
-    }, []);
-
-    const handleLogin = (role: any, id?: any) => {
-        setUserRole(role);
-        localStorage.setItem('magazin_role', role);
-        if (id) {
-            setAgentId(id);
-            localStorage.setItem('magazin_agent_id', id.toString());
-        }
-    };
-
-    const handleLogout = () => {
+    const handleLogout = async () => {
         if (confirm("Deconectare MagazinPro?")) {
-            setUserRole(null); setAgentId(null);
+            await authLogout();
             localStorage.clear();
+            window.location.href = '/#/login';
         }
     };
 
-    if (loading) return <div className="h-screen flex items-center justify-center font-black text-slate-400">MagazinPro 0.1.2...</div>;
+    if (authLoading) return <div className="h-screen flex items-center justify-center font-black text-slate-400 bg-slate-900">MagazinPro 0.2.0...</div>;
+
+    const ROLES_ADMIN: UserRole[] = ['admin', 'platform_owner', 'tenant_admin'];
+    const ROLES_STAFF: UserRole[] = [...ROLES_ADMIN, 'manager', 'gestionar'];
+    const ROLES_POS: UserRole[] = [...ROLES_ADMIN, 'casier'];
 
     return (
         <Router>
             <Routes>
-                <Route path="/login" element={!userRole ? <Login onLogin={handleLogin} /> : <Navigate to="/" />} />
-                <Route path="/partener" element={<InregistrareAgent />} />
+                <Route path="/login" element={<Login />} />
 
-                {!userRole ? <Route path="*" element={<Navigate to="/login" />} /> : userRole === 'casier' ? (
-                    <>
-                        <Route path="/pos" element={<div className="h-screen flex flex-col bg-gray-900"><div className="bg-gray-800 text-white px-6 py-2 flex justify-between items-center text-[10px] font-black border-b border-gray-700"><span>MOD CASIER ACTIV</span><button onClick={handleLogout} className="text-red-400 uppercase tracking-widest">Iesire</button></div><div className="flex-1 bg-gray-100 overflow-hidden"><Vanzare /></div></div>} />
-                        <Route path="*" element={<Navigate to="/pos" replace />} />
-                    </>
-                ) : (userRole === 'furnizor' || userRole === 'gestionar') ? (
-                    /* --- ADĂUGAT: RUTA DE MENTENANȚĂ PENTRU GESTIONAR & FURNIZOR --- */
-                    <Route path="/*" element={
-                        <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 text-white font-sans p-6 text-center">
-                            <div className="w-20 h-20 bg-orange-600/20 rounded-3xl flex items-center justify-center mb-8 animate-pulse">
-                                <Briefcase size={40} className="text-orange-400" />
+                {/* Ruta specială POS pentru Casieri */}
+                <Route path="/pos" element={
+                    <ProtectedRoute allowedRoles={ROLES_POS}>
+                        <div className="h-screen flex flex-col bg-gray-900">
+                            <div className="bg-gray-800 text-white px-6 py-2 flex justify-between items-center text-[10px] font-black border-b border-gray-700">
+                                <span>MOD CASIER ACTIV (SECURE)</span>
+                                <button onClick={handleLogout} className="text-red-400 uppercase tracking-widest hover:text-red-300 transition-colors">Iesire</button>
                             </div>
-                            <h1 className="text-4xl font-black mb-4 uppercase">
-                                {userRole === 'gestionar' ? 'Acces Gestionar' : 'Portal Furnizori'}
-                            </h1>
-                            <p className="text-slate-400 max-w-md font-medium leading-relaxed">
-                                {userRole === 'gestionar'
-                                    ? 'Varianta Web pentru gestionar este momentan în lucru. Vă rugăm să utilizați terminalul mobil pentru operațiuni de depozit.'
-                                    : 'Modulul pentru furnizori externi este în curs de dezvoltare pentru varianta desktop.'}
-                            </p>
-                            <button onClick={handleLogout} className="mt-10 px-10 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-orange-500 hover:text-white transition-all shadow-xl">
-                                Închide Sesiunea
-                            </button>
-                            <div className="absolute bottom-8 text-slate-700 text-[10px] font-black uppercase tracking-widest">
-                                MagazinPro Security Framework v0.1.2
+                            <div className="flex-1 bg-gray-100 overflow-hidden">
+                                <Vanzare />
                             </div>
                         </div>
-                    } />
-                ) : userRole === 'agent' ? (
-                    <Route path="/*" element={agentId ? <AgentDashboard agentId={Number(agentId)} onLogout={handleLogout} /> : <Navigate to="/login" />} />
-                ) : (
-                    <Route path="/*" element={
+                    </ProtectedRoute>
+                } />
+
+                {/* Rute cu Layout Principal */}
+                <Route path="/*" element={
+                    <ProtectedRoute>
                         <MainLayout onLogout={handleLogout} userRole={userRole}>
                             <Routes>
-                                <Route path="/" element={<Dashboard userRole={userRole} />} />
-                                <Route path="/produse" element={<Produse userRole={userRole} />} />
-                                <Route path="/expirari" element={<Expirari />} />
-                                <Route path="/pierderi" element={<Pierderi />} />
-                                <Route path="/istoric-pierderi" element={<IstoricPierderi />} />
+                                {/* Dashboard: Accesibil pt majoritatea, exceptie casieri simpli (care merg la /pos) */}
+                                <Route path="/" element={
+                                    <ProtectedRoute allowedRoles={['admin', 'platform_owner', 'tenant_admin', 'manager']}>
+                                        <Dashboard userRole={userRole} />
+                                    </ProtectedRoute>
+                                } />
 
-                                {userRole === 'admin' && (
-                                    <>
-                                        <Route path="/ai-consultant" element={<AiConsultant />} />
-                                        <Route path="/gestiune-produse-furnizor" element={<GestiuneProduseFurnizor />} />
-                                        <Route path="/furnizori" element={<Furnizori />} />
-                                        <Route path="/vanzare" element={<Vanzare />} />
-                                        <Route path="/fast-add" element={<FastAdd />} />
-                                        <Route path="/lista-cumparaturi" element={<ListaCumparaturi />} />
-                                        <Route path="/comanda-furnizor" element={<ComandaFurnizor />} />
-                                        <Route path="/comenzi" element={<Comenzi />} />
-                                        <Route path="/gestiune-agenti" element={<GestiuneAgenti />} />
-                                        <Route path="/istoric-vanzari" element={<IstoricVanzari />} />
-                                        <Route path="/comanda-primita/:id" element={<DetaliiComandaAgent />} />
-                                    </>
-                                )}
+                                <Route path="/produse" element={
+                                    <ProtectedRoute allowedRoles={ROLES_STAFF}>
+                                        <Produse userRole={userRole} />
+                                    </ProtectedRoute>
+                                } />
 
-                                <Route path="/receptie" element={<Receptie />} />
-                                <Route path="/receptie-comanda" element={<ReceptieComanda />} />
-                                <Route path="/transfer" element={<TransferMarfa />} />
-                                <Route path="/comanda/:id" element={<DetaliiComanda />} />
+                                <Route path="/expirari" element={
+                                    <ProtectedRoute allowedRoles={ROLES_STAFF}>
+                                        <Expirari />
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/pierderi" element={
+                                    <ProtectedRoute allowedRoles={[...ROLES_ADMIN, 'gestionar']}>
+                                        <Pierderi />
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/istoric-pierderi" element={
+                                    <ProtectedRoute allowedRoles={[...ROLES_ADMIN, 'manager']}>
+                                        <IstoricPierderi />
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/receptie" element={
+                                    <ProtectedRoute allowedRoles={[...ROLES_ADMIN, 'gestionar']}>
+                                        <Receptie />
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/transfer" element={
+                                    <ProtectedRoute allowedRoles={[...ROLES_ADMIN, 'gestionar']}>
+                                        <TransferMarfa />
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/vanzare" element={
+                                    <ProtectedRoute allowedRoles={ROLES_POS}>
+                                        <Vanzare />
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/istoric-vanzari" element={
+                                    <ProtectedRoute allowedRoles={[...ROLES_ADMIN, 'manager']}>
+                                        <IstoricVanzari />
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/ai-consultant" element={
+                                    <ProtectedRoute allowedRoles={[...ROLES_ADMIN, 'manager']}>
+                                        <AiConsultant />
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/furnizori" element={
+                                    <ProtectedRoute allowedRoles={[...ROLES_ADMIN, 'gestionar']}>
+                                        <Furnizori />
+                                    </ProtectedRoute>
+                                } />
+
+                                <Route path="/fast-add" element={
+                                    <ProtectedRoute allowedRoles={ROLES_ADMIN}>
+                                        <FastAdd />
+                                    </ProtectedRoute>
+                                } />
+
                                 <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
                         </MainLayout>
-                    } />
-                )}
+                    </ProtectedRoute>
+                } />
             </Routes>
         </Router>
     );
@@ -491,9 +501,9 @@ function App() {
 
 export default function AppWrapper() {
     return (
-        <>
+        <AuthProvider>
             <Toaster position="top-right" />
             <App />
-        </>
+        </AuthProvider>
     )
 }

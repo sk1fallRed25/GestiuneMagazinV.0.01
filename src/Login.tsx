@@ -1,99 +1,107 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from './supabaseClient';
-import { User, Lock, LogIn, Loader2, AlertCircle, Building2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { 
+  User, Lock, LogIn, Loader2, AlertCircle, Building2 
+} from 'lucide-react';
+import { toast, Toaster } from 'react-hot-toast';
+import { useAuth } from './features/auth/useAuth';
 
-// Definim tipurile acceptate, adăugând 'furnizor' conform structurii DB
-type UserRole = 'admin' | 'casier' | 'agent' | 'gestionar' | 'furnizor';
+// Tipuri de roluri pentru compatibilitate legacy
+type UserRole = 'admin' | 'casier' | 'gestionar';
 
 interface LoginProps {
-    // Schimbăm tipul id-ului în any pentru a accepta UUID-ul din baza de date
-    onLogin: (role: UserRole, id?: any) => void;
+    // onLogin a fost eliminat pentru a centraliza totul în AuthContext
 }
 
-export default function Login({ onLogin }: LoginProps) {
+export default function Login({}: LoginProps) {
+    const navigate = useNavigate();
+    const { login, user, role: authRole, loading: authLoading } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    // Citim variabila de mediu pentru fallback legacy
+    const allowLegacy = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === 'true';
+
+    useEffect(() => {
+        // Redirecționare dacă suntem deja logați (Auth real sau Legacy)
+        const legacyRole = allowLegacy ? localStorage.getItem('magazin_role') : null;
+        if (user || legacyRole) {
+            navigate('/');
+        }
+    }, [user, allowLegacy, navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
         setLoading(true);
+        setError('');
 
         const userLower = email.toLowerCase().trim();
         const passTrim = password.trim();
 
         try {
-            // --- 1. VERIFICARE CONTURI DIN TABELA 'utilizatori' ---
-            // Această secțiune identifică Adminul, Casierul, Gestionarul și Furnizorul
-            const { data: dbUser, error: errDbUser } = await supabase
-                .from('utilizatori')
-                .select('*')
-                .eq('email', userLower)
-                .eq('parola', passTrim)
-                .maybeSingle();
+            // 1. Încercăm login prin noul AuthContext (Supabase Auth)
+            console.log("Încercare Login (Supabase Auth)...");
+            const { error: authError } = await login(userLower, passTrim);
 
-            if (!errDbUser && dbUser) {
-                // Transmitem UUID-ul (dbUser.id) pentru a fi salvat în localStorage drept 'magazin_agent_id'
-                // Acest ID este critic pentru tabela 'pierderi' (user_id)
-                onLogin(dbUser.rol as UserRole, dbUser.id);
+            if (!authError) {
+                toast.success("Autentificare reușită (Supabase Auth)");
+                navigate('/');
                 return;
             }
 
-            // --- 2. FALLBACK: CONTURI INTERNE (Hardcodate) ---
-            if (userLower === 'admin' && passTrim === 'admin') {
-                onLogin('admin');
-                return;
-            }
-            if (userLower === 'casier' && passTrim === '1234') {
-                onLogin('casier');
-                return;
-            }
-            if (userLower === 'gestionar' && passTrim === 'gestionar') {
-                onLogin('gestionar');
-                return;
-            }
-
-            // --- 3. VERIFICARE AGENȚI EXTERNI (Tabela 'agenti') ---
-            const { data: agent, error: dbError } = await supabase
-                .from('agenti')
-                .select('*')
-                .eq('email', userLower)
-                .eq('parola', passTrim)
-                .maybeSingle();
-
-            if (dbError) throw dbError;
-
-            if (agent) {
-                onLogin('agent', agent.id);
-                return;
-            }
-
-            // --- 4. VERIFICARE CERERI ÎN AȘTEPTARE ---
-            const { data: cerere } = await supabase
-                .from('cereri_furnizori')
-                .select('status')
-                .eq('email', userLower)
-                .eq('parola', passTrim)
-                .maybeSingle();
-
-            if (cerere) {
-                if (cerere.status === 'pending') {
-                    setError("⏳ Contul tău este în curs de verificare de către administrator.");
-                } else if (cerere.status === 'rejected') {
-                    setError("⛔ Cererea de înregistrare a fost respinsă.");
-                } else {
-                    setError("⚠️ Cont inactiv. Contactează administratorul.");
+            // 2. Dacă a eșuat și legacy este permis, încercăm logică veche
+            if (allowLegacy) {
+                console.log("Încercare Login Legacy (Fallback)...");
+                
+                // Cazul A: Conturi Hardcodate
+                if (userLower === 'admin' && passTrim === 'admin') {
+                    localStorage.setItem('magazin_role', 'admin');
+                    toast.success("Autentificare Admin (Legacy)");
+                    navigate('/');
+                    return;
                 }
+                if (userLower === 'casier' && passTrim === '1234') {
+                    localStorage.setItem('magazin_role', 'casier');
+                    toast.success("Autentificare Casier (Legacy)");
+                    navigate('/');
+                    return;
+                }
+                if (userLower === 'gestionar' && passTrim === 'gestionar') {
+                    localStorage.setItem('magazin_role', 'gestionar');
+                    toast.success("Autentificare Gestionar (Legacy)");
+                    navigate('/');
+                    return;
+                }
+
+                // Cazul B: Verificare în tabela 'utilizatori' (Legacy - Parole în clar)
+                const { data: dbUser } = await supabase
+                    .from('utilizatori')
+                    .select('*')
+                    .eq('email', userLower)
+                    .eq('parola', passTrim)
+                    .maybeSingle();
+
+                if (dbUser) {
+                    localStorage.setItem('magazin_role', dbUser.rol);
+                    localStorage.setItem('magazin_agent_id', dbUser.id);
+                    toast.success(`Autentificare ${dbUser.rol} (Legacy DB)`);
+                    navigate('/');
+                    return;
+                }
+
+                throw new Error("Credențiale incorecte (Legacy).");
             } else {
-                setError("Utilizator sau parolă incorectă.");
+                // Dacă legacy nu este permis, afișăm mesaj clar
+                console.warn("Login legacy blocat (VITE_ALLOW_LEGACY_LOGIN=false)");
+                throw new Error("Login legacy este dezactivat. Folosește cont Supabase Auth.");
             }
 
         } catch (err: any) {
-            console.error("Login Error:", err);
-            setError("Eroare de conexiune la server.");
+            setError(err.message);
+            toast.error(err.message);
         } finally {
             setLoading(false);
         }
@@ -101,6 +109,8 @@ export default function Login({ onLogin }: LoginProps) {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#0f172a] relative overflow-hidden font-sans">
+            <Toaster position="top-right" />
+            
             {/* Design fundal decorativ */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-indigo-500/20 rounded-full blur-[100px]"></div>
@@ -113,7 +123,7 @@ export default function Login({ onLogin }: LoginProps) {
                         M
                     </div>
                     <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Magazin<span className="text-indigo-600">Pro</span></h1>
-                    <p className="text-gray-500 font-medium mt-1 text-sm uppercase tracking-widest">Sistem de Gestiune v0.1.2</p>
+                    <p className="text-gray-500 font-medium mt-1 text-sm uppercase tracking-widest">Sistem de Gestiune v0.2.0</p>
                 </div>
 
                 {error && (
@@ -125,7 +135,7 @@ export default function Login({ onLogin }: LoginProps) {
 
                 <form onSubmit={handleLogin} className="space-y-5">
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider ml-1">Identificator / Email</label>
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider ml-1">Email / Identificator</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <User className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -133,7 +143,7 @@ export default function Login({ onLogin }: LoginProps) {
                             <input
                                 type="text"
                                 className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all sm:text-sm font-bold text-gray-700"
-                                placeholder="Email sau nume utilizator"
+                                placeholder="Introduceți email sau user"
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 autoFocus
@@ -170,16 +180,10 @@ export default function Login({ onLogin }: LoginProps) {
                     </button>
                 </form>
 
-                <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-                    <Link to="/partener" className="inline-flex items-center gap-2 text-xs text-gray-400 hover:text-indigo-600 font-black uppercase tracking-tighter transition-colors group">
-                        <Building2 size={14} className="group-hover:scale-110 transition-transform" />
-                        Înregistrare parteneri externi
-                    </Link>
-                </div>
             </div>
 
             <div className="absolute bottom-4 text-slate-600 text-[10px] opacity-40 font-mono font-bold uppercase tracking-widest">
-                MagazinPro v0.1.2 • Distributed System
+                MagazinPro v0.2.0 • Hybrid Auth System
             </div>
         </div>
     );

@@ -1,10 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Lipsesc cheile Supabase din fișierul .env')
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// src/supabaseClient.ts
+// COMPATIBILITATE TEMPORARĂ: Re-export din noua locație shared
+export { supabase } from './shared/supabase/supabaseClient';
