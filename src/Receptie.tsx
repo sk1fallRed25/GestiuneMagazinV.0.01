@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { toast } from 'react-hot-toast';
 import {
-    Upload, Plus, Trash2, Save, Search, FileText, Truck,
-    Calendar, Package, AlertCircle, CheckCircle, Calculator, ArrowRight
+    Upload, Plus, Trash2, Save, Search, FileText,
+    Package, ArrowRight, Truck
 } from 'lucide-react';
 
 // --- Tipuri ---
@@ -202,6 +202,8 @@ export default function Receptie() {
         setLiniiNIR(liniiNIR.filter(l => l.id !== id));
     };
 
+    const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : 'Eroare necunoscută';
+
     const salveazaNIR = async () => {
         if (!nrFactura) return toast.error("Completează Numărul de Document!");
         if (liniiNIR.length === 0) return toast.error("Nu ai adăugat niciun produs!");
@@ -217,7 +219,12 @@ export default function Receptie() {
                     // furnizor_id: ... - SCOS pentru Etapa 1E
                 }]).select().single();
 
-                if (errR) throw errR;
+                if (errR) {
+                    if (errR.code === '23502' && errR.message?.includes('furnizor_id')) {
+                        throw new Error("Schema bazei de date încă cere furnizor_id. Aplică migrarea propusă pentru recepții fără furnizor.");
+                    }
+                    throw errR;
+                }
 
                 // 2. Detalii Receptie + Update Stoc (Loop)
                 for (const linie of liniiNIR) {
@@ -252,7 +259,7 @@ export default function Receptie() {
         toast.promise(promise, {
             loading: 'Se salvează recepția...',
             success: 'Recepție salvată! Stocul a fost actualizat.',
-            error: (err: any) => `Eroare: ${err.message}`
+            error: (err: unknown) => `Eroare: ${getErrorMessage(err)}`
         }).then(() => {
             setLiniiNIR([]); setNrFactura(''); setXmlStatus(''); setSupplierInfo({ name: '', cui: '' });
         }).finally(() => {
@@ -270,7 +277,7 @@ export default function Receptie() {
                         <span className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-200"><Truck size={28} /></span>
                         Recepție Marfă (NIR)
                     </h1>
-                    <p className="text-gray-500 mt-2 ml-1">Introdu facturile de la furnizori pentru a actualiza stocul.</p>
+                    <p className="text-gray-500 mt-2 ml-1">Înregistrează intrările de marfă și actualizează stocul.</p>
                 </div>
 
                 <div className="flex gap-3">
@@ -340,7 +347,7 @@ export default function Receptie() {
                 <div className="lg:col-span-3 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
                     <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <Plus className="text-green-500" size={20} />
-                        Adaugă Linie pe Factură
+                        Adaugă Linie Recepție
                     </h3>
 
                     <div className="space-y-6">
@@ -488,7 +495,7 @@ export default function Receptie() {
                         Linii NIR ({liniiNIR.length})
                     </h3>
                     <div className="text-sm font-bold text-gray-500">
-                        Total Factură: <span className="text-gray-900 text-lg ml-2">{liniiNIR.reduce((acc, x) => acc + x.pretTotalLinie, 0).toFixed(2)} RON</span>
+                        Total Recepție: <span className="text-gray-900 text-lg ml-2">{liniiNIR.reduce((acc, x) => acc + x.pretTotalLinie, 0).toFixed(2)} RON</span>
                     </div>
                 </div>
 
