@@ -116,11 +116,13 @@ CREATE POLICY "Sales: cashier create" ON public.sales FOR INSERT WITH CHECK (has
 
 CREATE POLICY "SaleItems: view" ON public.sale_items FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
 CREATE POLICY "SaleItems: cashier create" ON public.sale_items FOR INSERT WITH CHECK (has_store_role(store_id, ARRAY['admin', 'casier']) OR is_platform_owner());
-CREATE POLICY "SaleItems: admin manage" ON public.sale_items FOR UPDATE, DELETE USING (has_store_role(store_id, ARRAY['admin']) OR is_platform_owner());
+CREATE POLICY "SaleItems: admin update" ON public.sale_items FOR UPDATE USING (has_store_role(store_id, ARRAY['admin']) OR is_platform_owner());
+CREATE POLICY "SaleItems: admin delete" ON public.sale_items FOR DELETE USING (has_store_role(store_id, ARRAY['admin']) OR is_platform_owner());
 
 CREATE POLICY "Payments: view" ON public.payments FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
 CREATE POLICY "Payments: cashier create" ON public.payments FOR INSERT WITH CHECK (has_store_role(store_id, ARRAY['admin', 'casier']) OR is_platform_owner());
-CREATE POLICY "Payments: admin manage" ON public.payments FOR UPDATE, DELETE USING (has_store_role(store_id, ARRAY['admin']) OR is_platform_owner());
+CREATE POLICY "Payments: admin update" ON public.payments FOR UPDATE USING (has_store_role(store_id, ARRAY['admin']) OR is_platform_owner());
+CREATE POLICY "Payments: admin delete" ON public.payments FOR DELETE USING (has_store_role(store_id, ARRAY['admin']) OR is_platform_owner());
 
 -- SHIFTS
 CREATE POLICY "Shifts: access" ON public.cashier_shifts FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
