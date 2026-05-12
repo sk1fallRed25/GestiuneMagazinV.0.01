@@ -1,2 +1,2 @@
-// Fișier gol pentru a preveni erorile de build
-export {};
+// src/services/productService.ts
+export * from '../shared/services/productService';
