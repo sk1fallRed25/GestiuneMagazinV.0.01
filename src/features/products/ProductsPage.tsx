@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, RefreshCw } from 'lucide-react';
+import { Database, RefreshCw, AlertCircle } from 'lucide-react';
 import { useProducts } from './hooks/useProducts';
 import { Product, ProductsPageProps } from './types';
 import ProductSearchBar from './components/ProductSearchBar';
@@ -13,7 +13,8 @@ const ProductsPage = ({ userRole }: ProductsPageProps) => {
         setSearchTerm,
         filteredProducts,
         updateProduct,
-        deleteProduct
+        deleteProduct,
+        currentStoreId
     } = useProducts();
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -24,8 +25,8 @@ const ProductsPage = ({ userRole }: ProductsPageProps) => {
         setIsEditModalOpen(true);
     };
 
-    const handleDelete = async (id: number) => {
-        const message = "Această acțiune este periculoasă. În producție produsul trebuie dezactivat, nu șters definitiv. Sunteți sigur că doriți eliminarea DEFINITIVĂ a acestui reper din baza de date?";
+    const handleDelete = async (id: string) => {
+        const message = "Sunteți sigur că doriți eliminarea acestui reper? Produsul va fi marcat ca 'șters' în baza de date.";
         if (window.confirm(message)) {
             await deleteProduct(id);
         }
@@ -37,6 +38,18 @@ const ProductsPage = ({ userRole }: ProductsPageProps) => {
             Se accesează serverul de baze de date...
         </div>
     );
+
+    if (!currentStoreId) {
+        return (
+            <div className="p-8 flex flex-col items-center justify-center min-h-[60vh] text-center">
+                <AlertCircle size={64} className="text-orange-400 mb-4" />
+                <h2 className="text-2xl font-bold text-gray-800">Magazin neselectat</h2>
+                <p className="text-gray-500 mt-2 max-w-md">
+                    Pentru a vedea și gestiona produsele, vă rugăm să selectați un magazin activ din meniul de profil.
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="p-8 max-w-[1400px] mx-auto min-h-screen bg-slate-50/30">
@@ -50,7 +63,7 @@ const ProductsPage = ({ userRole }: ProductsPageProps) => {
                         Monitorizare Stocuri & Produse
                     </h1>
                     <p className="text-gray-500 mt-2 ml-1 text-sm italic">
-                        Sincronizare în timp real. Rol curent: <span className="font-bold text-indigo-600 uppercase">{userRole || 'Nedefinit'}</span>
+                        Sincronizare în timp real (Schema v2). Rol: <span className="font-bold text-indigo-600 uppercase">{userRole || 'Nedefinit'}</span>
                     </p>
                 </div>
             </div>

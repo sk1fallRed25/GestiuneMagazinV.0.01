@@ -1,41 +1,74 @@
 export interface Product {
-    id: number;
-    nume: string;
-    cod_bare: string;
-    pret_vanzare: number;
-    stoc_depozit: number;
-    stoc_magazin: number;
-    um: string;             // Folosit în UI (Legacy/Frontend)
-    unitate_masura: string; // Folosit în DB Real
-    active?: boolean;
-    deleted_at?: string | null;
+  id: string; // UUID in v2
+  nume: string;
+  cod_bare: string;
+  pret_vanzare: number;
+  pret_achizitie?: number;
+  stoc_depozit: number;
+  stoc_magazin: number;
+  um: string;             // UI legacy
+  unitate_masura: string; // Alias legacy
+  active?: boolean;
+  status?: 'active' | 'archived' | 'deleted';
 }
 
 /**
- * Reprezentarea exactă a unui rând din tabela 'produse' în Supabase.
+ * Tabel public.products (v2)
  */
 export interface ProductDbRow {
-    id: number;
-    nume: string;
-    cod_bare: string;
-    pret_vanzare: number;
-    stoc_depozit: number;
-    stoc_magazin: number;
-    unitate_masura: string;
-    active?: boolean;
-    deleted_at?: string | null;
-    created_at?: string;
-    categorie_principala?: string;
-    categorie_secundara?: string;
+  id: string;
+  store_id: string;
+  category_id: string | null;
+  name: string;
+  barcode: string;
+  unit: string;
+  status: 'active' | 'archived' | 'deleted';
+  created_at: string;
+  updated_at: string;
 }
 
 /**
- * Tipul de date trimis către Supabase pentru update.
- * Exclude câmpurile de UI (um) și câmpurile protejate (id).
+ * Tabel public.product_prices (v2)
  */
-export type ProductUpdateDbInput = Partial<Omit<ProductDbRow, 'id' | 'created_at'>>;
+export interface ProductPriceDbRow {
+  id: string;
+  store_id: string;
+  product_id: string;
+  price_sale: number;
+  price_purchase: number;
+  vat_percent: number;
+  updated_at: string;
+}
 
-export type ProductUpdateInput = Partial<Omit<Product, 'id'>>;
+/**
+ * Tabel public.stock_batches (v2)
+ */
+export interface StockBatchDbRow {
+  id: string;
+  store_id: string;
+  product_id: string;
+  batch_number: string | null;
+  expiry_date: string | null;
+  zone: 'depozit' | 'magazin';
+  quantity: number;
+  purchase_price: number | null;
+  created_at: string;
+}
+
+/**
+ * Tipul de date pentru update din UI
+ */
+export interface ProductUpdateInput {
+  nume?: string;
+  cod_bare?: string;
+  pret_vanzare?: number;
+  pret_achizitie?: number;
+  stoc_depozit?: number;
+  stoc_magazin?: number;
+  um?: string;
+  unitate_masura?: string;
+  status?: 'active' | 'archived' | 'deleted';
+}
 
 export interface ProductsPageProps {
     userRole?: string;

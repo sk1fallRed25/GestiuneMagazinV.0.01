@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../supabaseClient';
-import { AuthState, AuthProfile, UserRole, StoreMembership } from './types';
+import { AuthState, UserRole } from './types';
 import { authService } from './authService';
 
 interface AuthContextType extends AuthState {
-  login: (email: string, pass: string) => Promise<{ error: any }>;
+  login: (email: string, pass: string) => Promise<{ error: Error | null }>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   switchStore: (storeId: string) => Promise<void>;
@@ -27,6 +27,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     tenantId: null, // Legacy alias
     storeId: null,  // Legacy alias
   });
+
+  const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error) return error.message;
+    return String(error || "Eroare neașteptată la autentificare.");
+  };
 
   const loadProfileAndStores = useCallback(async (userId: string) => {
     try {
@@ -73,12 +78,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading: false,
         error: null
       }));
-    } catch (err: any) {
-      console.error("Eroare critică la inițializare Auth:", err);
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      console.error("Eroare critică la inițializare Auth:", message);
       setState(prev => ({ 
         ...prev, 
         loading: false, 
-        error: err.message || "Eroare neașteptată la autentificare." 
+        error: message 
       }));
     }
   }, []);
@@ -120,20 +126,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, [loadProfileAndStores]);
 
-  const login = async (email: string, pass: string) => {
+  const login = async (email: string, pass: string): Promise<{ error: Error | null }> => {
     setState(prev => ({ ...prev, loading: true, error: null }));
-    const { data, error } = await authService.signInWithPassword(email, pass);
-    
-    if (error) {
+    try {
+      const { data, error } = await authService.signInWithPassword(email, pass);
+      
+      if (error) {
+        setState(prev => ({ ...prev, loading: false, error: error.message }));
+        return { error };
+      }
+
+      if (data.user) {
+        await loadProfileAndStores(data.user.id);
+      }
+
+      return { error: null };
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(getErrorMessage(err));
       setState(prev => ({ ...prev, loading: false, error: error.message }));
       return { error };
     }
-
-    if (data.user) {
-      await loadProfileAndStores(data.user.id);
-    }
-
-    return { error: null };
   };
 
   const logout = async () => {

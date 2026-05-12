@@ -2,16 +2,24 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { Product, ProductUpdateInput } from '../types';
 import { productService } from '../services/productService';
+import { useAuth } from '../../auth/useAuth';
 
 export const useProducts = () => {
+    const { currentStoreId, user, role } = useAuth();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
     const fetchProducts = useCallback(async () => {
+        if (!currentStoreId) {
+            setProducts([]);
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
-            const data = await productService.listProducts();
+            const data = await productService.listProducts(currentStoreId);
             setProducts(data);
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "Eroare necunoscută la sincronizare";
@@ -19,7 +27,7 @@ export const useProducts = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [currentStoreId]);
 
     useEffect(() => {
         fetchProducts();
@@ -32,14 +40,19 @@ export const useProducts = () => {
         );
     }, [products, searchTerm]);
 
-    const updateProduct = async (productId: number, input: ProductUpdateInput) => {
+    const updateProduct = async (productId: string, input: ProductUpdateInput) => {
+        if (!currentStoreId) {
+            toast.error("Magazinul curent nu este selectat.");
+            return;
+        }
+
         try {
-            const promise = productService.updateProduct(productId, input);
+            const promise = productService.updateProduct(currentStoreId, productId, input, user?.id);
             
             await toast.promise(promise, {
                 loading: 'Se procesează actualizarea...',
                 success: 'Datele produsului au fost modificate.',
-                error: (err: Error) => `Eroare SQL: ${err.message}`
+                error: (err: Error) => `Eroare: ${err.message}`
             });
 
             await fetchProducts();
@@ -48,9 +61,14 @@ export const useProducts = () => {
         }
     };
 
-    const deleteProduct = async (productId: number) => {
+    const deleteProduct = async (productId: string) => {
+        if (!currentStoreId) {
+            toast.error("Magazinul curent nu este selectat.");
+            return;
+        }
+
         try {
-            const promise = productService.deleteProductUnsafe(productId);
+            const promise = productService.archiveProduct(currentStoreId, productId);
             
             await toast.promise(promise, {
                 loading: 'Se elimină produsul...',
@@ -72,6 +90,7 @@ export const useProducts = () => {
         filteredProducts,
         refreshProducts: fetchProducts,
         updateProduct,
-        deleteProduct
+        deleteProduct,
+        currentStoreId
     };
 };

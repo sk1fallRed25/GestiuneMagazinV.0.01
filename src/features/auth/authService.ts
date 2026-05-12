@@ -1,6 +1,14 @@
 import { supabase } from '../../supabaseClient';
 import { AuthProfile, StoreMembership, UserRole } from './types';
 
+interface RawStoreMembership {
+  store_id: string;
+  profile_id: string;
+  role: UserRole;
+  active: boolean;
+  store: any; // Poate fi Store sau Store[]
+}
+
 export const authService = {
   /**
    * Autentificare cu email și parolă prin Supabase Auth
@@ -69,8 +77,10 @@ export const authService = {
       return [];
     }
 
+    const memberships = data as unknown as RawStoreMembership[];
+
     // Supabase poate returna 'store' ca array dacă relația nu este recunoscută ca 1-la-1 în query-ul de select
-    return (data || []).map((m: any) => ({
+    return (memberships || []).map((m) => ({
       ...m,
       store: Array.isArray(m.store) ? m.store[0] : m.store
     })) as StoreMembership[];

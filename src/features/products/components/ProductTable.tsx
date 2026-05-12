@@ -5,13 +5,14 @@ import { Product } from '../types';
 interface ProductTableProps {
     products: Product[];
     onEdit: (product: Product) => void;
-    onDelete: (id: number) => void;
+    onDelete: (id: string) => void;
     userRole?: string;
 }
 
 const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProps) => {
-    // Definire roluri cu permisiuni de ștergere (unsafe)
-    const canDelete = ['admin', 'platform_owner', 'tenant_admin'].includes(userRole || '');
+    // Definire roluri cu permisiuni de ștergere (v2)
+    // În v2, 'admin' și 'platform_owner' au permisiuni de administrare.
+    const canDelete = ['admin', 'platform_owner'].includes(userRole || '');
 
     return (
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
@@ -54,7 +55,6 @@ const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProp
                             </td>
                             <td className="px-6 py-4 text-center">
                                 <div className="flex justify-center gap-2">
-                                    {/* Butonul Edit este vizibil pentru toți cei care pot accesa pagina */}
                                     <button
                                         onClick={() => onEdit(produs)}
                                         className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
@@ -63,12 +63,11 @@ const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProp
                                         <Edit3 size={18} />
                                     </button>
 
-                                    {/* Butonul Delete este vizibil DOAR pentru Admin / Owner */}
                                     {canDelete && (
                                         <button
                                             onClick={() => onDelete(produs.id)}
                                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                            title="Ștergere definitivă (ADMIN)"
+                                            title="Arhivează produs (ADMIN)"
                                         >
                                             <Trash2 size={18} />
                                         </button>
@@ -81,7 +80,7 @@ const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProp
             </table>
             {products.length === 0 && (
                 <div className="p-12 text-center text-gray-400 italic">
-                    Nu au fost găsite produse care să corespundă căutării.
+                    Nu au fost găsite produse care să corespundă căutării în acest magazin.
                 </div>
             )}
         </div>
