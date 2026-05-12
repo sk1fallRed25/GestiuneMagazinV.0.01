@@ -76,7 +76,16 @@ export const receptionService = {
 
         // 3. Procesare Linii
         for (const line of lines) {
-            if (line.quantity <= 0) throw new Error(`Cantitate invalidă pentru produsul ${line.productName}`);
+            // Validări stricte per linie
+            if (!line.productId || !line.productName) {
+                throw new Error(`Linie recepție invalidă: date produs lipsă.`);
+            }
+            if (line.quantity <= 0) {
+                throw new Error(`Linie recepție invalidă pentru produsul ${line.productName}: cantitatea trebuie să fie pozitivă.`);
+            }
+            if (line.purchasePrice < 0 || line.salePrice < 0 || line.vatPercent < 0) {
+                throw new Error(`Linie recepție invalidă pentru produsul ${line.productName}: prețurile și TVA trebuie să fie pozitive.`);
+            }
 
             // A. Inserare Reception Item
             const { error: riError } = await supabase
@@ -95,7 +104,6 @@ export const receptionService = {
             if (riError) throw riError;
 
             // B. Gestionare Stock Batch
-            // Căutăm dacă există deja un batch identic (store + product + zone + batch_num + expiry)
             const batchNum = line.batchNumber || document.documentNumber;
             const expiryDate = line.expiryDate || null;
 
@@ -113,16 +121,23 @@ export const receptionService = {
                 query = query.is('expiry_date', null);
             }
 
-            const { data: existingBatch } = await query.maybeSingle();
+            const { data: existingBatch, error: batchLookupError } = await query.maybeSingle();
+            if (batchLookupError) throw batchLookupError;
 
             let batchId: string;
 
             if (existingBatch) {
                 const newQty = Number(existingBatch.quantity) + line.quantity;
+                if (newQty < 0) {
+                    throw new Error(`Eroare stoc pentru produsul ${line.productName}: cantitatea rezultată nu poate fi negativă.`);
+                }
+
                 const { error: ubError } = await supabase
                     .from('stock_batches')
                     .update({ quantity: newQty, purchase_price: line.purchasePrice })
-                    .eq('id', existingBatch.id);
+                    .eq('id', existingBatch.id)
+                    .eq('store_id', storeId);
+                
                 if (ubError) throw ubError;
                 batchId = existingBatch.id;
             } else {

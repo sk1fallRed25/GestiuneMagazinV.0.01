@@ -1,4 +1,3 @@
-import { UserRole } from '../auth/types';
 
 export interface ReceptionProduct {
     id: string;

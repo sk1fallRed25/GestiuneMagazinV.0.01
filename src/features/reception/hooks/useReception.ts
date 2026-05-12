@@ -186,11 +186,18 @@ export const useReception = () => {
             for (let i = 0; i < xmlLines.length; i++) {
                 const xLine = xmlLines[i];
                 const name = xLine.getElementsByTagName("cbc:Name")[0]?.textContent;
+                const xmlBarcode = xLine.getElementsByTagName("cac:SellersItemIdentification")[0]?.getElementsByTagName("cbc:ID")[0]?.textContent;
+                
                 const qty = parseFloat(xLine.getElementsByTagName("cbc:InvoicedQuantity")[0]?.textContent || '0');
                 const lineTotal = parseFloat(xLine.getElementsByTagName("cbc:LineExtensionAmount")[0]?.textContent || '0');
                 
-                if (name) {
-                    const found = availableProducts.find(p => p.nume.toLowerCase() === name.toLowerCase());
+                if (name || xmlBarcode) {
+                    // Caută întâi după barcode, apoi după nume exact (case-insensitive)
+                    const found = availableProducts.find(p => 
+                        (xmlBarcode && p.cod_bare === xmlBarcode) || 
+                        (name && p.nume.toLowerCase() === name.toLowerCase())
+                    );
+
                     if (found) {
                         const uPrice = lineTotal / qty;
                         newLines.push({
@@ -219,7 +226,7 @@ export const useReception = () => {
                 toast.error(`${unknownProducts} produse din factură nu au fost găsite în nomenclator.`);
             }
             setXmlStatus('✅ XML procesat');
-        } catch (error) {
+        } catch (error: unknown) {
             console.error(error);
             setXmlStatus('❌ Eroare XML');
             toast.error("Format XML nevalid.");
