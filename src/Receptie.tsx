@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 
 // --- Tipuri ---
-interface Furnizor { id: number; nume_firma: string; cui: string }
 interface Produs {
     id: number;
     nume: string;
@@ -32,8 +31,6 @@ interface LinieNIR {
 
 export default function Receptie() {
     // --- STATE-URI ---
-    const [furnizori, setFurnizori] = useState<Furnizor[]>([]);
-    const [selFurnizor, setSelFurnizor] = useState<string>('');
     const [nrFactura, setNrFactura] = useState('');
     const [dataFactura, setDataFactura] = useState(new Date().toISOString().slice(0, 10));
 
@@ -52,15 +49,10 @@ export default function Receptie() {
     const [liniiNIR, setLiniiNIR] = useState<LinieNIR[]>([]);
     const [loading, setLoading] = useState(false);
     const [xmlStatus, setXmlStatus] = useState('');
+    const [supplierInfo, setSupplierInfo] = useState({ name: '', cui: '' });
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Încărcare furnizori
-    useEffect(() => {
-        supabase.from('furnizori').select('*').order('nume_firma').then(({ data }) => {
-            if (data) setFurnizori(data);
-        });
-    }, []);
 
     // Căutare produse (Debounce)
     useEffect(() => {
@@ -115,22 +107,9 @@ export default function Receptie() {
             if (invoiceID) setNrFactura(invoiceID);
             if (invoiceDate) setDataFactura(invoiceDate);
 
-            // Căutare furnizor
-            let furnizorGasit = null;
-            if (supplierCUI) {
-                const { data: fCui } = await supabase.from('furnizori').select('*').ilike('cui', `%${supplierCUI}%`).maybeSingle();
-                furnizorGasit = fCui;
-            }
-            if (!furnizorGasit && supplierName) {
-                const { data: fNume } = await supabase.from('furnizori').select('*').ilike('nume_firma', `%${supplierName}%`).maybeSingle();
-                furnizorGasit = fNume;
-            }
-
-            if (furnizorGasit) {
-                setSelFurnizor(furnizorGasit.id.toString());
-                toast.success(`Furnizor identificat: ${furnizorGasit.nume_firma}`);
-            } else {
-                toast(`Furnizor neidentificat: ${supplierName}. Te rog selectează manual.`, { icon: '⚠️' });
+            if (supplierName || supplierCUI) {
+                setSupplierInfo({ name: supplierName || '', cui: supplierCUI || '' });
+                toast.success(`Informații furnizor identificate în XML: ${supplierName || supplierCUI}`);
             }
 
             // Procesare Linii
@@ -224,7 +203,7 @@ export default function Receptie() {
     };
 
     const salveazaNIR = async () => {
-        if (!selFurnizor || !nrFactura) return toast.error("Completează Furnizorul și Nr. Factură!");
+        if (!nrFactura) return toast.error("Completează Numărul de Document!");
         if (liniiNIR.length === 0) return toast.error("Nu ai adăugat niciun produs!");
 
         setLoading(true);
@@ -232,10 +211,10 @@ export default function Receptie() {
             try {
                 // 1. Header Receptie
                 const { data: receptie, error: errR } = await supabase.from('receptii').insert([{
-                    furnizor_id: parseInt(selFurnizor),
                     numar_factura: nrFactura,
                     data_factura: dataFactura,
-                    total_valoare: liniiNIR.reduce((acc, l) => acc + l.pretTotalLinie, 0)
+                    total_valoare: liniiNIR.reduce((acc, l) => acc + l.pretTotalLinie, 0),
+                    // furnizor_id: ... - SCOS pentru Etapa 1E
                 }]).select().single();
 
                 if (errR) throw errR;
@@ -275,7 +254,7 @@ export default function Receptie() {
             success: 'Recepție salvată! Stocul a fost actualizat.',
             error: (err: any) => `Eroare: ${err.message}`
         }).then(() => {
-            setLiniiNIR([]); setNrFactura(''); setSelFurnizor(''); setXmlStatus('');
+            setLiniiNIR([]); setNrFactura(''); setXmlStatus(''); setSupplierInfo({ name: '', cui: '' });
         }).finally(() => {
             setLoading(false);
         });
@@ -316,57 +295,49 @@ export default function Receptie() {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                {/* --- SECTIUNEA 1: DATE FACTURĂ --- */}
-                <div className="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-100 h-fit">
-                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <FileText className="text-blue-500" size={20} />
-                        Detalii Factură
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4">
+                    <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-2">
+                        <FileText className="text-indigo-500 w-5 h-5" /> Informații Document
                     </h3>
-
+                    
                     <div className="space-y-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Furnizor</label>
-                            <div className="relative">
-                                <select
-                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 appearance-none font-medium text-gray-700"
-                                    value={selFurnizor}
-                                    onChange={e => setSelFurnizor(e.target.value)}
-                                >
-                                    <option value="">-- Selectează --</option>
-                                    {furnizori.map(f => <option key={f.id} value={f.id}>{f.nume_firma}</option>)}
-                                </select>
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">▼</div>
+                        {supplierInfo.name && (
+                            <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                                <p className="text-[10px] uppercase font-bold text-indigo-400 mb-1">Furnizor (din XML)</p>
+                                <p className="text-sm font-bold text-indigo-900">{supplierInfo.name}</p>
+                                {supplierInfo.cui && <p className="text-[10px] text-indigo-600">CUI: {supplierInfo.cui}</p>}
                             </div>
+                        )}
+
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Nr. Document / Factură</label>
+                            <input
+                                type="text"
+                                value={nrFactura}
+                                onChange={(e) => setNrFactura(e.target.value)}
+                                placeholder="Ex: 123456"
+                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm"
+                            />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Număr</label>
-                                <input
-                                    type="text"
-                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                                    placeholder="Ex: 1024"
-                                    value={nrFactura}
-                                    onChange={e => setNrFactura(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Data</label>
-                                <input
-                                    type="date"
-                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                                    value={dataFactura}
-                                    onChange={e => setDataFactura(e.target.value)}
-                                />
-                            </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-400 uppercase mb-1">Data Document</label>
+                            <input
+                                type="date"
+                                value={dataFactura}
+                                onChange={(e) => setDataFactura(e.target.value)}
+                                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm"
+                            />
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* --- SECTIUNEA 2: ADĂUGARE PRODUS --- */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
+                <div className="lg:col-span-3 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
                     <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <Plus className="text-green-500" size={20} />
                         Adaugă Linie pe Factură

@@ -129,7 +129,6 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                             </div>
 
                             <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
-                            <NavLink to="/furnizori" label="Gestiune Furnizori" icon={<Truck size={18} />} />
 
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Vânzare</div>
                             <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
@@ -149,7 +148,7 @@ const MainLayout = ({ children, onLogout, userRole }: { children: React.ReactNod
                 <header className={`h-20 flex items-center justify-between px-8 z-20 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur-md border-b border-gray-200' : 'bg-transparent'}`}>
                     <div className="flex items-center bg-white border border-gray-200 rounded-full px-4 py-2 w-96 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
                         <Search size={18} className="text-gray-400" />
-                        <input type="text" placeholder="Caută produse, comenzi..." className="ml-3 bg-transparent outline-none text-sm text-gray-600 w-full placeholder-gray-400" />
+                        <input type="text" placeholder="Caută produse, stocuri..." className="ml-3 bg-transparent outline-none text-sm text-gray-600 w-full placeholder-gray-400" />
                     </div>
 
                     <div className="flex items-center gap-4">

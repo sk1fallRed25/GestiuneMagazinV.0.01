@@ -17,7 +17,6 @@ import TransferMarfa from '../TransferMarfa';
 import Vanzare from '../Vanzare';
 import IstoricVanzari from '../IstoricVanzari';
 import AiConsultant from '../AiConsultant';
-import Furnizori from '../Furnizori';
 import FastAdd from '../FastAdd';
 
 const AppRoutes = () => {
@@ -109,11 +108,6 @@ const AppRoutes = () => {
                             <Route path="/ai-consultant" element={
                                 <ProtectedRoute allowedRoles={[...ROLES_ADMIN, 'manager']}>
                                     <AiConsultant />
-                                </ProtectedRoute>
-                            } />
-                            <Route path="/furnizori" element={
-                                <ProtectedRoute allowedRoles={[...ROLES_ADMIN, 'gestionar']}>
-                                    <Furnizori />
                                 </ProtectedRoute>
                             } />
                             <Route path="/fast-add" element={

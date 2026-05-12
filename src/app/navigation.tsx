@@ -26,7 +26,6 @@ export const navigationConfig: NavItem[] = [
     
     { to: '/istoric-pierderi', label: 'Audit Pierderi', icon: <History size={18} />, category: 'Administrare', roles: ['admin', 'platform_owner', 'tenant_admin', 'manager'] },
     { to: '/ai-consultant', label: 'AI Consultant', icon: <BrainCircuit size={18} />, category: 'Administrare', roles: ['admin', 'platform_owner', 'tenant_admin', 'manager'] },
-    { to: '/furnizori', label: 'Gestiune Furnizori', icon: <Truck size={18} />, category: 'Administrare', roles: ['admin', 'platform_owner', 'tenant_admin', 'gestionar'] },
     
     { to: '/vanzare', label: 'Deschide POS', icon: <ShoppingCart size={18} />, category: 'Vânzare', roles: ['admin', 'platform_owner', 'tenant_admin', 'casier'] },
     { to: '/istoric-vanzari', label: 'Istoric Vânzări', icon: <FileText size={18} />, category: 'Vânzare', roles: ['admin', 'platform_owner', 'tenant_admin', 'manager'] },
