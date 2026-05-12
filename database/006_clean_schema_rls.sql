@@ -82,7 +82,8 @@ CREATE POLICY "Members: admin manage" ON public.store_members FOR ALL USING (has
 
 -- DEVICES & APP_SETTINGS
 CREATE POLICY "Devices: view" ON public.devices FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
-CREATE POLICY "Settings: view" ON public.app_settings FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Settings: owner manage" ON public.app_settings FOR ALL USING (is_platform_owner());
+CREATE POLICY "Settings: admin view" ON public.app_settings FOR SELECT USING (current_user_role() = 'admin' OR is_platform_owner());
 
 -- ############################################################################
 -- INVENTORY MODULE
@@ -92,8 +93,11 @@ CREATE POLICY "Settings: view" ON public.app_settings FOR SELECT USING (store_id
 CREATE POLICY "Catalog: view" ON public.products FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
 CREATE POLICY "Catalog: staff manage" ON public.products FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
 
-CREATE POLICY "Categories: access" ON public.categories FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
-CREATE POLICY "Prices: access" ON public.product_prices FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Categories: view" ON public.categories FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Categories: staff manage" ON public.categories FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
+
+CREATE POLICY "Prices: view" ON public.product_prices FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Prices: staff manage" ON public.product_prices FOR ALL USING (has_store_role(store_id, ARRAY['admin', 'manager', 'gestionar']) OR is_platform_owner());
 
 -- STOCK BATCHES & MOVEMENTS
 CREATE POLICY "Stock: view" ON public.stock_batches FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
@@ -110,8 +114,13 @@ CREATE POLICY "Movements: staff insert" ON public.stock_movements FOR INSERT WIT
 CREATE POLICY "Sales: view" ON public.sales FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
 CREATE POLICY "Sales: cashier create" ON public.sales FOR INSERT WITH CHECK (has_store_role(store_id, ARRAY['admin', 'manager', 'casier']) OR is_platform_owner());
 
-CREATE POLICY "SaleItems: access" ON public.sale_items FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
-CREATE POLICY "Payments: access" ON public.payments FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "SaleItems: view" ON public.sale_items FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "SaleItems: cashier create" ON public.sale_items FOR INSERT WITH CHECK (has_store_role(store_id, ARRAY['admin', 'casier']) OR is_platform_owner());
+CREATE POLICY "SaleItems: admin manage" ON public.sale_items FOR UPDATE, DELETE USING (has_store_role(store_id, ARRAY['admin']) OR is_platform_owner());
+
+CREATE POLICY "Payments: view" ON public.payments FOR SELECT USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
+CREATE POLICY "Payments: cashier create" ON public.payments FOR INSERT WITH CHECK (has_store_role(store_id, ARRAY['admin', 'casier']) OR is_platform_owner());
+CREATE POLICY "Payments: admin manage" ON public.payments FOR UPDATE, DELETE USING (has_store_role(store_id, ARRAY['admin']) OR is_platform_owner());
 
 -- SHIFTS
 CREATE POLICY "Shifts: access" ON public.cashier_shifts FOR ALL USING (store_id IN (SELECT store_id FROM current_user_store_ids()) OR is_platform_owner());
