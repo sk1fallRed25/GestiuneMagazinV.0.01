@@ -23,7 +23,7 @@ const AppRoutes = () => {
     const { role: authRole, logout: authLogout } = useAuth();
     
     const allowLegacy = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === 'true';
-    const legacyRole = allowLegacy ? (localStorage.getItem('magazin_role') as any) : null;
+    const legacyRole = allowLegacy ? (localStorage.getItem('magazin_role') as UserRole) : null;
     const userRole = authRole || legacyRole;
 
     const handleLogout = async () => {
@@ -67,7 +67,7 @@ const AppRoutes = () => {
                             } />
                             <Route path="/produse" element={
                                 <ProtectedRoute allowedRoles={ROLES_STAFF}>
-                                    <Produse userRole={userRole} />
+                                    <Produse userRole={userRole || undefined} />
                                 </ProtectedRoute>
                             } />
                             <Route path="/expirari" element={
