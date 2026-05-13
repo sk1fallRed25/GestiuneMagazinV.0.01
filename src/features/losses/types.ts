@@ -34,4 +34,6 @@ export interface StockBatch {
 
 export interface LossLocationState {
     preSelectedId?: string;
+    source?: LossStockSource;
+    reason?: string;
 }
