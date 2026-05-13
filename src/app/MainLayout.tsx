@@ -10,21 +10,31 @@ import { supabase } from '../shared/supabase/supabaseClient';
 import { isAdminLike, isManagerLike, isStockOperator, isCashierLike } from '../features/auth/permissions';
 import { useAuth } from '../features/auth/useAuth';
 
+interface Notification {
+    id: number;
+    type: 'alert' | 'info';
+    message: string;
+    time: string;
+    read: boolean;
+}
+
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
     const { role, profile, currentStore, logout } = useAuth();
     const location = useLocation();
     const [scrolled, setScrolled] = useState(false);
 
-    const [notifications, setNotifications] = useState<any[]>([]);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+
     const [showNotifMenu, setShowNotifMenu] = useState(false);
     const notifMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        function handleClickOutside(event: any) {
-            if (notifMenuRef.current && !notifMenuRef.current.contains(event.target)) {
+        function handleClickOutside(event: MouseEvent) {
+            if (notifMenuRef.current && !notifMenuRef.current.contains(event.target as Node)) {
                 setShowNotifMenu(false);
             }
         }
+
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
@@ -66,7 +76,14 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
         return () => { supabase.removeChannel(channel); };
     }, []);
 
-    const NavLink = ({ to, label, icon, className = "" }: any) => {
+    interface NavLinkProps {
+        to: string;
+        label: string;
+        icon: React.ReactNode;
+        className?: string;
+    }
+
+    const NavLink = ({ to, label, icon, className = "" }: NavLinkProps) => {
         const isActive = location.pathname === to;
         return (
             <Link to={to} className={`relative flex items-center gap-3 px-4 py-3 mx-2 rounded-xl transition-all duration-200 text-sm font-medium group ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${className}`}>
@@ -77,7 +94,11 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
         )
     }
 
-    const LinkuriOperatiuni = ({ isSubmenu = false }: any) => (
+    interface LinkuriOperatiuniProps {
+        isSubmenu?: boolean;
+    }
+
+    const LinkuriOperatiuni = ({ isSubmenu = false }: LinkuriOperatiuniProps) => (
         <>
             <NavLink to="/receptie" label="Recepție Marfă" icon={<PackagePlus size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
             <NavLink to="/transfer" label="Transfer Marfă" icon={<ArrowRightLeft size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />

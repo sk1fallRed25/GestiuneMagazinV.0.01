@@ -12,10 +12,19 @@ const toNumberSafe = (value: unknown, fallback = 0): number => {
     return isNaN(n) ? fallback : n;
 };
 
+interface StockBatch {
+    id: string;
+    product_id: string;
+    quantity: number | string;
+    zone: 'magazin' | 'depozit';
+    expiry_date?: string | null;
+}
+
+
 /**
  * Helper pentru citirea loturilor disponibile într-o zonă specifică.
  */
-const getAvailableBatches = async (storeId: string, productId: string, zone: 'magazin' | 'depozit') => {
+const getAvailableBatches = async (storeId: string, productId: string, zone: 'magazin' | 'depozit'): Promise<StockBatch[]> => {
     const { data, error } = await supabase
         .from('stock_batches')
         .select('*')
@@ -27,8 +36,9 @@ const getAvailableBatches = async (storeId: string, productId: string, zone: 'ma
         .order('created_at', { ascending: true });
 
     if (error) throw error;
-    return data || [];
+    return (data as unknown as StockBatch[]) || [];
 };
+
 
 export const lossService = {
     /**
@@ -100,7 +110,7 @@ export const lossService = {
         }
 
         let totalAvailable = 0;
-        const batchesByZone: Record<string, any[]> = {};
+        const batchesByZone: Record<string, StockBatch[]> = {};
 
         for (const zone of zonesToSearch) {
             const zoneBatches = await getAvailableBatches(storeId, productId, zone);

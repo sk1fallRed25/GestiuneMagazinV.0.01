@@ -6,6 +6,7 @@ import {
     Clock, RefreshCw
 } from 'lucide-react';
 import { useAiConsultant } from './hooks/useAiConsultant';
+import { AiRecommendation, AiProductInsight } from './types';
 
 export default function AiConsultantPage() {
     const { data, loading, error, refresh } = useAiConsultant();
@@ -205,7 +206,7 @@ function StatCard({ icon, label, value, color, subtext }: { icon: React.ReactNod
     );
 }
 
-function RecommendationCard({ recommendation }: { recommendation: any }) {
+function RecommendationCard({ recommendation }: { recommendation: AiRecommendation }) {
     const config = {
         critical: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-900', icon: 'text-red-600', badge: 'CRITICAL' },
         warning: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-900', icon: 'text-orange-600', badge: 'ATENȚIE' },
@@ -233,7 +234,8 @@ function RecommendationCard({ recommendation }: { recommendation: any }) {
     );
 }
 
-function InsightProductCard({ product, type }: { product: any, type: 'sales' | 'stock' | 'expiry' | 'dead' }) {
+function InsightProductCard({ product, type }: { product: AiProductInsight, type: 'sales' | 'stock' | 'expiry' | 'dead' }) {
+
     return (
         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all">
             <div className="flex items-center gap-3 mb-2">
