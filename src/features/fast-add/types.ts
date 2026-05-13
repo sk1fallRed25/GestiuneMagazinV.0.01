@@ -1,0 +1,34 @@
+export interface FastAddForm {
+    barcode: string;
+    name: string;
+    unit: string;
+    priceSale: string;
+    pricePurchase: string;
+    vatPercent: string;
+    initialStock: string;
+    stockZone: 'depozit' | 'magazin';
+    batchNumber?: string;
+    expiryDate?: string;
+}
+
+export interface FastAddProductPayload {
+    storeId: string;
+    profileId?: string;
+    barcode: string;
+    name: string;
+    unit: string;
+    priceSale: number;
+    pricePurchase: number;
+    vatPercent: number;
+    initialStock: number;
+    stockZone: 'depozit' | 'magazin';
+    batchNumber?: string | null;
+    expiryDate?: string | null;
+}
+
+export interface FastAddResult {
+    productId: string;
+    createdProduct: boolean;
+    createdPrice: boolean;
+    createdInitialStock: boolean;
+}
