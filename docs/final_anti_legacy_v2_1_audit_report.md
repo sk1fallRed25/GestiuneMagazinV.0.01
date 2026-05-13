@@ -25,6 +25,13 @@ Toate tabelele listate mai jos sunt referențiate doar în fișiere de tip "Dead
 
 **Notă**: Nu s-au găsit citiri (`getItem`) sau scrieri (`setItem`) active pentru roluri sau user IDs în afara fluxului Supabase Auth v2.
 
+## 4. Type-safety / any
+| Fișier | Problemă | Criticitate | Corectat acum |
+|--------|----------|-------------|---------------|
+| `lossService.ts` | `batchesByZone: Record<string, any[]>` | Medie | **DA** (Etapa 4F) |
+| `MainLayout.tsx` | `notifications: any[]`, `event: any` | Scăzută | **DA** (Etapa 4F) |
+| `AiConsultantPage.tsx` | `recommendation: any`, `product: any` | Scăzută | **DA** (Etapa 4F) |
+
 ## 5. Rute și navigație
 - **Status**: Curat.
 - **Ce este curat**:
@@ -33,22 +40,24 @@ Toate tabelele listate mai jos sunt referențiate doar în fișiere de tip "Dead
     - Rutele protejate folosesc exclusiv setul de roluri v2: `platform_owner`, `admin`, `manager`, `gestionar`, `casier`.
 
 ## 6. Servicii vechi / dead code
-Următoarele fișiere au fost identificate ca fiind nefolosite (nu sunt importate nicăieri) și conțin logică legacy:
-- `src/shared/services/statsService.ts`
-- `src/shared/services/salesService.ts`
-- `src/shared/services/userService.ts`
-- `src/shared/services/deliveryService.ts`
-- `src/shared/services/anafService.js`
-- `src/shared/hooks/useProduse.ts`
-
-**Recomandare**: Ștergere definitivă în etapa următoare.
+Următoarele fișiere au fost identificate ca fiind nefolosite și au fost **ȘTERSE** în Etapa 4G:
+- `src/shared/services/statsService.ts` [ȘTERS]
+- `src/shared/services/salesService.ts` [ȘTERS]
+- `src/shared/services/userService.ts` [ȘTERS]
+- `src/shared/services/deliveryService.ts` [ȘTERS]
+- `src/shared/services/anafService.js` [ȘTERS]
+- `src/shared/hooks/useProduse.ts` [ȘTERS]
+- `src/core/hooks/useProduse.ts` [ȘTERS]
+- `src/services/` (wrapper-e legacy) [ȘTERS COMPLET]
+- `src/screens/` (interfețe MUI legacy) [ȘTERS COMPLET]
 
 ## 7. Aliasuri UI acceptate temporar
 - `cod_bare`, `um`, `stoc_magazin`, `pret_vanzare`: Acestea persistă în interfețele de tip `Types` din folderele `features/` pentru a asigura compatibilitatea cu UI-ul existent și cu baza de date locală (Dexie). Maparea lor către schema v2 (ex: `barcode` -> `cod_bare`) se face corect în adaptoarele de date.
 
 ## 8. Decizie următoare
-**Etapa 4G: Dead Code Cleanup**.
-Înainte de a trece la testarea finală MVP, este esențial să eliminăm "zgomotul" din codebase pentru a evita confuziile viitoare și pentru a asigura un build cât mai mic.
+**Etapa 4G Finalizată**.
+Dead Code Cleanup a fost executat. Aplicația este acum mult mai suplă și nu mai conține referințe către tabele legacy în codul activ.
 
 ## 9. Build
-- **Rezultat**: `npm run build` a finalizat cu succes (**Exit code: 0**) după corecțiile de tipizare efectuate în acest audit.
+- **Rezultat**: `npm run build` a finalizat cu succes (**Exit code: 0**) după eliminarea fișierelor moarte.
+
