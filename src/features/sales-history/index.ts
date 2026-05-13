@@ -1,2 +1,4 @@
-// src/features/sales-history/index.ts
-export {};
+export { default as SalesHistoryPage } from './SalesHistoryPage';
+export * from './types';
+export * from './services/salesHistoryService';
+export * from './hooks/useSalesHistory';
