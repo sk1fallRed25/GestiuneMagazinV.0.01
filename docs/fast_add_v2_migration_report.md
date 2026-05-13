@@ -39,6 +39,15 @@ Noul serviciu `fastAddService.ts` orchestrează inserțiile sigure și legate re
 - Baza de date nu a suferit nicio modificare structurală; s-au respectat tabelele v2 la nivel de API.
 - Funcțiile heuristice vechi (`detecteazaCategorie`, `formateazaGramaj`) au fost izolate și păstrate intacte în `utils.ts` pentru a nu degrada compatibilitatea recunoașterii auto-completării OpenFoodFacts.
 
+## Corecții Etapa 4B.1
+
+În această etapă de rafinament, am abordat edge-case-urile de input pentru a garanta o experiență perfect stabilă:
+
+- **Parsing Numeric Strict:** Am introdus `parseNonNegativeNumber` în hook-ul `useFastAdd.ts`. Orice intrare invalidă (ex. litere sau numere negative) este acum prinsă în mod controlat printr-un bloc `try/catch` și respinsă la nivel de UI, oprind execuția înainte de a atinge baza de date.
+- **Validare Defensivă în Service:** Am aplicat `assertFiniteNonNegative` în serviciul de inserare, asigurând o protecție suplimentară (Defense in Depth) la nivel logic, returnând mesaje de tipul "*nu poate fi negativ*" sau "*mai mare sau egal cu 0*".
+- **Normalizare:** Am asigurat igiena datelor curățând string-ul `batchNumber` (`.trim()`), prevenind crearea accidentală a unor loturi cu spații goale invizibile.
+- **Rezultat Build:** Compilarea decurge curat (Exit code: 0) garantând type-safety-ul întregului flux FastAdd.
+
 ## Rezultate Tehnice (TypeScript & Build)
 
 - Tratarea erorilor s-a făcut cu `err: unknown` cupe excepții și mesaje clare trimise în toast și state local.

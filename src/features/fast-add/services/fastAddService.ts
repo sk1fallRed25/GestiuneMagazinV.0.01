@@ -1,6 +1,12 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
 import { FastAddProductPayload, FastAddResult } from '../types';
 
+const assertFiniteNonNegative = (value: number, fieldLabel: string) => {
+    if (!Number.isFinite(value) || value < 0) {
+        throw new Error(`${fieldLabel} trebuie să fie un număr valid, mai mare sau egal cu 0.`);
+    }
+};
+
 export const fastAddService = {
     async createFastProduct(payload: FastAddProductPayload): Promise<FastAddResult> {
         // Validări
@@ -9,10 +15,11 @@ export const fastAddService = {
         if (!payload.barcode) throw new Error("Cod de bare lipsă.");
         
         const unit = payload.unit || 'buc';
-        if (payload.priceSale < 0) throw new Error("Prețul de vânzare trebuie să fie pozitiv.");
-        if (payload.pricePurchase < 0) throw new Error("Prețul de achiziție trebuie să fie pozitiv.");
-        if (payload.vatPercent < 0) throw new Error("TVA trebuie să fie pozitiv.");
-        if (payload.initialStock < 0) throw new Error("Stocul inițial trebuie să fie pozitiv.");
+        assertFiniteNonNegative(payload.priceSale, 'Prețul de vânzare');
+        assertFiniteNonNegative(payload.pricePurchase, 'Prețul de achiziție');
+        assertFiniteNonNegative(payload.vatPercent, 'TVA');
+        assertFiniteNonNegative(payload.initialStock, 'Stocul inițial');
+
         if (payload.stockZone !== 'depozit' && payload.stockZone !== 'magazin') {
             throw new Error("Zona de stoc trebuie să fie depozit sau magazin.");
         }
@@ -74,7 +81,7 @@ export const fastAddService = {
 
         // 3. Adăugare stoc inițial (doar dacă > 0)
         if (payload.initialStock > 0) {
-            const batchNum = payload.batchNumber || 'fast-add';
+            const batchNum = payload.batchNumber?.trim() || 'fast-add';
             
             const { data: newBatch, error: batchError } = await supabase
                 .from('stock_batches')

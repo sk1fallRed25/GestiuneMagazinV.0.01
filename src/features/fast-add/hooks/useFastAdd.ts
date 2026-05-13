@@ -17,6 +17,16 @@ const initialForm: FastAddForm = {
     expiryDate: ''
 };
 
+const parseNonNegativeNumber = (value: string, fieldLabel: string): number => {
+    const trimmed = value.trim();
+    if (trimmed === '') return 0;
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        throw new Error(`${fieldLabel} trebuie să fie un număr valid, mai mare sau egal cu 0.`);
+    }
+    return parsed;
+};
+
 export const useFastAdd = () => {
     const { currentStoreId, user } = useAuth();
     const [form, setForm] = useState<FastAddForm>(initialForm);
@@ -49,14 +59,21 @@ export const useFastAdd = () => {
             return;
         }
 
-        const priceSale = Number(form.priceSale) || 0;
-        const pricePurchase = Number(form.pricePurchase) || 0;
-        const vatPercent = Number(form.vatPercent) || 0;
-        const initialStock = Number(form.initialStock) || 0;
+        let priceSale: number;
+        let pricePurchase: number;
+        let vatPercent: number;
+        let initialStock: number;
 
-        if (priceSale < 0 || pricePurchase < 0 || vatPercent < 0 || initialStock < 0) {
-            setError("Valorile numerice trebuie să fie pozitive.");
-            return;
+        try {
+            priceSale = parseNonNegativeNumber(form.priceSale, 'Preț vânzare');
+            pricePurchase = parseNonNegativeNumber(form.pricePurchase, 'Preț achiziție');
+            vatPercent = parseNonNegativeNumber(form.vatPercent, 'TVA');
+            initialStock = parseNonNegativeNumber(form.initialStock, 'Stoc inițial');
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Valori invalide.";
+            setError(msg);
+            toast.error(msg);
+            return false;
         }
 
         setSubmitting(true);
