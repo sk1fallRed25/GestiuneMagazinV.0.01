@@ -35,3 +35,24 @@ Fiecare linie din `sale_items` este legată de un `batch_id`, permițând raport
 ## Rezultat Build
 - [X] `npm run build` a rulat cu succes.
 - [X] Type safety confirmat (fără `any`).
+
+## Corecții Etapa 3A.1
+
+Am implementat un set de măsuri de siguranță pentru a garanta integritatea datelor în scenarii complexe:
+
+1. **Filtrare strictă `store_id`**: Toate interogările pentru `product_prices` și actualizările pentru `stock_batches` includ acum filtrul `.eq('store_id', storeId)`, prevenind scurgerile de date între magazine.
+2. **Recalculare Server-Side**: `totalSale` este acum calculat în `posService` prin iterarea articolelor, eliminând dependența de calculele din frontend care pot fi manipulate sau imprecise.
+3. **Validare Plăți**:
+    - `paymentMethod` este validat runtime împotriva unei liste permise.
+    - Sumele pentru plățile **MIXT** sunt verificate strict (suma cash + card trebuie să fie egală cu totalul, cu toleranță de 0.01).
+    - Toate inserările în tabela `payments` includ acum `error handling` explicit.
+4. **Protecție Stoc Negativ**:
+    - Am adăugat o verificare după calculul noii cantități: `if (newQty < 0) throw Error`.
+    - Folosim `toNumberStrict` pentru toate valorile de cantitate din loturi, sărind loturile corupte sau invalide.
+5. **Îmbunătățiri UI (usePos)**:
+    - Validare frontend pentru sumele plăților mixte înainte de apelul API.
+    - Blocarea actualizării cantității cu valori de tip `NaN`.
+    - Interzicerea finalizării vânzărilor cu total zero sau negativ.
+
+### Riscuri Reziduale
+- **Atomicitate**: Deși am adăugat validări redundante, fluxul încă execută multiple apeluri succesive către Supabase. Migrarea către un **RPC SQL atomic** rămâne o prioritate pentru stabilitate maximă în condiții de rețea instabilă.

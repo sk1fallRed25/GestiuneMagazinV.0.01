@@ -38,7 +38,7 @@ export const usePos = () => {
         }
     }, [currentStoreId]);
 
-    // Debounce manual simplu pentru căutare (opțional, aici facem la schimbare)
+    // Debounce manual simplu pentru căutare
     useEffect(() => {
         const timer = setTimeout(() => {
             search(query);
@@ -89,7 +89,7 @@ export const usePos = () => {
     };
 
     const updateQuantity = (productId: string, qty: number) => {
-        if (qty <= 0) return;
+        if (isNaN(qty) || qty <= 0) return;
         
         setCart(prev => prev.map(item => {
             if (item.productId === productId) {
@@ -124,6 +124,19 @@ export const usePos = () => {
             toast.error("Coșul este gol.");
             return;
         }
+        if (totalBon <= 0) {
+            toast.error("Totalul bonului trebuie să fie pozitiv.");
+            return;
+        }
+
+        // Validare plăți mixte în frontend
+        if (paymentMethod === 'mixed') {
+            const paid = (Number(cashAmount) || 0) + (Number(cardAmount) || 0);
+            if (Math.abs(paid - totalBon) > 0.01) {
+                toast.error(`Suma plătită (${paid.toFixed(2)}) nu coincide cu totalul (${totalBon.toFixed(2)}).`);
+                return;
+            }
+        }
 
         setSubmitting(true);
         try {
@@ -134,7 +147,7 @@ export const usePos = () => {
                 paymentMethod,
                 cashAmount: paymentMethod === 'mixed' ? cashAmount : (paymentMethod === 'cash' ? totalBon : 0),
                 cardAmount: paymentMethod === 'mixed' ? cardAmount : (paymentMethod === 'card' ? totalBon : 0),
-                shiftId: null // Se va implementa în viitor
+                shiftId: null
             });
 
             toast.success("Vânzare finalizată cu succes!");
