@@ -37,7 +37,8 @@ export const useLosses = () => {
                     const preSelected = fetchedProducts.find(p => p.id === state.preSelectedId);
                     if (preSelected) {
                         setSelectedProduct(preSelected);
-                        setReason("Produs Expirat");
+                        setReason(state.reason || "Produs Expirat");
+                        if (state.source) setSource(state.source);
                         setShowModal(true);
                     }
                 }
