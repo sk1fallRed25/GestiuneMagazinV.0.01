@@ -41,6 +41,8 @@ Am eliminat complet dependența de `localStorage` pentru logica de autentificare
 - **Curățare Semnături**: Am eliminat parametrul nefolosit `role` din funcția `getFirstAvailableStore` din `authService.ts`.
 - **Eliminare Aliasuri Legacy**: Am șters proprietățile `tenantId` și `storeId` din `AuthState` (`types.ts`) și din logica de gestionare a stării din `AuthContext.tsx`, deoarece nu mai erau referențiate nicăieri în aplicație (confirmare prin audit global `grep`).
 - **Refactor ProductsPage**: Am eliminat prop-ul `userRole` din componenta `ProductsPage` și din ruta corespunzătoare din `AppRoutes.tsx`. Componenta citește acum rolul direct din `useAuth`, simplificând fluxul de date.
+- **Optimizare HMR**: Am extras hook-ul `useAuth` într-un fișier separat (`src/features/auth/useAuth.ts`) pentru a rezolva avertismentele Vite legate de "Fast Refresh" și pentru a preveni invalidarea contextului la fiecare modificare minoră a componentei `AuthProvider`.
 - **Audit Final**: Am confirmat prin scanare automată eliminarea tuturor referințelor către `VITE_ALLOW_LEGACY_LOGIN`, `admin/admin`, `casier/1234` și `any` din modulele de autentificare.
 - **Build Status**: Verificat prin `npm run build` (Exit code: 0).
+
 
