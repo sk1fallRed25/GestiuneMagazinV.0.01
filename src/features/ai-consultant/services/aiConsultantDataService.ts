@@ -17,6 +17,11 @@ const toNumberSafe = (value: unknown, fallback = 0): number => {
     return (value === null || value === undefined || isNaN(num) || !Number.isFinite(num)) ? fallback : num;
 };
 
+const normalizeZone = (value: unknown): 'depozit' | 'magazin' | null => {
+    return value === 'depozit' || value === 'magazin' ? value : null;
+};
+
+
 export const aiConsultantDataService = {
     async getAiConsultantData(storeId: string): Promise<AiConsultantData> {
         if (!storeId) throw new Error("Store ID lipsă.");
@@ -134,16 +139,22 @@ export const aiConsultantDataService = {
             let expiryRisk: AiProductInsight['expiryRisk'] = 'none';
 
             pBatches.forEach(b => {
-                const qty = toNumberSafe(b.quantity);
-                if (b.zone === 'magazin') stockMagazin += qty;
-                else if (b.zone === 'depozit') stockDepozit += qty;
+                const qty = toNumberStrict(b.quantity, 'stock_batches.quantity');
+                const zone = normalizeZone(b.zone);
+                
+                if (zone === 'magazin') stockMagazin += qty;
+                else if (zone === 'depozit') stockDepozit += qty;
+                else return; // Ignorăm batch-urile cu zonă invalidă pentru agregarea stocului pe zone
 
-                const buyPrice = b.purchase_price != null ? toNumberSafe(b.purchase_price) : (prices?.price_purchase != null ? toNumberSafe(prices.price_purchase) : 0);
+                const buyPrice = b.purchase_price != null 
+                    ? toNumberStrict(b.purchase_price, 'stock_batches.purchase_price') 
+                    : (prices?.price_purchase != null ? toNumberStrict(prices.price_purchase, 'product_prices.price_purchase') : 0);
+                
                 stockValueEstimate += qty * buyPrice;
 
                 if (qty > 0 && b.expiry_date) {
                     const exp = new Date(b.expiry_date);
-                    const diffDays = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+                    const diffDays = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
                     
                     if (diffDays < 0) {
                         if (expiryRisk !== 'expired') expiryRisk = 'expired';
@@ -156,9 +167,10 @@ export const aiConsultantDataService = {
             });
 
             const stockTotal = stockMagazin + stockDepozit;
-            const soldQuantity30d = pSales.reduce((acc, s) => acc + toNumberSafe(s.quantity), 0);
-            const soldValue30d = pSales.reduce((acc, s) => acc + toNumberSafe(s.total_item), 0);
-            const wasteQuantity30d = pWaste.reduce((acc, w) => acc + toNumberSafe(w.quantity), 0);
+            const soldQuantity30d = pSales.reduce((acc, s) => acc + toNumberStrict(s.quantity, 'sale_items.quantity'), 0);
+            const soldValue30d = pSales.reduce((acc, s) => acc + toNumberStrict(s.total_item, 'sale_items.total_item'), 0);
+            const wasteQuantity30d = pWaste.reduce((acc, w) => acc + toNumberStrict(w.quantity, 'waste_items.quantity'), 0);
+
 
             let lastSaleAt: string | null = null;
             if (pSales.length > 0) {
@@ -176,8 +188,9 @@ export const aiConsultantDataService = {
                 stockMagazin,
                 stockDepozit,
                 stockTotal,
-                priceSale: prices ? toNumberSafe(prices.price_sale) : 0,
-                pricePurchase: prices?.price_purchase != null ? toNumberSafe(prices.price_purchase) : null,
+                priceSale: prices ? toNumberStrict(prices.price_sale, 'product_prices.price_sale') : 0,
+                pricePurchase: prices?.price_purchase != null ? toNumberStrict(prices.price_purchase, 'product_prices.price_purchase') : null,
+
                 stockValueEstimate,
                 soldQuantity30d,
                 soldValue30d,
@@ -192,7 +205,8 @@ export const aiConsultantDataService = {
         const lowStockCount = insights.filter(i => i.stockTotal > 0 && i.stockTotal <= 5).length;
         const noStockCount = insights.filter(i => i.stockTotal === 0).length;
         const expiryRiskCount = insights.filter(i => i.expiryRisk !== 'none').length;
-        const sales30dTotal = saleRows.reduce((acc, s) => acc + toNumberSafe(s.total), 0);
+        const sales30dTotal = saleRows.reduce((acc, s) => acc + toNumberStrict(s.total, 'sales.total'), 0);
+
 
         const topSellingProducts = [...insights]
             .filter(i => i.soldQuantity30d > 0)
@@ -200,9 +214,10 @@ export const aiConsultantDataService = {
             .slice(0, 5);
 
         const lowStockProducts = insights
-            .filter(i => i.stockTotal <= 5)
+            .filter(i => i.stockTotal > 0 && i.stockTotal <= 5)
             .sort((a, b) => a.stockTotal - b.stockTotal)
             .slice(0, 5);
+
 
         const riskOrder = { 'expired': 3, 'critical': 2, 'warning': 1, 'none': 0 };
         const expiryRiskProducts = insights
@@ -260,7 +275,8 @@ export const aiConsultantDataService = {
                 id: 'expiry-risk',
                 severity: criticalCount > 0 ? 'critical' : 'warning',
                 title: 'Risc expirare detectat',
-                description: `Există ${expiryRiskCount} loturi care necesită atenție (expirate sau sub 30 zile).`,
+                description: `Există ${expiryRiskCount} produse cu loturi care necesită atenție (expirate sau sub 30 zile).`,
+
                 actionLabel: 'Vezi expirări'
             });
         }

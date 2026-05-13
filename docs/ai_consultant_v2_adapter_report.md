@@ -36,6 +36,15 @@ Am implementat o suită de algoritmi determinisți pentru generarea recomandări
 -   **Build Status**: Verificat prin `npm run build` (Exit code: 0).
 
 ## Ce urmează (Roadmap)
--   Implementarea unui Fiscal Bridge pentru integrarea datelor din casele de marcat.
--   Integrarea opțională a unui model LLM (OpenAI/Gemini) pentru interpretarea narativă a acestor date agregate.
--   Predicții bazate pe sezonalitate (Weekend Boost este deja simulat în logica de mapare).
+- Implementarea unui Fiscal Bridge pentru integrarea datelor din casele de marcat.
+- Predicții bazate pe sezonalitate.
+
+## Corecții Etapa 4D.1
+
+- **Validare Numerică Strictă**: Am implementat `toNumberStrict` pentru toate datele critice (cantități loturi, prețuri achiziție/vânzare, totaluri vânzări). Acest lucru previne mascarea datelor corupte ca fiind 0.
+- **Normalizare Zone**: Am adăugat `normalizeZone` pentru `stock_batches`. Loturile cu zone invalide (altele decât 'magazin' sau 'depozit') sunt acum ignorate în agregarea stocului per zonă pentru a asigura acuratețea snapshot-ului.
+- **Consistență Expirări**: Calculul `diffDays` folosește acum `Math.ceil`, asigurând consistența cu modulul dedicat de Expirări.
+- **Corecție Terminologie**: Recomandarea pentru risc de expirare a fost corectată pentru a reflecta numărul de *produse* afectate, nu numărul de loturi (deoarece `expiryRiskCount` este bazat pe `insights`).
+- **Separare Low Stock / No Stock**: Logica pentru `lowStockCount` și `lowStockProducts` a fost rafinată pentru a include doar produsele cu stoc între 1 și 5, excluzând produsele cu stoc zero (care sunt deja raportate în `noStockCount`).
+- **Clarificări**: Am eliminat mențiunile speculative despre "Weekend Boost" pentru a păstra raportul aliniat strict cu implementarea curentă deterministă.
+- **Build Status**: Verificat prin `npm run build` (Exit code: 0).
