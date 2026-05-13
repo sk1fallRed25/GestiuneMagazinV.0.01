@@ -1,16 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { useAuth } from '../../auth/AuthContext';
+import { useAuth } from '../../auth/useAuth';
 import { lossService } from '../services/lossService';
 import { LossProduct, LossLocationState, LossStockSource } from '../types';
 
 export const useLosses = () => {
     const location = useLocation();
-    const { user } = useAuth();
+    const { user, currentStoreId } = useAuth();
     
     const [products, setProducts] = useState<LossProduct[]>([]);
     const [loading, setLoading] = useState(true);
+    const [submitting, setSubmitting] = useState(false);
     const [search, setSearch] = useState('');
 
     // Stări Modal și Formular
@@ -18,13 +19,16 @@ export const useLosses = () => {
     const [selectedProduct, setSelectedProduct] = useState<LossProduct | null>(null);
     const [scrapQty, setScrapQty] = useState('');
     const [reason, setReason] = useState('');
+    const [description, setDescription] = useState('');
+    const [source, setSource] = useState<LossStockSource>('auto');
 
     const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : 'Eroare necunoscută';
 
-    const refreshProducts = async (isInitial = false) => {
+    const refreshProducts = useCallback(async (isInitial = false) => {
+        if (!currentStoreId) return;
         setLoading(true);
         try {
-            const fetchedProducts = await lossService.listLossProducts();
+            const fetchedProducts = await lossService.listLossProducts(currentStoreId);
             setProducts(fetchedProducts);
 
             if (isInitial) {
@@ -32,26 +36,29 @@ export const useLosses = () => {
                 if (state?.preSelectedId) {
                     const preSelected = fetchedProducts.find(p => p.id === state.preSelectedId);
                     if (preSelected) {
-                        openScrapModal(preSelected);
+                        setSelectedProduct(preSelected);
                         setReason("Produs Expirat");
+                        setShowModal(true);
                     }
                 }
             }
         } catch (err) {
-            toast.error("Eroare la sincronizarea nomenclatorului: " + getErrorMessage(err));
+            toast.error("Eroare la încărcarea produselor: " + getErrorMessage(err));
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentStoreId, location.state]);
 
     useEffect(() => {
         refreshProducts(true);
-    }, []);
+    }, [refreshProducts]);
 
     const openScrapModal = (prod: LossProduct) => {
         setSelectedProduct(prod);
         setScrapQty('');
-        setReason(''); // Reset or keep if pre-selected
+        setReason('');
+        setDescription('');
+        setSource('auto');
         setShowModal(true);
     };
 
@@ -60,80 +67,67 @@ export const useLosses = () => {
         setSelectedProduct(null);
         setScrapQty('');
         setReason('');
+        setDescription('');
+        setSubmitting(false);
     };
 
     const filteredProducts = useMemo(() => {
+        const query = search.toLowerCase();
         return products.filter(p =>
-            p.nume.toLowerCase().includes(search.toLowerCase()) ||
-            p.cod_bare.includes(search)
+            p.nume.toLowerCase().includes(query) ||
+            p.cod_bare.includes(query)
         );
     }, [products, search]);
 
     const submitLoss = async () => {
-        const qty = parseFloat(scrapQty);
-        
-        // Prioritate AuthContext, fallback localStorage pentru legacy
-        const allowLegacy = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === 'true';
-        const currentUserId = user?.id || (allowLegacy ? localStorage.getItem('magazin_agent_id') : null);
-
-        if (!selectedProduct) return;
-        if (!currentUserId) {
-            toast.error("Eroare autentificare: ID utilizator lipsă. Autentifică-te din nou.");
+        if (!currentStoreId || !user) {
+            toast.error("Sesiune invalidă.");
             return;
         }
-        if (!qty || qty <= 0) return toast.error("Specificați o cantitate validă.");
-        if (!reason) return toast.error("Specificați motivul (ex: Expirat, Spart).");
 
-        const totalStock = (selectedProduct.stoc_depozit || 0) + (selectedProduct.stoc_magazin || 0);
-        if (qty > totalStock) {
-            return toast.error(`Stoc insuficient. Disponibil total: ${totalStock} buc.`);
+        const qty = parseFloat(scrapQty);
+        
+        if (!selectedProduct) return;
+        if (!qty || qty <= 0) return toast.error("Specificați o cantitate validă.");
+        if (!reason) return toast.error("Selectați motivul casării.");
+
+        // Validare stoc în funcție de sursă
+        let available = 0;
+        if (source === 'magazin') available = selectedProduct.stoc_magazin;
+        else if (source === 'depozit') available = selectedProduct.stoc_depozit;
+        else available = selectedProduct.stoc_total;
+
+        if (qty > available) {
+            return toast.error(`Stoc insuficient în sursa aleasă. Disponibil: ${available} ${selectedProduct.um}`);
         }
 
-        setLoading(true);
+        setSubmitting(true);
         try {
-            // Algoritm Calcul Sursă Stoc și Decrementare (Prioritate Magazin)
-            let remainingToScrap = qty;
-            let newMagazin = selectedProduct.stoc_magazin || 0;
-            let newDepozit = selectedProduct.stoc_depozit || 0;
-            let sursaEfectiva: LossStockSource = 'Depozit';
-
-            if (newMagazin >= remainingToScrap) {
-                newMagazin -= remainingToScrap;
-                remainingToScrap = 0;
-                sursaEfectiva = 'Raft';
-            } else {
-                if (newMagazin > 0) {
-                    remainingToScrap -= newMagazin;
-                    newMagazin = 0;
-                    sursaEfectiva = 'Mixt (Raft + Depozit)';
-                }
-                newDepozit -= remainingToScrap;
-            }
-
-            await lossService.createLossAndUpdateStock({
-                produs_id: selectedProduct.id,
-                user_id: currentUserId,
-                cantitate: qty,
-                motiv: reason,
-                sursa_stoc: sursaEfectiva,
-                new_stoc_magazin: newMagazin,
-                new_stoc_depozit: newDepozit
+            await lossService.createLoss({
+                storeId: currentStoreId,
+                profileId: user.id,
+                productId: selectedProduct.id,
+                quantity: qty,
+                reason,
+                description,
+                source
             });
 
-            toast.success("Pierdere înregistrată. Stoc actualizat.");
+            toast.success("Casare înregistrată cu succes!");
             closeModal();
             await refreshProducts();
 
         } catch (err) {
-            toast.error("Eroare tranzacțională: " + getErrorMessage(err));
+            toast.error("Eroare la raportare: " + getErrorMessage(err));
         } finally {
-            setLoading(false);
+            setSubmitting(false);
         }
     };
 
     return {
         products,
         loading,
+        submitting,
         search,
         setSearch,
         selectedProduct,
@@ -142,6 +136,10 @@ export const useLosses = () => {
         setScrapQty,
         reason,
         setReason,
+        description,
+        setDescription,
+        source,
+        setSource,
         filteredProducts,
         openScrapModal,
         closeModal,

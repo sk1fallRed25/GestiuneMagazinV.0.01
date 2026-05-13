@@ -1,25 +1,37 @@
-import { UserRole } from '../auth/types';
-
 export interface LossProduct {
-    id: number;
+    id: string;
     nume: string;
     cod_bare: string;
+    um: string;
     stoc_depozit: number;
     stoc_magazin: number;
+    stoc_total: number;
 }
 
-export type LossStockSource = 'Raft' | 'Depozit' | 'Mixt (Raft + Depozit)';
+export type LossStockSource = 'magazin' | 'depozit' | 'auto';
 
 export interface CreateLossPayload {
-    produs_id: number;
-    user_id: string;
-    cantitate: number;
-    motiv: string;
-    sursa_stoc: LossStockSource;
-    new_stoc_magazin: number;
-    new_stoc_depozit: number;
+    storeId: string;
+    profileId: string;
+    productId: string;
+    quantity: number;
+    reason: string;
+    description?: string;
+    source: LossStockSource;
+}
+
+export interface StockBatch {
+    id: string;
+    store_id: string;
+    product_id: string;
+    zone: 'depozit' | 'magazin';
+    quantity: number;
+    batch_number: string | null;
+    expiry_date: string | null;
+    purchase_price: number | null;
+    created_at?: string;
 }
 
 export interface LossLocationState {
-    preSelectedId?: number;
+    preSelectedId?: string;
 }

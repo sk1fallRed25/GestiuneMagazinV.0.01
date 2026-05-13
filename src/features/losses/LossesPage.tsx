@@ -8,6 +8,7 @@ import { LossReportModal } from './components/LossReportModal';
 const LossesPage: React.FC = () => {
     const {
         loading,
+        submitting,
         search,
         setSearch,
         selectedProduct,
@@ -16,6 +17,10 @@ const LossesPage: React.FC = () => {
         setScrapQty,
         reason,
         setReason,
+        description,
+        setDescription,
+        source,
+        setSource,
         filteredProducts,
         openScrapModal,
         closeModal,
@@ -23,29 +28,37 @@ const LossesPage: React.FC = () => {
     } = useLosses();
 
     return (
-        <div className="p-8 max-w-7xl mx-auto bg-gray-50/30 min-h-screen">
-            <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <LossesHeader />
-                <LossesSearchBar value={search} onChange={setSearch} />
+        <div className="min-h-screen bg-[#F8FAFC] pb-20">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+                <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                    <LossesHeader />
+                    <div className="w-full md:w-96">
+                        <LossesSearchBar value={search} onChange={setSearch} />
+                    </div>
+                </div>
+
+                <LossesProductGrid 
+                    products={filteredProducts} 
+                    onSelectProduct={openScrapModal} 
+                    loading={loading && !showModal} 
+                />
+
+                <LossReportModal
+                    product={selectedProduct}
+                    isOpen={showModal}
+                    quantity={scrapQty}
+                    reason={reason}
+                    description={description}
+                    source={source}
+                    submitting={submitting}
+                    onQuantityChange={setScrapQty}
+                    onReasonChange={setReason}
+                    onDescriptionChange={setDescription}
+                    onSourceChange={setSource}
+                    onClose={closeModal}
+                    onSubmit={submitLoss}
+                />
             </div>
-
-            <LossesProductGrid 
-                products={filteredProducts} 
-                onSelectProduct={openScrapModal} 
-                loading={loading && !showModal} 
-            />
-
-            <LossReportModal
-                product={selectedProduct}
-                isOpen={showModal}
-                quantity={scrapQty}
-                reason={reason}
-                loading={loading}
-                onQuantityChange={setScrapQty}
-                onReasonChange={setReason}
-                onClose={closeModal}
-                onSubmit={submitLoss}
-            />
         </div>
     );
 };
