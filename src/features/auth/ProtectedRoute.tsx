@@ -9,16 +9,11 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { user, role: authRole, loading } = useAuth();
+  const { user, role: currentRole, loading } = useAuth();
   const location = useLocation();
 
-  // Verificăm modul legacy din variabilele de mediu
-  const allowLegacy = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === 'true';
-  const legacyRole = allowLegacy ? (localStorage.getItem('magazin_role') as UserRole) : null;
-  
-  // Rolul efectiv: prioritizăm Auth real, apoi legacy
-  const currentRole = authRole || legacyRole;
-  const isAuthenticated = !!user || (allowLegacy && !!legacyRole);
+  const isAuthenticated = !!user;
+
 
   if (loading) {
     return (

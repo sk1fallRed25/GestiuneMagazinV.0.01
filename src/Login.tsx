@@ -14,14 +14,11 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const allowLegacy = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === 'true';
-
     useEffect(() => {
-        const legacyRole = allowLegacy ? localStorage.getItem('magazin_role') : null;
-        if (user || legacyRole) {
+        if (user) {
             navigate('/');
         }
-    }, [user, allowLegacy, navigate]);
+    }, [user, navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -32,32 +29,15 @@ export default function Login() {
         const passTrim = password.trim();
 
         try {
-            // 1. Încercăm login prin noul AuthContext (Supabase Auth)
+            // Autentificare prin Supabase Auth
             const { error: authError } = await login(userLower, passTrim);
 
-            if (!authError) {
-                toast.success("Autentificare reușită (v2)");
-                navigate('/');
-                return;
+            if (authError) {
+                throw new Error(authError.message || "Credențiale incorecte.");
             }
 
-            // 2. Fallback Legacy Hardcoded (doar pentru dev/test)
-            if (allowLegacy) {
-                if (userLower === 'admin' && passTrim === 'admin') {
-                    localStorage.setItem('magazin_role', 'admin');
-                    toast.success("Autentificare Admin (Legacy)");
-                    navigate('/');
-                    return;
-                }
-                if (userLower === 'casier' && passTrim === '1234') {
-                    localStorage.setItem('magazin_role', 'casier');
-                    toast.success("Autentificare Casier (Legacy)");
-                    navigate('/');
-                    return;
-                }
-            }
-
-            throw new Error(authError.message || "Credențiale incorecte.");
+            toast.success("Autentificare reușită");
+            navigate('/');
 
         } catch (err: any) {
             setError(err.message);
@@ -66,6 +46,7 @@ export default function Login() {
             setLoading(false);
         }
     };
+
 
     if (authLoading) return null;
 

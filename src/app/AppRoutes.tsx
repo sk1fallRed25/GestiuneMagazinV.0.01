@@ -21,18 +21,18 @@ import FastAdd from '../FastAdd';
 
 const AppRoutes = () => {
     const { role: authRole, logout: authLogout } = useAuth();
-    
-    const allowLegacy = import.meta.env.VITE_ALLOW_LEGACY_LOGIN === 'true';
-    const legacyRole = allowLegacy ? (localStorage.getItem('magazin_role') as UserRole) : null;
-    const userRole = authRole || legacyRole;
 
     const handleLogout = async () => {
         if (confirm("Deconectare MagazinPro?")) {
             await authLogout();
-            localStorage.clear();
+            // Ștergem doar cheile legacy specifice, nu tot localStorage
+            const legacyKeys = ['magazin_role', 'magazin_user_id', 'magazin_user', 'agent_id'];
+            legacyKeys.forEach(key => localStorage.removeItem(key));
+            
             window.location.href = '/#/login';
         }
     };
+
 
     const ROLES_ADMIN: UserRole[] = ['admin', 'platform_owner'];
     const ROLES_STAFF: UserRole[] = [...ROLES_ADMIN, 'manager', 'gestionar'];
@@ -67,7 +67,8 @@ const AppRoutes = () => {
                             } />
                             <Route path="/produse" element={
                                 <ProtectedRoute allowedRoles={ROLES_STAFF}>
-                                    <Produse userRole={userRole || undefined} />
+                                    <Produse userRole={authRole || undefined} />
+
                                 </ProtectedRoute>
                             } />
                             <Route path="/expirari" element={
