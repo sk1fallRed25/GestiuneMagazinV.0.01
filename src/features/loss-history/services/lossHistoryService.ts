@@ -1,10 +1,21 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
 import { LossHistoryItem, LossHistoryFilters, LossDetails, LossHistorySummary, WasteEventRow, WasteItemRow, ProductRow, StockBatchRow, ProfileRow } from '../types';
 
-const parseNumber = (val: number | string | null | undefined): number => {
-    if (val == null) return 0;
-    const num = Number(val);
-    return Number.isFinite(num) ? num : 0;
+const toNumberStrict = (value: unknown, fieldLabel: string): number => {
+    const num = Number(value);
+    if (value === null || value === undefined || isNaN(num) || !Number.isFinite(num)) {
+        throw new Error(`${fieldLabel} trebuie să fie un număr valid.`);
+    }
+    return num;
+};
+
+const toNumberSafe = (value: unknown, fallback = 0): number => {
+    const num = Number(value);
+    return (value === null || value === undefined || isNaN(num) || !Number.isFinite(num)) ? fallback : num;
+};
+
+const normalizeZone = (value: unknown): 'depozit' | 'magazin' | null => {
+    return value === 'depozit' || value === 'magazin' ? value : null;
 };
 
 export const lossHistoryService = {
@@ -48,8 +59,8 @@ export const lossHistoryService = {
 
         // 3. Fetch Products, Batches, Profiles
         const [productsRes, batchesRes, profilesRes] = await Promise.all([
-            supabase.from('products').select('id, name, barcode, unit').in('id', productIds),
-            batchIds.length > 0 ? supabase.from('stock_batches').select('id, batch_number, expiry_date, zone, purchase_price').in('id', batchIds) : { data: [], error: null },
+            supabase.from('products').select('id, name, barcode, unit').eq('store_id', storeId).in('id', productIds),
+            batchIds.length > 0 ? supabase.from('stock_batches').select('id, batch_number, expiry_date, zone, purchase_price').eq('store_id', storeId).in('id', batchIds) : { data: [], error: null },
             profileIds.length > 0 ? supabase.from('profiles').select('id, full_name').in('id', profileIds) : { data: [], error: null }
         ]);
 
@@ -68,8 +79,8 @@ export const lossHistoryService = {
             const batch = item.batch_id ? batchMap.get(item.batch_id) : undefined;
             const prof = ev?.profile_id ? profileMap.get(ev.profile_id) : undefined;
 
-            const quantity = parseNumber(item.quantity);
-            const purchasePrice = batch?.purchase_price != null ? parseNumber(batch.purchase_price) : null;
+            const quantity = toNumberStrict(item.quantity, 'Cantitatea');
+            const purchasePrice = batch?.purchase_price != null ? toNumberStrict(batch.purchase_price, 'Prețul de achiziție') : null;
             const estimatedValue = purchasePrice != null ? quantity * purchasePrice : 0;
 
             return {
@@ -83,7 +94,7 @@ export const lossHistoryService = {
                 barcode: prod?.barcode || '-',
                 quantity,
                 unit: prod?.unit || 'buc',
-                zone: batch?.zone || null,
+                zone: normalizeZone(batch?.zone),
                 batchId: item.batch_id,
                 batchNumber: batch?.batch_number || null,
                 expiryDate: batch?.expiry_date || null,
@@ -114,6 +125,7 @@ export const lossHistoryService = {
     },
 
     async getLossDetails(storeId: string, eventId: string): Promise<LossDetails> {
+        // Pentru volume mari, optimizăm ulterior prin query direct pe eventId.
         const events = await this.listLossHistory(storeId);
         const items = events.filter(e => e.eventId === eventId);
         

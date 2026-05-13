@@ -16,7 +16,7 @@ export interface LossHistoryItem {
     barcode: string;
     quantity: number;
     unit: string;
-    zone: 'depozit' | 'magazin' | string | null;
+    zone: 'depozit' | 'magazin' | null;
     batchId: string | null;
     batchNumber: string | null;
     expiryDate: string | null;

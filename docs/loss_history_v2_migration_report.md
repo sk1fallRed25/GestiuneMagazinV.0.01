@@ -33,5 +33,16 @@ Reconstrucția istoricului se bazează pe următoarele interogări Supabase exec
 
 ## Rezultate Tehnice (TypeScript & Build)
 
--   Pentru a asigura o compatibilitate perfectă și siguranță defensivă, toate input-urile numerice (`quantity`, `purchasePrice`) de pe server trec prin parser-ul strict de fallback la 0.
+-   Pentru a asigura o compatibilitate perfectă și siguranță defensivă, toate input-urile numerice (`quantity`, `purchasePrice`) de pe server trec prin parser-ul strict de fallback la 0 sau validare explicită.
 -   Aplicația compilează perfect prin `npm run build` (Exit code: 0), oferind certitudinea că trecerea la noua structură nu a creat referințe defecte în rețeaua interfețelor aplicației.
+
+## Corecții Etapa 4C.1
+
+În această etapă am aplicat corecții finale de integritate și siguranță pentru modulul de Istoric Pierderi:
+
+- **Validare Numerică Strictă**: Am înlocuit `parseNumber` cu `toNumberStrict` pentru date critice (cantități, prețuri de achiziție), prevenind mascarea datelor corupte.
+- **Filtrare Store Context**: Am adăugat filtrarea obligatorie după `store_id` în interogările pentru `products` și `stock_batches`, asigurând izolarea strictă a datelor între magazine.
+- **Normalizare Zonă**: Am implementat helper-ul `normalizeZone` pentru a garanta că proprietatea `zone` a obiectului `LossHistoryItem` conține doar valori valide ('depozit', 'magazin' sau null).
+- **Documentare Eficiență**: Am adăugat observația necesară în `getLossDetails` privind optimizarea ulterioară a performanței prin query direct pe `eventId` pentru volume mari de date.
+- **Validare Build**: Modificările au fost validate prin `npm run build`, rezultând un pachet de producție stabil și corect tipizat.
+
