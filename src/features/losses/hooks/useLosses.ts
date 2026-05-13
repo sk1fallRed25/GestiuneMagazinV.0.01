@@ -42,7 +42,7 @@ export const useLosses = () => {
                     }
                 }
             }
-        } catch (err) {
+        } catch (err: unknown) {
             toast.error("Eroare la încărcarea produselor: " + getErrorMessage(err));
         } finally {
             setLoading(false);
@@ -117,7 +117,7 @@ export const useLosses = () => {
             closeModal();
             await refreshProducts();
 
-        } catch (err) {
+        } catch (err: unknown) {
             toast.error("Eroare la raportare: " + getErrorMessage(err));
         } finally {
             setSubmitting(false);

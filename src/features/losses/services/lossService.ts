@@ -1,14 +1,33 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
 import { 
     LossProduct, 
-    CreateLossPayload, 
-    StockBatch,
-    LossStockSource
+    CreateLossPayload
 } from '../types';
 
-const toNumber = (value: unknown, fallback = 0): number => {
+/**
+ * Helper pentru conversie numerică sigură în scop de afișare/agregare.
+ */
+const toNumberSafe = (value: unknown, fallback = 0): number => {
     const n = Number(value);
     return isNaN(n) ? fallback : n;
+};
+
+/**
+ * Helper pentru citirea loturilor disponibile într-o zonă specifică.
+ */
+const getAvailableBatches = async (storeId: string, productId: string, zone: 'magazin' | 'depozit') => {
+    const { data, error } = await supabase
+        .from('stock_batches')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('product_id', productId)
+        .eq('zone', zone)
+        .gt('quantity', 0)
+        .order('expiry_date', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
 };
 
 export const lossService = {
@@ -38,10 +57,10 @@ export const lossService = {
             const productBatches = batches?.filter(b => b.product_id === p.id) || [];
             const stoc_depozit = productBatches
                 .filter(b => b.zone === 'depozit')
-                .reduce((acc, b) => acc + toNumber(b.quantity), 0);
+                .reduce((acc, b) => acc + toNumberSafe(b.quantity), 0);
             const stoc_magazin = productBatches
                 .filter(b => b.zone === 'magazin')
-                .reduce((acc, b) => acc + toNumber(b.quantity), 0);
+                .reduce((acc, b) => acc + toNumberSafe(b.quantity), 0);
             
             return {
                 id: p.id,
@@ -62,11 +81,38 @@ export const lossService = {
     async createLoss(payload: CreateLossPayload): Promise<string> {
         const { storeId, profileId, productId, quantity, reason, description, source } = payload;
 
+        // 1. Validări inițiale
         if (!storeId || !profileId || !productId || quantity <= 0 || !reason) {
             throw new Error("Date casare incomplete.");
         }
 
-        // 1. Creează Evenimentul de Pierdere
+        if (source !== 'magazin' && source !== 'depozit' && source !== 'auto') {
+            throw new Error("Sursă casare invalidă.");
+        }
+
+        // 2. Determină zonele și pre-verifică stocul
+        const zonesToSearch: ('magazin' | 'depozit')[] = [];
+        if (source === 'magazin') zonesToSearch.push('magazin');
+        else if (source === 'depozit') zonesToSearch.push('depozit');
+        else {
+            zonesToSearch.push('magazin');
+            zonesToSearch.push('depozit');
+        }
+
+        let totalAvailable = 0;
+        const batchesByZone: Record<string, any[]> = {};
+
+        for (const zone of zonesToSearch) {
+            const zoneBatches = await getAvailableBatches(storeId, productId, zone);
+            batchesByZone[zone] = zoneBatches;
+            totalAvailable += zoneBatches.reduce((acc, b) => acc + toNumberSafe(b.quantity), 0);
+        }
+
+        if (totalAvailable < quantity) {
+            throw new Error(`Stoc insuficient pentru casare. Disponibil: ${totalAvailable}`);
+        }
+
+        // 3. Creează Evenimentul de Pierdere (doar după ce știm că avem stoc)
         const { data: wasteEvent, error: eventError } = await supabase
             .from('waste_events')
             .insert({
@@ -80,42 +126,28 @@ export const lossService = {
 
         if (eventError) throw eventError;
 
-        // 2. Determină zonele de consum
-        let zonesToSearch: ('magazin' | 'depozit')[] = [];
-        if (source === 'magazin') zonesToSearch = ['magazin'];
-        else if (source === 'depozit') zonesToSearch = ['depozit'];
-        else zonesToSearch = ['magazin', 'depozit']; // auto: întâi magazin, apoi depozit
-
+        // 4. Consumă loturile
         let remainingToScrap = quantity;
 
         for (const zone of zonesToSearch) {
             if (remainingToScrap <= 0) break;
 
-            // Citește loturile din zona curentă (FEFO then FIFO)
-            const { data: batches, error: bError } = await supabase
-                .from('stock_batches')
-                .select('*')
-                .eq('store_id', storeId)
-                .eq('product_id', productId)
-                .eq('zone', zone)
-                .gt('quantity', 0)
-                .order('expiry_date', { ascending: true, nullsFirst: false })
-                .order('created_at', { ascending: true });
-
-            if (bError) throw bError;
-            if (!batches) continue;
+            const batches = batchesByZone[zone];
 
             for (const batch of batches) {
                 if (remainingToScrap <= 0) break;
 
-                const currentQty = toNumber(batch.quantity);
+                const currentQty = Number(batch.quantity);
+                if (isNaN(currentQty)) {
+                    throw new Error("Lot invalid: cantitate numerică incorectă.");
+                }
                 if (currentQty <= 0) continue;
 
                 const qtyToTake = Math.min(currentQty, remainingToScrap);
                 const newQty = currentQty - qtyToTake;
 
                 if (newQty < 0) {
-                    throw new Error("Eroare logică: stocul ar deveni negativ.");
+                    throw new Error("Casare invalidă: stoc sursă negativ.");
                 }
 
                 // A. Update Lot
@@ -162,9 +194,8 @@ export const lossService = {
         }
 
         if (remainingToScrap > 0) {
-            // Momentan nu avem rollback automat (nu e RPC), deci aruncăm eroare
-            // User-ul va vedea eroarea, deși waste_event-ul ar putea fi creat parțial
-            throw new Error(`Stoc insuficient pentru casare. (Rămas: ${remainingToScrap})`);
+            // Rollback manual nu e posibil ușor fără tranzacții SQL/RPC
+            throw new Error(`Eroare critică: stocul a devenit indisponibil în timpul procesării (${remainingToScrap} rămas).`);
         }
 
         return wasteEvent.id;
