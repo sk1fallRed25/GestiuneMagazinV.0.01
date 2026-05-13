@@ -20,6 +20,10 @@ export default function Login() {
         }
     }, [user, navigate]);
 
+    const getErrorMessage = (err: unknown): string => {
+        return err instanceof Error ? err.message : "Eroare necunoscută la autentificare.";
+    };
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
@@ -39,13 +43,15 @@ export default function Login() {
             toast.success("Autentificare reușită");
             navigate('/');
 
-        } catch (err: any) {
-            setError(err.message);
-            toast.error(err.message);
+        } catch (err: unknown) {
+            const message = getErrorMessage(err);
+            setError(message);
+            toast.error(message);
         } finally {
             setLoading(false);
         }
     };
+
 
 
     if (authLoading) return null;

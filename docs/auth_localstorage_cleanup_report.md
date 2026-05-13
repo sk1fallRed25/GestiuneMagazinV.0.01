@@ -34,12 +34,13 @@ Am eliminat complet dependența de `localStorage` pentru logica de autentificare
 - `magazin_user`
 - `agent_id`
 
-## Rezultate Tehnice
-- **Securitate**: Autentificarea este acum centralizată și securizată prin JWT (Supabase).
-- **Consistență**: Nu mai există conflicte între un utilizator logat legacy și unul logat v2.
+## Corecții Etapa 4E.1
+
+- **Hardening Login**: Am înlocuit `catch (err: any)` cu `catch (err: unknown)` în `Login.tsx` și am implementat helper-ul `getErrorMessage` pentru o gestionare sigură a erorilor de tip.
+- **Tipizare Strictă AuthService**: Am definit interfețele `StoreRow` și `RawStoreMembership` în `authService.ts`, eliminând complet utilizarea tipului `any`.
+- **Curățare Semnături**: Am eliminat parametrul nefolosit `role` din funcția `getFirstAvailableStore` din `authService.ts`.
+- **Eliminare Aliasuri Legacy**: Am șters proprietățile `tenantId` și `storeId` din `AuthState` (`types.ts`) și din logica de gestionare a stării din `AuthContext.tsx`, deoarece nu mai erau referențiate nicăieri în aplicație (confirmare prin audit global `grep`).
+- **Refactor ProductsPage**: Am eliminat prop-ul `userRole` din componenta `ProductsPage` și din ruta corespunzătoare din `AppRoutes.tsx`. Componenta citește acum rolul direct din `useAuth`, simplificând fluxul de date.
+- **Audit Final**: Am confirmat prin scanare automată eliminarea tuturor referințelor către `VITE_ALLOW_LEGACY_LOGIN`, `admin/admin`, `casier/1234` și `any` din modulele de autentificare.
 - **Build Status**: Verificat prin `npm run build` (Exit code: 0).
 
-## Ce NU s-a modificat
-- Nu s-au modificat tabelele de bază de date sau politicile RLS.
-- Designul paginii de Login a rămas neschimbat, păstrând estetica premium.
-- Funcționalitatea de "Switch Store" rămâne intactă, fiind deja bazată pe schema v2.

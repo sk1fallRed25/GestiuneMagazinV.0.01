@@ -1,13 +1,25 @@
 import { supabase } from '../../supabaseClient';
 import { AuthProfile, StoreMembership, UserRole } from './types';
 
+interface StoreRow {
+  id: string;
+  name: string;
+  address?: string | null;
+  fiscal_code?: string | null;
+  settings?: Record<string, unknown> | null;
+  active?: boolean | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
 interface RawStoreMembership {
   store_id: string;
   profile_id: string;
   role: UserRole;
   active: boolean;
-  store: any; // Poate fi Store sau Store[]
+  store: StoreRow | StoreRow[] | null;
 }
+
 
 export const authService = {
   /**
@@ -89,11 +101,12 @@ export const authService = {
   /**
    * Selectează automat primul magazin disponibil
    */
-  async getFirstAvailableStore(userId: string, role: UserRole): Promise<StoreMembership | null> {
+  async getFirstAvailableStore(userId: string): Promise<StoreMembership | null> {
     const memberships = await this.getUserStoreMemberships(userId);
     if (memberships.length > 0) {
       return memberships[0];
     }
     return null;
   }
+
 };

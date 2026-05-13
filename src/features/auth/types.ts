@@ -43,8 +43,5 @@ export interface AuthState {
   availableStores: StoreMembership[];
   loading: boolean;
   error: string | null;
-  
-  // Legacy aliases (pentru compatibilitate build temporară)
-  tenantId?: string | null;
-  storeId?: string | null;
 }
+

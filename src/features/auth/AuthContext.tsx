@@ -24,9 +24,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     availableStores: [],
     loading: true,
     error: null,
-    tenantId: null, // Legacy alias
-    storeId: null,  // Legacy alias
   });
+
 
   const getErrorMessage = (error: unknown): string => {
     if (error instanceof Error) return error.message;
@@ -72,12 +71,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentStoreId: currentMembership?.store_id || null,
         currentStore: currentMembership?.store || null,
         storeRole: (currentMembership?.role as UserRole) || null,
-        // Legacy aliases
-        tenantId: null,
-        storeId: currentMembership?.store_id || null,
         loading: false,
         error: null
       }));
+
     } catch (err: unknown) {
       const message = getErrorMessage(err);
       console.error("Eroare critică la inițializare Auth:", message);
@@ -116,10 +113,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           storeRole: null,
           availableStores: [],
           loading: false,
-          error: null,
-          tenantId: null,
-          storeId: null
+          error: null
         });
+
       }
     });
 
@@ -160,10 +156,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       storeRole: null,
       availableStores: [],
       loading: false,
-      error: null,
-      tenantId: null,
-      storeId: null
+      error: null
     });
+
   };
 
   const refreshProfile = async () => {
@@ -179,9 +174,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...prev,
         currentStoreId: membership.store_id,
         currentStore: membership.store || null,
-        storeRole: (membership.role as UserRole),
-        storeId: membership.store_id // legacy alias
+        storeRole: (membership.role as UserRole)
       }));
+
     }
   };
 

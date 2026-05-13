@@ -67,8 +67,7 @@ const AppRoutes = () => {
                             } />
                             <Route path="/produse" element={
                                 <ProtectedRoute allowedRoles={ROLES_STAFF}>
-                                    <Produse userRole={authRole || undefined} />
-
+                                    <Produse />
                                 </ProtectedRoute>
                             } />
                             <Route path="/expirari" element={

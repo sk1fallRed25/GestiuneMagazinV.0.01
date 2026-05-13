@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { Database, RefreshCw, AlertCircle } from 'lucide-react';
+import { useAuth } from '../auth/AuthContext';
 import { useProducts } from './hooks/useProducts';
-import { Product, ProductsPageProps } from './types';
+import { Product } from './types';
 import ProductSearchBar from './components/ProductSearchBar';
 import ProductTable from './components/ProductTable';
 import ProductEditModal from './components/ProductEditModal';
 
-const ProductsPage = ({ userRole }: ProductsPageProps) => {
+
+const ProductsPage = () => {
+    const { role } = useAuth();
+    const userRole = role || undefined;
+
     const {
         loading,
         searchTerm,
@@ -16,6 +21,7 @@ const ProductsPage = ({ userRole }: ProductsPageProps) => {
         deleteProduct,
         currentStoreId
     } = useProducts();
+
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
