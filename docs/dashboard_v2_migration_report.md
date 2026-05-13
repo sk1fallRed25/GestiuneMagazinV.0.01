@@ -44,5 +44,18 @@ Utilizează `recharts` pentru a afișa evoluția zilnică a încasărilor. Datel
 - **Performanță**: Agregarea stocului se face client-side în `dashboardService`. Pentru inventare foarte mari (>10.000 loturi), se recomandă mutarea acestei logici într-un RPC SQL sau View materializat.
 - **Real-time**: Momentan Dashboard-ul nu are subscripții active pe toate tabelele v2 (pentru a evita supraîncărcarea). Reîncărcarea se face manual prin butonul de refresh.
 
-## Rezultat Build
-- [X] `npm run build` confirmat.
+## Corecții Etapa 3C.1
+
+În această sub-etapă, am realizat ranforsarea serviciului de dashboard și corecții de integritate:
+
+- **Eliminare `any`**: Toate datele brute din Supabase sunt acum mapate prin interfețe locale DB (`ProductJoin`, `StockBatchDashboardRow`, `RecentSaleRow` etc.), eliminând complet utilizarea tipului generic `any` în `dashboardService.ts`.
+- **Verificare Erori Supabase**: Am adăugat verificări explicite (`if (error) throw error`) pentru toate cele 7 interogări majore (vânzări azi/lună, produse active, loturi stoc, evenimente pierderi, vânzări recente, grafic), garantând că dashboard-ul nu afișează date parțiale sau incorecte în caz de eroare de rețea.
+- **Normalizare Zone**: Am implementat helper-ul `normalizeZone` pentru a valida câmpul `zone` din `stock_batches`. Loturile cu zone invalide sunt acum ignorate silențios pentru a menține consistența agregărilor.
+- **Utilizare `pickFirst`**: Am integrat helper-ul `pickFirst` pentru a gestiona în siguranță relațiile `one-to-one` (ex: `products`, `profiles`) care pot veni ca array-uri din interogările join.
+- **Corecție Grafic 7 Zile**: Am refăcut logica de generare a punctelor de pe axa X pentru a asigura afișarea exactă a ultimelor 7 zile (inclusiv azi) în ordine cronologică corectă.
+- **Curățenie Componente**: Am eliminat prop-ul nefolosit `userRole` din `DashboardPage.tsx` și am actualizat `AppRoutes.tsx` pentru a reflecta această schimbare.
+
+### Rezultat Final
+- [X] `npm run build` - Succes.
+- [X] Zero erori de tip TypeScript.
+- [X] Hardening complet al serviciului analitic.

@@ -10,7 +10,7 @@ import { SalesChartCard } from './components/SalesChartCard';
 import { BrainCircuit, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const DashboardPage: React.FC<{ userRole?: string }> = ({ userRole }) => {
+const DashboardPage: React.FC = () => {
     const { data, loading, error, refreshDashboard } = useDashboard();
 
     if (error) {

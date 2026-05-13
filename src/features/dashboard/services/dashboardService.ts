@@ -10,6 +10,49 @@ import {
 } from '../types';
 
 /**
+ * Tipurile locale DB Row
+ */
+interface ProductJoin {
+    name: string | null;
+    barcode: string | null;
+    unit: string | null;
+    status: string | null;
+}
+
+interface StockBatchDashboardRow {
+    id: string;
+    product_id: string;
+    quantity: number | string;
+    purchase_price: number | string | null;
+    zone: 'depozit' | 'magazin';
+    batch_number: string | null;
+    expiry_date: string | null;
+    products: ProductJoin | ProductJoin[] | null;
+}
+
+interface RecentSaleRow {
+    id: string;
+    created_at: string;
+    total: number | string;
+    payment_method: string;
+    status: string;
+    profiles: { full_name: string | null } | { full_name: string | null }[] | null;
+}
+
+interface SimpleSaleTotalRow {
+    total: number | string;
+}
+
+interface ChartSaleRow {
+    created_at: string;
+    total: number | string;
+}
+
+interface WasteReasonRow {
+    reason: string;
+}
+
+/**
  * Helpers
  */
 const toNumberStrict = (value: unknown, fieldName: string): number => {
@@ -28,6 +71,10 @@ const toNumberSafe = (value: unknown, fallback: number = 0): number => {
 const pickFirst = <T>(value: T | T[] | null | undefined): T | null => 
     Array.isArray(value) ? value[0] ?? null : value ?? null;
 
+const normalizeZone = (value: unknown): 'depozit' | 'magazin' | null => {
+    return value === 'depozit' || value === 'magazin' ? (value as 'depozit' | 'magazin') : null;
+};
+
 export const dashboardService = {
     async getDashboardData(storeId: string): Promise<DashboardData> {
         const now = new Date();
@@ -36,7 +83,7 @@ export const dashboardService = {
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
         // A. Vânzări Azi
-        const { data: todaySales } = await supabase
+        const { data: todaySalesRaw, error: tsError } = await supabase
             .from('sales')
             .select('total')
             .eq('store_id', storeId)
@@ -44,28 +91,34 @@ export const dashboardService = {
             .gte('created_at', todayStart)
             .lte('created_at', todayEnd);
 
-        const todaySalesTotal = (todaySales || []).reduce((acc, s) => acc + toNumberSafe(s.total, 0), 0);
-        const todaySalesCount = (todaySales || []).length;
+        if (tsError) throw tsError;
+        const todaySales = (todaySalesRaw as unknown as SimpleSaleTotalRow[]) || [];
+        const todaySalesTotal = todaySales.reduce((acc, s) => acc + toNumberSafe(s.total, 0), 0);
+        const todaySalesCount = todaySales.length;
 
         // B. Vânzări Lună
-        const { data: monthSales } = await supabase
+        const { data: monthSalesRaw, error: msError } = await supabase
             .from('sales')
             .select('total')
             .eq('store_id', storeId)
             .eq('status', 'finalized')
             .gte('created_at', monthStart);
 
-        const monthSalesTotal = (monthSales || []).reduce((acc, s) => acc + toNumberSafe(s.total, 0), 0);
+        if (msError) throw msError;
+        const monthSales = (monthSalesRaw as unknown as SimpleSaleTotalRow[]) || [];
+        const monthSalesTotal = monthSales.reduce((acc, s) => acc + toNumberSafe(s.total, 0), 0);
 
         // C. Produse Active
-        const { count: activeProductsCount } = await supabase
+        const { count: activeProductsCount, error: apError } = await supabase
             .from('products')
             .select('*', { count: 'exact', head: true })
             .eq('store_id', storeId)
             .eq('status', 'active');
 
+        if (apError) throw apError;
+
         // D. Agregare Stoc și Alerte
-        const { data: allBatches } = await supabase
+        const { data: allBatchesRaw, error: bError } = await supabase
             .from('stock_batches')
             .select(`
                 id,
@@ -80,13 +133,15 @@ export const dashboardService = {
             .eq('store_id', storeId)
             .gt('quantity', 0);
 
-        const stockValueEstimate = (allBatches || []).reduce((acc, b) => {
+        if (bError) throw bError;
+        const allBatches = (allBatchesRaw as unknown as StockBatchDashboardRow[]) || [];
+
+        const stockValueEstimate = allBatches.reduce((acc, b) => {
             const price = toNumberSafe(b.purchase_price, 0);
             const qty = toNumberSafe(b.quantity, 0);
             return acc + (price * qty);
         }, 0);
 
-        // Agregare pe produs pentru stoc scăzut
         const productStockMap: Record<string, { 
             name: string; 
             barcode: string; 
@@ -101,10 +156,13 @@ export const dashboardService = {
         let expiredCount = 0;
         let criticalCount = 0;
 
-        (allBatches || []).forEach(b => {
+        allBatches.forEach(b => {
             const prod = pickFirst(b.products);
             const productId = b.product_id;
             const qty = toNumberSafe(b.quantity, 0);
+            const zone = normalizeZone(b.zone);
+
+            if (!zone) return; // Ignorăm zonele invalide
 
             if (prod && prod.status === 'active') {
                 if (!productStockMap[productId]) {
@@ -118,7 +176,7 @@ export const dashboardService = {
                         status: prod.status
                     };
                 }
-                if (b.zone === 'magazin') productStockMap[productId].magazin += qty;
+                if (zone === 'magazin') productStockMap[productId].magazin += qty;
                 else productStockMap[productId].depozit += qty;
                 productStockMap[productId].total += qty;
             }
@@ -146,7 +204,7 @@ export const dashboardService = {
                         productId: b.product_id,
                         productName: prod?.name || 'N/A',
                         batchNumber: b.batch_number,
-                        zone: b.zone as any,
+                        zone: zone,
                         quantity: qty,
                         expiryDate: b.expiry_date,
                         daysUntilExpiry: diffDays,
@@ -171,15 +229,17 @@ export const dashboardService = {
             .slice(0, 10);
 
         // F. Waste Summary
-        const { data: wasteEvents } = await supabase
+        const { data: wasteEventsRaw, error: wError } = await supabase
             .from('waste_events')
             .select('reason')
             .eq('store_id', storeId)
             .gte('created_at', monthStart);
 
-        const wasteCount = (wasteEvents || []).length;
+        if (wError) throw wError;
+        const wasteEvents = (wasteEventsRaw as unknown as WasteReasonRow[]) || [];
+        const wasteCount = wasteEvents.length;
         const reasonsMap: Record<string, number> = {};
-        (wasteEvents || []).forEach(e => {
+        wasteEvents.forEach(e => {
             reasonsMap[e.reason] = (reasonsMap[e.reason] || 0) + 1;
         });
         const topReasons = Object.entries(reasonsMap)
@@ -188,7 +248,7 @@ export const dashboardService = {
             .slice(0, 5);
 
         // G. Recent Sales
-        const { data: recentSalesRaw } = await supabase
+        const { data: recentSalesRaw, error: rsError } = await supabase
             .from('sales')
             .select(`
                 id,
@@ -202,7 +262,10 @@ export const dashboardService = {
             .order('created_at', { ascending: false })
             .limit(5);
 
-        const recentSales: RecentSale[] = (recentSalesRaw || []).map((s: any) => ({
+        if (rsError) throw rsError;
+        const recentSalesRows = (recentSalesRaw as unknown as RecentSaleRow[]) || [];
+
+        const recentSales: RecentSale[] = recentSalesRows.map((s) => ({
             id: s.id,
             createdAt: s.created_at,
             total: toNumberSafe(s.total, 0),
@@ -213,23 +276,28 @@ export const dashboardService = {
 
         // H. Sales Chart (Last 7 Days)
         const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        const { data: chartSales } = await supabase
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+
+        const { data: chartSalesRaw, error: csError } = await supabase
             .from('sales')
             .select('created_at, total')
             .eq('store_id', storeId)
             .eq('status', 'finalized')
             .gte('created_at', sevenDaysAgo.toISOString());
 
+        if (csError) throw csError;
+        const chartSales = (chartSalesRaw as unknown as ChartSaleRow[]) || [];
+
         const chartPointsMap: Record<string, { total: number; count: number }> = {};
-        for (let i = 0; i <= 7; i++) {
+        for (let i = 6; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
             chartPointsMap[dateStr] = { total: 0, count: 0 };
         }
 
-        (chartSales || []).forEach(s => {
+        chartSales.forEach(s => {
             const dateStr = s.created_at.split('T')[0];
             if (chartPointsMap[dateStr]) {
                 chartPointsMap[dateStr].total += toNumberSafe(s.total, 0);
