@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../shared/supabase/supabaseClient';
 import { isAdminLike, isManagerLike, isStockOperator, isCashierLike } from '../features/auth/permissions';
-import { useAuth } from '../features/auth/AuthContext';
+import { useAuth } from '../features/auth/useAuth';
 
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
     const { role, profile, currentStore, logout } = useAuth();

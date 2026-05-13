@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Database, RefreshCw, AlertCircle } from 'lucide-react';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { useProducts } from './hooks/useProducts';
 import { Product } from './types';
 import ProductSearchBar from './components/ProductSearchBar';

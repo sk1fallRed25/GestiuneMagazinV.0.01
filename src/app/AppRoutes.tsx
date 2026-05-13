@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from '../features/auth/AuthContext';
+import { useAuth } from '../features/auth/useAuth';
 import { UserRole } from '../features/auth/types';
 import ProtectedRoute from '../features/auth/ProtectedRoute';
 import MainLayout from './MainLayout';

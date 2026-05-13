@@ -10,7 +10,7 @@ interface AuthContextType extends AuthState {
   switchStore: (storeId: string) => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>({
@@ -25,7 +25,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading: true,
     error: null,
   });
-
 
   const getErrorMessage = (error: unknown): string => {
     if (error instanceof Error) return error.message;
@@ -74,7 +73,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading: false,
         error: null
       }));
-
     } catch (err: unknown) {
       const message = getErrorMessage(err);
       console.error("Eroare critică la inițializare Auth:", message);
@@ -115,7 +113,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           loading: false,
           error: null
         });
-
       }
     });
 
@@ -158,7 +155,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loading: false,
       error: null
     });
-
   };
 
   const refreshProfile = async () => {
@@ -176,7 +172,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentStore: membership.store || null,
         storeRole: (membership.role as UserRole)
       }));
-
     }
   };
 
@@ -187,10 +182,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};

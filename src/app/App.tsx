@@ -2,7 +2,7 @@ import React from 'react';
 import { HashRouter as Router } from 'react-router-dom';
 import AppProviders from './AppProviders';
 import AppRoutes from './AppRoutes';
-import { useAuth } from '../features/auth/AuthContext';
+import { useAuth } from '../features/auth/useAuth';
 
 const App = () => {
     const { loading: authLoading } = useAuth();
