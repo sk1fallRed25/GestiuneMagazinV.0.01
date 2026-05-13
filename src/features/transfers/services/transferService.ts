@@ -1,10 +1,13 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
 import { 
     TransferProduct, 
-    TransferPayload, 
-    StockBatch,
-    TransferDirection
+    TransferPayload
 } from '../types';
+
+const toNumber = (value: unknown, fallback = 0): number => {
+    const n = Number(value);
+    return isNaN(n) ? fallback : n;
+};
 
 export const transferService = {
     /**
@@ -33,10 +36,10 @@ export const transferService = {
             const productBatches = batches?.filter(b => b.product_id === p.id) || [];
             const stoc_depozit = productBatches
                 .filter(b => b.zone === 'depozit')
-                .reduce((acc, b) => acc + Number(b.quantity), 0);
+                .reduce((acc, b) => acc + toNumber(b.quantity), 0);
             const stoc_magazin = productBatches
                 .filter(b => b.zone === 'magazin')
-                .reduce((acc, b) => acc + Number(b.quantity), 0);
+                .reduce((acc, b) => acc + toNumber(b.quantity), 0);
 
             return {
                 id: p.id,
@@ -63,11 +66,11 @@ export const transferService = {
 
         const depozit = batches
             ?.filter(b => b.zone === 'depozit')
-            .reduce((acc, b) => acc + Number(b.quantity), 0) || 0;
+            .reduce((acc, b) => acc + toNumber(b.quantity), 0) || 0;
         
         const magazin = batches
             ?.filter(b => b.zone === 'magazin')
-            .reduce((acc, b) => acc + Number(b.quantity), 0) || 0;
+            .reduce((acc, b) => acc + toNumber(b.quantity), 0) || 0;
 
         return { depozit, magazin };
     },
@@ -81,6 +84,11 @@ export const transferService = {
 
         if (!storeId || !productId || quantity <= 0) {
             throw new Error("Date transfer invalide.");
+        }
+
+        // Validare runtime pentru direcție
+        if (direction !== 'depozit_spre_magazin' && direction !== 'magazin_spre_depozit') {
+            throw new Error("Direcție transfer invalidă.");
         }
 
         const sourceZone = direction === 'depozit_spre_magazin' ? 'depozit' : 'magazin';
@@ -115,15 +123,22 @@ export const transferService = {
         for (const sBatch of sourceBatches) {
             if (remainingToTransfer <= 0) break;
 
-            const qtyToTake = Math.min(Number(sBatch.quantity), remainingToTransfer);
-            const newSourceQty = Number(sBatch.quantity) - qtyToTake;
+            const currentQty = toNumber(sBatch.quantity);
+            if (currentQty <= 0) continue;
+
+            const qtyToTake = Math.min(currentQty, remainingToTransfer);
+            const newSourceQty = currentQty - qtyToTake;
+
+            if (newSourceQty < 0) {
+                throw new Error("Transfer invalid: stoc sursă negativ.");
+            }
 
             // A. Scade din lotul sursă
             const { error: updateSourceError } = await supabase
                 .from('stock_batches')
                 .update({ quantity: newSourceQty })
                 .eq('id', sBatch.id)
-                .eq('store_id', storeId); // Safety filter
+                .eq('store_id', storeId);
 
             if (updateSourceError) throw updateSourceError;
 
@@ -133,14 +148,25 @@ export const transferService = {
                 .select('*')
                 .eq('store_id', storeId)
                 .eq('product_id', productId)
-                .eq('zone', targetZone)
-                .eq('batch_number', sBatch.batch_number || '') // Atenție la NULL
-                .eq('purchase_price', sBatch.purchase_price || 0);
+                .eq('zone', targetZone);
+
+            // Handle NULLs correctly for lookup
+            if (sBatch.batch_number) {
+                query = query.eq('batch_number', sBatch.batch_number);
+            } else {
+                query = query.is('batch_number', null);
+            }
 
             if (sBatch.expiry_date) {
                 query = query.eq('expiry_date', sBatch.expiry_date);
             } else {
                 query = query.is('expiry_date', null);
+            }
+
+            if (sBatch.purchase_price !== null && sBatch.purchase_price !== undefined) {
+                query = query.eq('purchase_price', toNumber(sBatch.purchase_price));
+            } else {
+                query = query.is('purchase_price', null);
             }
 
             const { data: existingTargetBatch, error: targetLookupError } = await query.maybeSingle();
@@ -149,7 +175,11 @@ export const transferService = {
             let targetBatchId: string;
 
             if (existingTargetBatch) {
-                const newTargetQty = Number(existingTargetBatch.quantity) + qtyToTake;
+                const newTargetQty = toNumber(existingTargetBatch.quantity) + qtyToTake;
+                if (isNaN(newTargetQty)) {
+                    throw new Error("Lot invalid: cantitate numerică incorectă.");
+                }
+
                 const { error: updateTargetError } = await supabase
                     .from('stock_batches')
                     .update({ quantity: newTargetQty })
@@ -183,7 +213,7 @@ export const transferService = {
                 .insert({
                     store_id: storeId,
                     product_id: productId,
-                    batch_id: sBatch.id, // Referențiem lotul sursă pentru trasabilitate
+                    batch_id: sBatch.id,
                     type: 'transfer',
                     quantity: qtyToTake,
                     source_zone: sourceZone,

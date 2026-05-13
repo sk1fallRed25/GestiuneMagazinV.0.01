@@ -38,3 +38,25 @@ Acest document descrie migrarea modulului "Transfer Marfă" de la schema legacy 
 ## Rezultat Build
 - [X] `npm run build` a rulat cu succes.
 - [X] Fără erori de tipare (`any` eliminat).
+
+## Corecții Etapa 2D.1
+
+Pentru a asigura integritatea datelor și a preveni duplicarea loturilor, au fost aplicate următoarele corecții:
+
+### 1. Reparare Matching NULL
+- Căutarea lotului țintă a fost corectată pentru a folosi `.is('col', null)` în loc de echivalențe cu string-uri goale sau zero.
+- Aceasta previne crearea de loturi duplicate atunci când `batch_number`, `expiry_date` sau `purchase_price` sunt `NULL`.
+
+### 2. Helper Numeric Defensiv
+- S-a introdus funcția `toNumber(value, fallback)` pentru a asigura conversii sigure în calculele de stoc.
+- Orice valoare `NaN` rezultată dintr-o eroare de date aruncă acum o eroare explicită: `"Lot invalid: cantitate numerică incorectă."`.
+
+### 3. Validări Runtime
+- **Direcție:** S-a adăugat verificare explicită pentru `direction` ('depozit_spre_magazin' | 'magazin_spre_depozit').
+- **Stoc Negativ:** Sistemul verifică acum `newSourceQty < 0` și blochează tranzacția dacă sursa ar deveni negativă (protecție suplimentară față de validarea de stoc inițială).
+
+### 4. Cleanup Proiect
+- Au fost eliminate importurile nefolosite și s-a asigurat că nu există tipuri `any` în logica de transfer.
+
+## Rezultat Final Build
+- [X] `npm run build` confirmat succes.
