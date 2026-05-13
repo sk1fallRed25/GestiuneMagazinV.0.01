@@ -3,6 +3,8 @@ import { useAuth } from '../../auth/useAuth';
 import { salesHistoryService } from '../services/salesHistoryService';
 import { SaleSummary, SaleDetails, SalesHistoryFilters, SalesHistorySummary } from '../types';
 
+import { toast } from 'react-hot-toast';
+
 export const useSalesHistory = () => {
     const { currentStoreId } = useAuth();
     
@@ -34,11 +36,12 @@ export const useSalesHistory = () => {
         setLoading(true);
         try {
             const data = await salesHistoryService.listSales(currentStoreId, filters);
-            const summ = await salesHistoryService.getSalesSummary(data);
+            const summ = salesHistoryService.getSalesSummary(data);
             setSales(data);
             setSummary(summ);
         } catch (err: unknown) {
             console.error("Error fetching sales history:", err);
+            toast.error("Eroare la încărcarea istoricului de vânzări.");
         } finally {
             setLoading(false);
         }
@@ -57,6 +60,7 @@ export const useSalesHistory = () => {
             setSelectedSale(details);
         } catch (err: unknown) {
             console.error("Error fetching sale details:", err);
+            toast.error("Eroare la încărcarea detaliilor bonului.");
             setShowDetailsModal(false);
         } finally {
             setLoadingDetails(false);

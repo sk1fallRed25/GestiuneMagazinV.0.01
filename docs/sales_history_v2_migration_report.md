@@ -35,3 +35,15 @@ Sumarul financiar (Total Încasări, Cash, Card, Bon Mediu) este calculat dinami
 ## Rezultat Build
 - [X] `npm run build` a rulat cu succes.
 - [X] Integrare confirmată prin wrapper-ul `IstoricVanzari.tsx`.
+
+## Corecții Etapa 3B.1
+
+În această sub-etapă s-au realizat optimizări de tipizare și siguranță a datelor:
+
+- **Eliminare `any`**: Toate interacțiunile cu Supabase sunt acum tipizate folosind interfețe locale (`SaleListRow`, `SaleItemDetailsRow`, etc.).
+- **Helper `pickFirst`**: Gestionare robustă a join-urilor Supabase care pot returna un obiect singular sau un array.
+- **`toNumberStrict`**: Implementat cu aruncare de eroare pentru valori NaN/Infinite, asigurând integritatea financiară.
+- **`toNumberSafe`**: Helper pentru valori non-critice (ex: sume în filtrări preliminare).
+- **Extindere `SaleSummary`**: Adăugarea `cashPart` și `cardPart` pentru a permite calculul instantaneu al sumarului fără query-uri async suplimentare.
+- **Feedback UI**: Integrare `react-hot-toast` pentru semnalizarea erorilor de rețea sau de date.
+- **Rezultat Build**: Confirmat prin rularea cu succes a `npm run build`.

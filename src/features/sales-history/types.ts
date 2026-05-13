@@ -7,6 +7,8 @@ export interface SaleSummary {
     cashierName: string | null;
     itemsCount: number;
     paymentsTotal: number;
+    cashPart: number;
+    cardPart: number;
 }
 
 export interface SaleItemDetails {
