@@ -1,81 +1,231 @@
 # Supabase RLS / Advisory Audit 4H
+**Proiect**: GestiuneMagazinV0.0.1 (`iwlmlhhjzqnwlfoittot`, eu-west-2)
+**Audit Static**: Etapa 4H | **Verificat Real**: Etapa 4H.1 (2026-05-15)
+
+---
 
 ## 1. Rezumat Executiv
-- **Status general**: Bun (Peste 90% acoperire). RLS este activat pe toate cele 23 de tabele v2.
-- **Tabele v2 verificate**: 23 (inclusiv profile, magazine, stocuri, vânzări, audit).
-- **RLS Enabled**: DA, pe toate tabelele conform `006_clean_schema_rls.sql`.
-- **Politici complete**: Majoritatea tabelelor au politici de `SELECT` și `INSERT`.
-- **Probleme critice identificate**:
-    1. **Permisiuni excesive**: `reception_items` și `waste_items` permit `ALL` (inclusiv delete/update) oricărui membru al magazinului, inclusiv casierilor.
-    2. **Lipsă politici mutație**: `audit_logs` și `profiles` (pentru self-update) nu au politici de scriere pentru utilizatori obișnuiți.
-    3. **Risc recursivitate**: Helper-ele folosesc `SECURITY DEFINER`, ceea ce este corect pentru a evita recursivitatea, dar necesită atenție la securitatea funcțiilor.
-- **Recomandare**: Aplicare SQL Hardening (Etapa 4H.1) înainte de Smoke Test pentru a închide breșele de roluri.
+- **Status general**: Bun (>90% acoperire). RLS activat pe toate cele 19 tabele verificate.
+- **Tabele v2 verificate real**: 19 (toate prezente în Supabase).
+- **RLS Enabled**: DA, pe toate tabelele verificate.
+- **RLS Forced**: NU pe niciunul (standard Supabase, corect).
+- **Probleme critice identificate și confirmate real**:
+  1. `reception_items` — policy "ReceptionItems: access" (ALL) fără restricție de rol → casierul poate șterge recepții.
+  2. `waste_items` — policy "WasteItems: access" (ALL) fără restricție de rol → casierul poate anula pierderi.
+  3. `error_reports` — policy "Errors: create" cu `WITH CHECK = true` → inserări anonime permise (confirmat de Security Advisor).
+  4. `audit_logs` — lipsă policy de INSERT (doar SELECT existent).
+  5. Helper functions — mutable `search_path` (confirmat de Security Advisor pe toate 4 funcțiile).
 
-## 2. RLS Table Matrix
-| Tabel | Exists | RLS Enabled | Policies Count | Coverage | Status | Notes |
-|-------|--------|-------------|----------------|----------|--------|-------|
-| `profiles` | Da | Da | 3 | Select/All (Owner) | Warning | Lipsă self-update policy |
-| `stores` | Da | Da | 2 | Select/Update | OK | Insert doar Platform Owner |
-| `store_members`| Da | Da | 2 | Select/All (Admin) | OK | |
-| `products` | Da | Da | 2 | Select/All (Staff) | OK | |
-| `product_prices`| Da | Da | 2 | Select/All (Staff) | OK | |
-| `stock_batches` | Da | Da | 2 | Select/All (Staff) | OK | |
-| `stock_movements`| Da | Da | 2 | Select/Insert | OK | |
-| `sales` | Da | Da | 2 | Select/Insert | OK | |
-| `sale_items` | Da | Da | 4 | Select/Ins/Upd/Del | OK | Update/Delete doar Admin |
-| `payments` | Da | Da | 4 | Select/Ins/Upd/Del | OK | Update/Delete doar Admin |
-| `receptions` | Da | Da | 1 | ALL (Staff) | OK | |
-| `reception_items`| Da | Da | 1 | ALL (Any Member) | **High** | Casierii pot șterge recepții |
-| `waste_events` | Da | Da | 1 | ALL (Staff) | OK | |
-| `waste_items` | Da | Da | 1 | ALL (Any Member) | **High** | Casierii pot șterge pierderi |
-| `audit_logs` | Da | Da | 1 | Select | Warning | Lipsă policy de insert (dacă e din FE) |
-| `error_reports` | Da | Da | 1 | Insert (Public) | Info | Risc de spam |
+---
 
-## 3. Policy Details (Analiză Logică)
-- **Store Isolation**: Toate politicile folosesc `store_id IN (SELECT store_id FROM current_user_store_ids())`. Izolarea între magazine este robustă.
-- **Role Enforcement**:
-    - `gestionar` / `manager` au acces corect la inventar.
-    - `casier` este limitat la vânzări și vizualizare catalog.
-    - **Deficiență**: `reception_items` și `waste_items` ignoră rolul în clauza `USING`.
+## 2. RLS Table Matrix (Real)
+| Tabel | Există | RLS Enabled | RLS Forced | Status |
+|-------|--------|-------------|------------|--------|
+| `audit_logs` | ✅ | ✅ | ❌ | Warning: lipsă INSERT policy |
+| `cashier_shifts` | ✅ | ✅ | ❌ | OK |
+| `client_events` | ✅ | ✅ | ❌ | OK |
+| `error_reports` | ✅ | ✅ | ❌ | **High: WITH CHECK = true** |
+| `payments` | ✅ | ✅ | ❌ | OK |
+| `product_prices` | ✅ | ✅ | ❌ | OK |
+| `products` | ✅ | ✅ | ❌ | OK |
+| `profiles` | ✅ | ✅ | ❌ | OK (fără self-update intenționat) |
+| `reception_items` | ✅ | ✅ | ❌ | **High: ALL fără rol** |
+| `receptions` | ✅ | ✅ | ❌ | OK |
+| `sale_items` | ✅ | ✅ | ❌ | OK |
+| `sales` | ✅ | ✅ | ❌ | OK |
+| `stock_batches` | ✅ | ✅ | ❌ | OK |
+| `stock_movements` | ✅ | ✅ | ❌ | OK |
+| `store_members` | ✅ | ✅ | ❌ | OK |
+| `stores` | ✅ | ✅ | ❌ | OK |
+| `sync_conflicts` | ✅ | ✅ | ❌ | OK |
+| `waste_events` | ✅ | ✅ | ❌ | OK |
+| `waste_items` | ✅ | ✅ | ❌ | **High: ALL fără rol** |
 
-## 4. Helper Functions
-| Name | Security | Arguments | Used by | Risk |
-|------|----------|-----------|---------|------|
-| `current_user_role` | DEFINER | - | Settings | Scăzut (global role) |
-| `is_platform_owner` | DEFINER | - | Toate tabelele | Scăzut |
-| `current_user_store_ids` | DEFINER | - | Toate tabelele | Scăzut |
-| `has_store_role` | DEFINER | store_id, roles[] | Tranzacții | Scăzut |
+---
 
-## 5. Supabase Security Advisors (Simulat)
-- **Severity**: Critical
-- **Finding**: Overbroad policy for `reception_items`.
-- **Recommendation**: Restrict `ALL` access to specific roles using `has_store_role`.
-- **MVP Blocker**: **YES** (Integritate stoc).
+## 3. Policy Names Reale (Confirmate din pg_policies)
 
-- **Severity**: Medium
-- **Finding**: `profiles` table missing update policy for users.
-- **Recommendation**: Add `FOR UPDATE USING (id = auth.uid())`.
-- **MVP Blocker**: No.
+### `reception_items`
+| Policy Name | CMD | Roles | USING | WITH CHECK |
+|-------------|-----|-------|-------|------------|
+| `ReceptionItems: access` | ALL | {public} | `store_id IN current_user_store_ids() OR is_platform_owner()` | NULL |
 
-## 6. Supabase Performance Advisors (Simulat)
-- **Severity**: Low
-- **Finding**: Recursive subqueries in policies (e.g., `id IN (SELECT store_id...)`).
-- **Recommendation**: Index `store_members(profile_id, store_id)` and `profiles(id)`.
-- **MVP Blocker**: No.
+**Concluzie**: Policy overbroad — nu verifică rolul. Casierul are acces ALL.
 
-## 7. Cross-store Isolation Risks
-- **Riscuri identificate**: 0. Izolarea este bazată pe `store_id` validat prin `store_members` în funcția `current_user_store_ids` cu `SECURITY DEFINER`. Este cea mai sigură metodă în Supabase.
+### `waste_items`
+| Policy Name | CMD | Roles | USING | WITH CHECK |
+|-------------|-----|-------|-------|------------|
+| `WasteItems: access` | ALL | {public} | `store_id IN current_user_store_ids() OR is_platform_owner()` | NULL |
 
-## 8. Missing Policies / Overbroad Policies
-| Tabel | Problemă | Impact | SQL Propus |
-|-------|----------|--------|------------|
-| `reception_items` | ALL pentru toți membrii | Casierul poate modifica recepția | Restrângere la Staff |
-| `waste_items` | ALL pentru toți membrii | Casierul poate anula pierderi | Restrângere la Staff |
-| `profiles` | Lipsă self-update | Utilizatorul nu-și poate schimba numele | Adăugare `FOR UPDATE` |
-| `audit_logs` | Lipsă insert | Triggerele sau FE nu pot loga | Adăugare `FOR INSERT` |
+**Concluzie**: Policy overbroad — identică cu reception_items. Casierul are acces ALL.
 
-## 9. Concluzie și următorul pas
-Audit-ul este finalizat. Sistemul este **sigur din punct de vedere al izolării (cross-store)**, dar are **breșe de logică internă (cross-role)** în modulele de stoc.
+### `profiles`
+| Policy Name | CMD | USING |
+|-------------|-----|-------|
+| `Profiles: owner access` | ALL | `is_platform_owner()` |
+| `Profiles: user view self` | SELECT | `id = auth.uid()` |
+| `Profiles: store staff view` | SELECT | `id IN (SELECT profile_id FROM store_members WHERE store_id IN current_user_store_ids())` |
 
-**Următorul pas recomandat**:
-**Etapa 4H.1: Aplicare SQL Hardening**. Aplicarea blueprint-ului propus pentru a securiza recepțiile și pierderile înainte de Smoke Test.
+**Concluzie**: Corect, dar lipsă self-update. Coloana `role` și `active` sunt prezente → self-update direct ar fi periculos.
+
+### `audit_logs`
+| Policy Name | CMD | USING |
+|-------------|-----|-------|
+| `Audit: view` | SELECT | `store_id IN current_user_store_ids() OR is_platform_owner()` |
+
+**Concluzie**: Lipsă policy de INSERT. Auditarea din frontend nu poate scrie.
+
+### `error_reports`
+| Policy Name | CMD | WITH CHECK |
+|-------------|-----|------------|
+| `Errors: create` | INSERT | `true` (oricine, inclusiv anonim) |
+
+**Concluzie**: Confirmat de Supabase Security Advisor ca vulnerabilitate (lint `0024_permissive_rls_policy`).
+
+---
+
+## 4. Helper Functions Reale (Confirmate din pg_proc)
+| Funcție | Schema | Security Definer | Argumente | Return Type |
+|---------|--------|-----------------|-----------|-------------|
+| `current_user_role` | public | ✅ DA | — | text |
+| `current_user_store_ids` | public | ✅ DA | — | TABLE(store_id uuid) |
+| `has_store_role` | public | ✅ DA | `p_store_id uuid, p_allowed_roles text[]` | boolean |
+| `is_platform_owner` | public | ✅ DA | — | boolean |
+
+**Semnătură `has_store_role` confirmată**: `(p_store_id uuid, p_allowed_roles text[])` — **compatibilă** cu apelurile din blueprint.
+
+---
+
+## 5. Supabase Security Advisors — Rezultat Real (2026-05-15)
+
+### A. `function_search_path_mutable` (WARN)
+Toate cele 4 funcții helper sunt afectate:
+- `current_user_role`, `current_user_store_ids`, `has_store_role`, `is_platform_owner`
+
+**Remediere**: Adăugare `SET search_path = public` la definirea funcției.
+**Referință**: [Supabase Docs - lint 0011](https://supabase.com/docs/guides/database/database-linter?lint=0011_function_search_path_mutable)
+
+### B. `rls_policy_always_true` (WARN)
+- **Tabel afectat**: `public.error_reports`
+- **Policy**: `Errors: create` — `WITH CHECK = true` pentru INSERT
+- **Impact**: Oricine poate insera erori (inclusiv utilizatori neautentificați).
+- **Remediere**: Restricționare la rolul `authenticated`.
+- **Referință**: [Supabase Docs - lint 0024](https://supabase.com/docs/guides/database/database-linter?lint=0024_permissive_rls_policy)
+
+### C. `anon_security_definer_function_executable` (WARN)
+Funcțiile helper pot fi apelate public via REST API:
+- `current_user_role()`, `current_user_store_ids()`, `has_store_role()`, `is_platform_owner()`
+- De asemenea: `finalize_sale`, `receive_stock`, `record_waste`, `transfer_stock`, etc.
+
+**Recomandare**: Revoke EXECUTE de la `anon` pe funcțiile helper:
+```sql
+REVOKE EXECUTE ON FUNCTION public.current_user_role() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.is_platform_owner() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.current_user_store_ids() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.has_store_role(uuid, text[]) FROM anon;
+```
+> **NOTĂ**: Aceste REVOKE sunt pentru o etapă viitoare (4H.2). Nu sunt incluse în blueprint-ul curent pentru a nu bloca MVP-ul.
+
+### D. `auth_leaked_password_protection` (WARN)
+- Protecția HaveIBeenPwned este dezactivată.
+- **Remediere**: Activare din Supabase Dashboard > Authentication > Password Settings.
+- **MVP Blocker**: Nu.
+
+---
+
+## 6. Supabase Performance Advisors — Rezultat Real (2026-05-15)
+
+### A. `auth_rls_initplan` (WARN)
+- **Tabel**: `profiles`, policy `Profiles: user view self`
+- `auth.uid()` este re-evaluat per rând. Înlocuire cu `(SELECT auth.uid())`.
+- **Inclus în blueprint 4H**.
+
+### B. `unindexed_foreign_keys` (INFO — multiple)
+Tabele fără index pe FK: `audit_logs`, `cashier_shifts`, `reception_items`, `waste_items`, `sale_items`, `stock_movements`, `store_members`, etc.
+
+**Recomandare** (etapă viitoare):
+```sql
+CREATE INDEX IF NOT EXISTS idx_store_members_profile_id ON public.store_members(profile_id);
+CREATE INDEX IF NOT EXISTS idx_reception_items_store_id ON public.reception_items(store_id);
+-- etc.
+```
+> **MVP Blocker**: Nu (afectează performanța la volum mare, nu funcționalitatea).
+
+### C. `multiple_permissive_policies` (WARN)
+Tabele cu policy-uri multiple pentru aceeași acțiune (SELECT):
+- `products`, `product_prices`, `stock_batches`, `categories`, `store_members`, `profiles`, `app_settings`
+
+**Cauza**: Design intenționat cu polícy separată de view + manage.
+**Remediere**: Consolidare în policy-uri unice (etapă viitoare, nu MVP blocker).
+
+### D. `unused_index` (INFO)
+- `idx_receptions_doc`, `idx_client_events_lookup`, `idx_audit_logs_entity` — neutilizate.
+- Nu se șterg acum (pot deveni utile post-MVP).
+
+---
+
+## 7. Cross-store Isolation
+**Status**: ✅ Robust. Toate politicile folosesc `store_id IN (SELECT store_id FROM current_user_store_ids())` validat prin `store_members` cu `SECURITY DEFINER`. Nu există risc de cross-store data leakage.
+
+---
+
+## 8. Coloane Critice Verificate (Real)
+
+### `profiles`
+`id` (uuid, NOT NULL), `email` (text, NOT NULL), `full_name` (text, nullable), **`role` (text, NOT NULL)**, **`active` (boolean, nullable)**, `created_at`, `updated_at`
+
+> ⚠️ Prezența `role` și `active` confirmă că self-update direct **NU este sigur** fără RPC.
+
+### `reception_items`
+`id`, `store_id` (NOT NULL), `reception_id` (NOT NULL), `product_id` (NOT NULL), `quantity`, `purchase_price`, `sale_price_new`, `vat_percent`, `batch_number`, `expiry_date`, `created_at`
+
+### `waste_items`
+`id`, `store_id` (NOT NULL), `waste_id` (NOT NULL), `product_id` (NOT NULL), `batch_id` (nullable), `quantity`, `created_at`
+
+### `audit_logs`
+`id`, `store_id` (nullable), `profile_id` (nullable), `action`, `entity_type`, `entity_id`, `old_data`, `new_data`, `ip_address`, `created_at`
+
+### `error_reports`
+`id`, `store_id` (nullable), `profile_id` (nullable), `error_message`, `stack_trace`, `context`, `created_at`
+
+---
+
+## 9. Concluzie Finală (Audit Static 4H)
+- ✅ Cross-store isolation: robust
+- ❌ Cross-role: 2 breșe critice (reception_items, waste_items)
+- ⚠️ error_reports: WITH CHECK = true confirmat de advisor
+- ⚠️ audit_logs: lipsă INSERT policy
+- ⚠️ Helper functions: mutable search_path (risc schema injection)
+
+---
+
+## 10. Verificare Reală — Etapa 4H.1 (2026-05-15)
+
+### Ce s-a verificat real
+- ✅ Toate cele 19 tabele v2 există și au RLS activat
+- ✅ Policy names reale confirmate din `pg_policies`
+- ✅ Semnăturile funcțiilor helper confirmate din `pg_proc`
+- ✅ Security Advisors rulați real (nu simulat)
+- ✅ Performance Advisors rulați real (nu simulat)
+
+### Diferențe față de auditul static 4H
+| Aspect | Audit Static 4H | Verificare Reală 4H.1 |
+|--------|-----------------|-----------------------|
+| Policy name `reception_items` | Estimat corect | Confirmat: `"ReceptionItems: access"` |
+| Policy name `waste_items` | Estimat corect | Confirmat: `"WasteItems: access"` |
+| `error_reports` existență | Marcată ca incertă | CONFIRMATĂ — tabela există |
+| `error_reports` policy | Estimat ca risc | Confirmat de Supabase Security Advisor |
+| Helper search_path | Nu menționat | Confirmat ca WARN de Security Advisor |
+| Profiles self-update | "Risc dacă adăugăm" | Confirmat: `role` și `active` prezente → NU adăugăm |
+
+### Corecții aduse SQL blueprint-ului
+1. ✅ Adăugat DROP pentru noile policy-uri (idempotency completă)
+2. ✅ Adăugat `WITH CHECK` la politicile de management
+3. ✅ Adăugat `SET search_path = public` la funcțiile helper
+4. ✅ Corectat `Profiles: user view self` cu `(SELECT auth.uid())`
+5. ✅ Eliminat self-update profiles, înlocuit cu documentare clară
+6. ✅ `error_reports` — inclus cu restricție la `authenticated`
+7. ✅ Confirmat că DROP-urile vizează exact policy names reale
+
+### SQL Blueprint Status
+**`database/proposed_rls_hardening_4h.sql`** — ✅ GATA PENTRU APLICARE MANUALĂ
