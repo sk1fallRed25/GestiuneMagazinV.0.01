@@ -228,4 +228,26 @@ Tabele cu policy-uri multiple pentru aceeași acțiune (SELECT):
 7. ✅ Confirmat că DROP-urile vizează exact policy names reale
 
 ### SQL Blueprint Status
-**`database/proposed_rls_hardening_4h.sql`** — ✅ GATA PENTRU APLICARE MANUALĂ
+**`database/proposed_rls_hardening_4h.sql`** — ✅ APLICAT MANUAL (2026-05-15)
+
+---
+
+## 11. Verificare Post-Aplicare — Etapa 4H.2 (2026-05-15)
+
+### Status Final Verificare Reală (Post-Hardening)
+
+| Aspect | Status | Detalii |
+| :--- | :--- | :--- |
+| **Politici ReceptionItems** | ✅ REZOLVAT | "ReceptionItems: access" eliminat. Politici view/manage active. |
+| **Politici WasteItems** | ✅ REZOLVAT | "WasteItems: access" eliminat. Politici view/manage active. |
+| **Audit Insert** | ✅ REZOLVAT | Inserări anonime refuzate. Policy "Audit: insert" activă. |
+| **Error Reports** | ✅ REZOLVAT | Restricționat la `authenticated`. `WITH CHECK = true` înlăturat. |
+| **Helper Functions** | ✅ REZOLVAT | `SECURITY DEFINER` + `SET search_path = public` activ. |
+| **Performanță Profiles** | ✅ REZOLVAT | `(SELECT auth.uid())` implementat. |
+
+### Rezumat Linting (Post-Hardening)
+1. **function_search_path_mutable**: 0 avertizări pe funcțiile helper critice.
+2. **rls_policy_always_true**: Reconfigurat pentru securitate (doar authenticated).
+3. **unindexed_foreign_keys**: Monitorizat (nu este blocker MVP).
+
+**Concluzie Audit 4H**: Hardening-ul a fost aplicat și verificat cu succes. Baza de date este în stare securizată "prod-ready" pentru MVP.
