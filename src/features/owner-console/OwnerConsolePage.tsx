@@ -10,6 +10,8 @@ import { StoresTable } from './components/StoresTable';
 import { OwnerProfilesTable } from './components/OwnerProfilesTable';
 import { StoreMembersTable } from './components/StoreMembersTable';
 import { AssignMemberModal } from './components/AssignMemberModal';
+import { StoreFormModal } from './components/StoreFormModal';
+import { OwnerStore, CreateStorePayload, UpdateStorePayload } from './types';
 
 export const OwnerConsolePage: React.FC = () => {
   const {
@@ -28,11 +30,17 @@ export const OwnerConsolePage: React.FC = () => {
     toggleMemberActive,
     changeMemberRole,
     assignMemberToStore,
+    createStore,
+    updateStore,
     refreshAll
   } = useOwnerConsole();
 
   const [isAssignModalOpen, setIsAssignModalOpen] = useState<boolean>(false);
   const [assignModalProfileId, setAssignModalProfileId] = useState<string | undefined>(undefined);
+
+  const [isStoreModalOpen, setIsStoreModalOpen] = useState<boolean>(false);
+  const [storeModalMode, setStoreModalMode] = useState<'create' | 'edit'>('create');
+  const [storeModalData, setStoreModalData] = useState<OwnerStore | null>(null);
 
   const selectedStore = useMemo(() => {
     return stores.find(s => s.id === selectedStoreId) || null;
@@ -48,6 +56,18 @@ export const OwnerConsolePage: React.FC = () => {
     setIsAssignModalOpen(true);
   };
 
+  const handleCreateStoreClick = () => {
+    setStoreModalMode('create');
+    setStoreModalData(null);
+    setIsStoreModalOpen(true);
+  };
+
+  const handleEditStoreClick = (store: OwnerStore) => {
+    setStoreModalMode('edit');
+    setStoreModalData(store);
+    setIsStoreModalOpen(true);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
       {/* Header */}
@@ -56,7 +76,7 @@ export const OwnerConsolePage: React.FC = () => {
       {/* Error Banner */}
       {error && (
         <div className="mb-8 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl flex items-center gap-3 text-sm text-red-800 dark:text-red-300 shadow-sm animate-shake">
-          <AlertCircle className="w-5 h-5 shrink-0 text-red-50" />
+          <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
           <p>{error}</p>
         </div>
       )}
@@ -95,6 +115,8 @@ export const OwnerConsolePage: React.FC = () => {
                selectStore(id);
                setSelectedTab('members');
             }}
+            onCreateStore={handleCreateStoreClick}
+            onEditStore={handleEditStoreClick}
             loading={loading}
           />
         </div>
@@ -118,6 +140,8 @@ export const OwnerConsolePage: React.FC = () => {
             stores={stores}
             selectedStoreId={selectedStoreId}
             onSelectStore={selectStore}
+            onCreateStore={handleCreateStoreClick}
+            onEditStore={handleEditStoreClick}
             loading={loading}
           />
           <StoreMembersTable
@@ -138,6 +162,22 @@ export const OwnerConsolePage: React.FC = () => {
         profiles={profiles}
         stores={stores}
         initialProfileId={assignModalProfileId}
+      />
+
+      {/* Modal Gestiune Magazin (Creare / Editare) */}
+      <StoreFormModal
+        isOpen={isStoreModalOpen}
+        mode={storeModalMode}
+        store={storeModalData}
+        onClose={() => setIsStoreModalOpen(false)}
+        onSubmit={async (payload) => {
+          if (storeModalMode === 'create') {
+            await createStore(payload as CreateStorePayload);
+          } else {
+            await updateStore(payload as UpdateStorePayload);
+          }
+        }}
+        loading={loading}
       />
     </div>
   );

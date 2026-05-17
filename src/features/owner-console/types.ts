@@ -21,6 +21,13 @@ export interface AssignMemberFormState {
   active: boolean;
 }
 
+export interface StoreSettings {
+  workpointNumber?: number | null;
+  displayCode?: string | null;
+  companyName?: string | null;
+  notes?: string | null;
+}
+
 export interface OwnerStore {
   id: string;
   name: string;
@@ -29,6 +36,48 @@ export interface OwnerStore {
   active: boolean;
   createdAt: string;
   membersCount: number;
+  settings?: StoreSettings;
+  workpointNumber?: number | null;
+  displayCode?: string | null;
+}
+
+export interface StoreFormState {
+  name: string;
+  fiscalCode: string;
+  workpointNumber: string;
+  address: string;
+  active: boolean;
+  companyName: string;
+  notes: string;
+}
+
+export interface CreateStorePayload {
+  name: string;
+  fiscalCode: string;
+  workpointNumber: number;
+  address: string | null;
+  active: boolean;
+  companyName?: string | null;
+  notes?: string | null;
+}
+
+export interface UpdateStorePayload {
+  storeId: string;
+  name: string;
+  fiscalCode: string;
+  workpointNumber: number;
+  address: string | null;
+  active: boolean;
+  companyName?: string | null;
+  notes?: string | null;
+}
+
+export interface StoreManagementResult {
+  storeId: string;
+  name: string;
+  fiscalCode: string;
+  workpointNumber: number;
+  active: boolean;
 }
 
 export interface OwnerStoreMember {

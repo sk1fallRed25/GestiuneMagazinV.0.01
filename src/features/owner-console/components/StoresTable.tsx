@@ -1,11 +1,13 @@
 import React from 'react';
-import { Store, MapPin, FileText, Users, Calendar, CheckCircle2, XCircle, ChevronRight } from 'lucide-react';
+import { Store, MapPin, FileText, Users, Calendar, CheckCircle2, XCircle, ChevronRight, Plus, Edit2, Hash } from 'lucide-react';
 import { OwnerStore } from '../types';
 
 interface StoresTableProps {
   stores: OwnerStore[];
   selectedStoreId: string | null;
   onSelectStore: (storeId: string) => void;
+  onEditStore?: (store: OwnerStore) => void;
+  onCreateStore?: () => void;
   loading?: boolean;
 }
 
@@ -13,6 +15,8 @@ export const StoresTable: React.FC<StoresTableProps> = ({
   stores,
   selectedStoreId,
   onSelectStore,
+  onEditStore,
+  onCreateStore,
   loading
 }) => {
   if (loading && stores.length === 0) {
@@ -32,22 +36,34 @@ export const StoresTable: React.FC<StoresTableProps> = ({
             <Store className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Magazine Înregistrate</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Selectați un magazin pentru a-i gestiona membrii</p>
+            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Magazine / Puncte de Lucru</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Gestionați punctele de lucru și membrii asociați</p>
           </div>
         </div>
-        <span className="text-xs font-semibold px-2.5 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 rounded-full">
-          {stores.length} Magazine
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold px-2.5 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 rounded-full">
+            {stores.length} Magazine
+          </span>
+          {onCreateStore && (
+            <button
+              onClick={onCreateStore}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Adaugă Magazin Nou</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700/60 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              <th className="py-3.5 px-6">Magazin</th>
+              <th className="py-3.5 px-6">Magazin / Cod</th>
               <th className="py-3.5 px-6">Adresă</th>
-              <th className="py-3.5 px-6">Cod Fiscal</th>
+              <th className="py-3.5 px-6">CUI / Cod Fiscal</th>
+              <th className="py-3.5 px-6 text-center">Punct Lucru</th>
               <th className="py-3.5 px-6 text-center">Membri</th>
               <th className="py-3.5 px-6 text-center">Stare</th>
               <th className="py-3.5 px-6">Data Înregistrării</th>
@@ -57,7 +73,7 @@ export const StoresTable: React.FC<StoresTableProps> = ({
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 text-sm">
             {stores.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-8 px-6 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={8} className="py-8 px-6 text-center text-gray-500 dark:text-gray-400">
                   Nu există magazine înregistrate în sistem.
                 </td>
               </tr>
@@ -74,9 +90,16 @@ export const StoresTable: React.FC<StoresTableProps> = ({
                         : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
                     }`}
                   >
-                    <td className="py-4 px-6 font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${store.active ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                      <span>{store.name}</span>
+                    <td className="py-4 px-6 font-bold text-gray-900 dark:text-white">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${store.active ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                        <div>
+                          <div className="font-bold text-gray-900 dark:text-white">{store.name}</div>
+                          <div className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5">
+                            Cod: {store.displayCode || `${store.fiscalCode || 'CUI'} / ${store.workpointNumber || 'N'}`}
+                          </div>
+                        </div>
+                      </div>
                     </td>
                     <td className="py-4 px-6 text-gray-600 dark:text-gray-300 max-w-xs truncate">
                       <div className="flex items-center gap-1.5">
@@ -84,11 +107,17 @@ export const StoresTable: React.FC<StoresTableProps> = ({
                         <span className="truncate">{store.address || <span className="text-gray-400 italic">Nespecificată</span>}</span>
                       </div>
                     </td>
-                    <td className="py-4 px-6 text-gray-600 dark:text-gray-300 font-mono text-xs">
+                    <td className="py-4 px-6 text-gray-600 dark:text-gray-300 font-mono text-xs uppercase">
                       <div className="flex items-center gap-1.5">
                         <FileText className="w-3.5 h-3.5 text-gray-400" />
                         <span>{store.fiscalCode || <span className="text-gray-400 italic">Nespecificat</span>}</span>
                       </div>
+                    </td>
+                    <td className="py-4 px-6 text-center font-mono text-xs">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-bold">
+                        <Hash className="w-3.5 h-3.5 text-gray-500" />
+                        <span>{store.workpointNumber !== undefined && store.workpointNumber !== null ? store.workpointNumber : 1}</span>
+                      </span>
                     </td>
                     <td className="py-4 px-6 text-center">
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-xs font-semibold">
@@ -116,19 +145,34 @@ export const StoresTable: React.FC<StoresTableProps> = ({
                       </div>
                     </td>
                     <td className="py-4 px-6 text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectStore(store.id);
-                        }}
-                        className={`p-1.5 rounded-lg transition-colors ${
-                          isSelected
-                            ? 'bg-indigo-600 text-white shadow-sm'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 group-hover:text-indigo-600 dark:group-hover:text-indigo-300'
-                        }`}
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {onEditStore && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditStore(store);
+                            }}
+                            title="Editează magazin"
+                            className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelectStore(store.id);
+                          }}
+                          title="Selectează magazin"
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isSelected
+                              ? 'bg-indigo-600 text-white shadow-sm'
+                              : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900 group-hover:text-indigo-600 dark:group-hover:text-indigo-300'
+                          }`}
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

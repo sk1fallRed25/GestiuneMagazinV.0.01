@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ownerConsoleService } from '../services/ownerConsoleService';
-import { OwnerConsoleStats, OwnerStore, OwnerStoreMember, OwnerMemberRole, OwnerProfile, UnassignedProfile, StoreWithoutAdmin, AssignStoreMemberPayload } from '../types';
+import { OwnerConsoleStats, OwnerStore, OwnerStoreMember, OwnerMemberRole, OwnerProfile, UnassignedProfile, StoreWithoutAdmin, AssignStoreMemberPayload, CreateStorePayload, UpdateStorePayload } from '../types';
 import { useAuth } from '../../auth/useAuth';
 
 export type OwnerConsoleTab = 'overview' | 'stores' | 'profiles' | 'members';
@@ -156,6 +156,79 @@ export const useOwnerConsole = () => {
     }
   }, [role, selectedStoreId]);
 
+  const createStore = useCallback(async (payload: CreateStorePayload): Promise<void> => {
+    if (role !== 'platform_owner') {
+      setError("Acces permis doar pentru Platform Owner.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await ownerConsoleService.createStore(payload);
+      const data = await ownerConsoleService.getOwnerConsoleData();
+      setStats(data.stats);
+      setStores(data.stores);
+      setProfiles(data.profiles);
+      setUnassignedProfiles(data.unassignedProfiles);
+      setStoresWithoutAdmin(data.storesWithoutAdmin);
+
+      setSelectedStoreId(res.storeId);
+      const members = await ownerConsoleService.getStoreMembers(res.storeId);
+      setSelectedStoreMembers(members);
+    } catch (err: unknown) {
+      let message = "Magazinul nu a putut fi creat.";
+      if (err instanceof Error) {
+        if (err.message.includes("Există deja") || err.message.includes("duplicat")) {
+          message = "Există deja un magazin pentru acest CUI și punct de lucru.";
+        } else {
+          message = err.message;
+        }
+      }
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [role]);
+
+  const updateStore = useCallback(async (payload: UpdateStorePayload): Promise<void> => {
+    if (role !== 'platform_owner') {
+      setError("Acces permis doar pentru Platform Owner.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await ownerConsoleService.updateStore(payload);
+      const data = await ownerConsoleService.getOwnerConsoleData();
+      setStats(data.stats);
+      setStores(data.stores);
+      setProfiles(data.profiles);
+      setUnassignedProfiles(data.unassignedProfiles);
+      setStoresWithoutAdmin(data.storesWithoutAdmin);
+
+      if (selectedStoreId) {
+        const members = await ownerConsoleService.getStoreMembers(selectedStoreId);
+        setSelectedStoreMembers(members);
+      }
+    } catch (err: unknown) {
+      let message = "Magazinul nu a putut fi actualizat.";
+      if (err instanceof Error) {
+        if (err.message.includes("Există deja") || err.message.includes("duplicat")) {
+          message = "Există deja un magazin pentru acest CUI și punct de lucru.";
+        } else {
+          message = err.message;
+        }
+      }
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, [role, selectedStoreId]);
+
   return {
     stats,
     stores,
@@ -172,6 +245,8 @@ export const useOwnerConsole = () => {
     toggleMemberActive,
     changeMemberRole,
     assignMemberToStore,
+    createStore,
+    updateStore,
     refreshData: loadInitialData,
     refreshAll: loadInitialData
   };

@@ -1,5 +1,19 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
-import { OwnerConsoleData, OwnerStore, OwnerStoreMember, OwnerMemberRole, OwnerProfile, UnassignedProfile, StoreWithoutAdmin, AssignStoreMemberPayload, AssignStoreMemberResult } from '../types';
+import {
+  OwnerConsoleData,
+  OwnerStore,
+  OwnerStoreMember,
+  OwnerMemberRole,
+  OwnerProfile,
+  UnassignedProfile,
+  StoreWithoutAdmin,
+  AssignStoreMemberPayload,
+  AssignStoreMemberResult,
+  CreateStorePayload,
+  UpdateStorePayload,
+  StoreManagementResult,
+  StoreSettings
+} from '../types';
 
 interface StoreDbRow {
   id: string;
@@ -8,6 +22,7 @@ interface StoreDbRow {
   fiscal_code?: string | null;
   active?: boolean | null;
   created_at?: string | null;
+  settings?: unknown;
 }
 
 interface StoreMemberDbRow {
@@ -26,6 +41,67 @@ interface ProfileDbRow {
   created_at?: string | null;
 }
 
+const normalizeFiscalCode = (input: string): string => {
+  if (!input) throw new Error("CUI / Cod fiscal obligatoriu.");
+  const cleaned = input.trim().toUpperCase().replace(/\s+/g, '');
+  if (cleaned.length < 2 || cleaned.length > 20) {
+    throw new Error("CUI / Cod fiscal trebuie să aibă între 2 și 20 de caractere.");
+  }
+  return cleaned;
+};
+
+const parseWorkpointNumber = (value: unknown): number => {
+  const num = Number(value);
+  if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 999) {
+    throw new Error("Numărul punctului de lucru trebuie să fie un număr întreg între 1 și 999.");
+  }
+  return num;
+};
+
+const buildStoreDisplayCode = (fiscalCode: string, workpointNumber: number): string => {
+  return `${fiscalCode} / ${workpointNumber}`;
+};
+
+const validateStorePayload = (payload: { name: string; fiscalCode: string; workpointNumber: number; active: boolean }) => {
+  if (!payload.name || !payload.name.trim()) {
+    throw new Error("Numele magazinului este obligatoriu.");
+  }
+  normalizeFiscalCode(payload.fiscalCode);
+  parseWorkpointNumber(payload.workpointNumber);
+  if (typeof payload.active !== 'boolean') {
+    throw new Error("Starea de activare trebuie să fie boolean.");
+  }
+};
+
+const parseStoreSettings = (rawSettings: unknown, fiscalCode: string | null): StoreSettings & { workpointNumber: number | null; displayCode: string | null } => {
+  let workpointNumber: number | null = null;
+  let displayCode: string | null = null;
+  let companyName: string | null = null;
+  let notes: string | null = null;
+
+  if (rawSettings && typeof rawSettings === 'object') {
+    const obj = rawSettings as Record<string, unknown>;
+    if (obj.workpointNumber !== undefined && obj.workpointNumber !== null) {
+      const num = Number(obj.workpointNumber);
+      if (!isNaN(num)) workpointNumber = num;
+    }
+    if (typeof obj.displayCode === 'string') displayCode = obj.displayCode as string;
+    if (typeof obj.companyName === 'string') companyName = obj.companyName as string;
+    if (typeof obj.notes === 'string') notes = obj.notes as string;
+  }
+
+  if (!displayCode && fiscalCode && workpointNumber !== null) {
+    displayCode = `${fiscalCode} / ${workpointNumber}`;
+  }
+
+  return {
+    workpointNumber,
+    displayCode,
+    companyName,
+    notes
+  };
+};
+
 export const ownerConsoleService = {
   /**
    * Obține lista completă de magazine pentru platform_owner
@@ -33,7 +109,7 @@ export const ownerConsoleService = {
   async getStores(): Promise<OwnerStore[]> {
     const { data: storesData, error: storesErr } = await supabase
       .from('stores')
-      .select('id, name, address, fiscal_code, active, created_at')
+      .select('id, name, address, fiscal_code, active, created_at, settings')
       .order('created_at', { ascending: false });
 
     if (storesErr) {
@@ -55,14 +131,20 @@ export const ownerConsoleService = {
 
     return rawStores.map(store => {
       const membersCount = rawMembers.filter(m => m.store_id === store.id && m.active !== false).length;
+      const fiscalCode = store.fiscal_code || null;
+      const parsedSettings = parseStoreSettings(store.settings, fiscalCode);
+
       return {
         id: store.id,
         name: store.name || 'Magazin Fără Nume',
         address: store.address || null,
-        fiscalCode: store.fiscal_code || null,
+        fiscalCode,
         active: store.active ?? true,
         createdAt: store.created_at || new Date().toISOString(),
-        membersCount
+        membersCount,
+        settings: parsedSettings,
+        workpointNumber: parsedSettings.workpointNumber,
+        displayCode: parsedSettings.displayCode
       };
     });
   },
@@ -473,6 +555,141 @@ export const ownerConsoleService = {
       profileId,
       role,
       active
+    };
+  },
+
+  /**
+   * Creează un magazin nou în baza de date
+   */
+  async createStore(payload: CreateStorePayload): Promise<StoreManagementResult> {
+    validateStorePayload(payload);
+    const normFiscalCode = normalizeFiscalCode(payload.fiscalCode);
+    const wpNum = parseWorkpointNumber(payload.workpointNumber);
+    const dispCode = buildStoreDisplayCode(normFiscalCode, wpNum);
+
+    // Verifică dacă există deja store cu același fiscal_code și settings->>workpointNumber
+    const { data: existingStores, error: checkErr } = await supabase
+      .from('stores')
+      .select('id, fiscal_code, settings')
+      .eq('fiscal_code', normFiscalCode);
+
+    if (checkErr) {
+      console.error("Eroare la verificarea duplicatelor:", checkErr.message);
+      throw new Error("Magazinul nu a putut fi creat.");
+    }
+
+    const rawExisting = (existingStores || []) as StoreDbRow[];
+    const isDuplicate = rawExisting.some(st => {
+      const parsed = parseStoreSettings(st.settings, st.fiscal_code || null);
+      return parsed.workpointNumber === wpNum;
+    });
+
+    if (isDuplicate) {
+      throw new Error("Există deja un magazin pentru acest CUI și punct de lucru.");
+    }
+
+    const newSettings = {
+      workpointNumber: wpNum,
+      displayCode: dispCode,
+      companyName: payload.companyName || null,
+      notes: payload.notes || null
+    };
+
+    const { data: insertedStore, error: insertErr } = await supabase
+      .from('stores')
+      .insert({
+        name: payload.name.trim(),
+        fiscal_code: normFiscalCode,
+        address: payload.address ? payload.address.trim() : null,
+        active: payload.active,
+        settings: newSettings
+      })
+      .select('id')
+      .maybeSingle();
+
+    if (insertErr || !insertedStore) {
+      console.error("Eroare la inserarea magazinului:", insertErr?.message);
+      throw new Error("Magazinul nu a putut fi creat.");
+    }
+
+    return {
+      storeId: insertedStore.id,
+      name: payload.name.trim(),
+      fiscalCode: normFiscalCode,
+      workpointNumber: wpNum,
+      active: payload.active
+    };
+  },
+
+  /**
+   * Actualizează un magazin existent în baza de date
+   */
+  async updateStore(payload: UpdateStorePayload): Promise<StoreManagementResult> {
+    if (!payload.storeId) {
+      throw new Error("ID magazin invalid.");
+    }
+    validateStorePayload(payload);
+    const normFiscalCode = normalizeFiscalCode(payload.fiscalCode);
+    const wpNum = parseWorkpointNumber(payload.workpointNumber);
+    const dispCode = buildStoreDisplayCode(normFiscalCode, wpNum);
+
+    // Verifică duplicat pe alt store
+    const { data: existingStores, error: checkErr } = await supabase
+      .from('stores')
+      .select('id, fiscal_code, settings')
+      .eq('fiscal_code', normFiscalCode);
+
+    if (checkErr) {
+      console.error("Eroare la verificarea duplicatelor la update:", checkErr.message);
+      throw new Error("Magazinul nu a putut fi actualizat.");
+    }
+
+    const rawExisting = (existingStores || []) as StoreDbRow[];
+    const isDuplicate = rawExisting.some(st => {
+      if (st.id === payload.storeId) return false;
+      const parsed = parseStoreSettings(st.settings, st.fiscal_code || null);
+      return parsed.workpointNumber === wpNum;
+    });
+
+    if (isDuplicate) {
+      throw new Error("Există deja un magazin pentru acest CUI și punct de lucru.");
+    }
+
+    // Găsește setările vechi pentru a face merge sigur
+    const currentStore = rawExisting.find(st => st.id === payload.storeId);
+    let mergedSettings: Record<string, unknown> = {};
+    if (currentStore?.settings && typeof currentStore.settings === 'object') {
+      mergedSettings = { ...(currentStore.settings as Record<string, unknown>) };
+    }
+
+    mergedSettings.workpointNumber = wpNum;
+    mergedSettings.displayCode = dispCode;
+    mergedSettings.companyName = payload.companyName || null;
+    mergedSettings.notes = payload.notes || null;
+
+    const { error: updateErr } = await supabase
+      .from('stores')
+      .update({
+        name: payload.name.trim(),
+        fiscal_code: normFiscalCode,
+        address: payload.address ? payload.address.trim() : null,
+        active: payload.active,
+        settings: mergedSettings,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', payload.storeId);
+
+    if (updateErr) {
+      console.error("Eroare la actualizarea magazinului:", updateErr.message);
+      throw new Error("Magazinul nu a putut fi actualizat.");
+    }
+
+    return {
+      storeId: payload.storeId,
+      name: payload.name.trim(),
+      fiscalCode: normFiscalCode,
+      workpointNumber: wpNum,
+      active: payload.active
     };
   }
 };
