@@ -21,15 +21,65 @@ export interface OwnerStoreMember {
   createdAt: string;
 }
 
+export interface AssignedStoreInfo {
+  storeId: string;
+  storeName: string;
+  role: OwnerMemberRole;
+  active: boolean;
+}
+
+export interface OwnerProfile {
+  id: string;
+  email: string;
+  fullName: string | null;
+  globalRole: string;
+  active: boolean;
+  createdAt: string;
+  storeCount: number;
+  assignedStores: AssignedStoreInfo[];
+}
+
+export interface UnassignedProfile {
+  id: string;
+  email: string;
+  fullName: string | null;
+  globalRole: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface StoreWithoutAdmin {
+  storeId: string;
+  storeName: string;
+  active: boolean;
+  memberCount: number;
+}
+
 export interface OwnerConsoleStats {
+  // Nume existente pentru compatibilitate cu componentele vechi
   storesCount: number;
   activeStoresCount: number;
   membersCount: number;
   adminsCount: number;
+
+  // Nume extinse solicitate pentru noul dashboard global
+  totalStores: number;
+  activeStores: number;
+  totalProfiles: number;
+  activeProfiles: number;
+  totalStoreMembers: number;
+  activeStoreMembers: number;
+  totalStoreAdmins: number;
+  unassignedProfiles: number;
+  storesWithoutAdmin: number;
 }
 
 export interface OwnerConsoleData {
   stats: OwnerConsoleStats;
   stores: OwnerStore[];
   selectedStoreMembers: OwnerStoreMember[];
+  profiles: OwnerProfile[];
+  unassignedProfiles: UnassignedProfile[];
+  storesWithoutAdmin: StoreWithoutAdmin[];
 }
+

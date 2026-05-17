@@ -1,5 +1,5 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
-import { OwnerConsoleData, OwnerStore, OwnerStoreMember, OwnerMemberRole } from '../types';
+import { OwnerConsoleData, OwnerStore, OwnerStoreMember, OwnerMemberRole, OwnerProfile, UnassignedProfile, StoreWithoutAdmin } from '../types';
 
 interface StoreDbRow {
   id: string;
@@ -117,43 +117,203 @@ export const ownerConsoleService = {
   },
 
   /**
-   * Obține datele agregate pentru Owner Console (statistici, magazine, membri magazin selectat)
+   * Obține lista completă a profilelor din sistem cu asocierile lor la magazine
+   */
+  async getProfiles(): Promise<OwnerProfile[]> {
+    const { data: profilesData, error: profilesErr } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, role, active, created_at')
+      .order('email', { ascending: true });
+
+    if (profilesErr) {
+      console.error("Eroare la obținerea profilelor:", profilesErr.message);
+      throw new Error(`Eroare Supabase (profiles): ${profilesErr.message}`);
+    }
+
+    const { data: membersData, error: membersErr } = await supabase
+      .from('store_members')
+      .select('store_id, profile_id, role, active');
+
+    if (membersErr) {
+      console.error("Eroare la obținerea membrilor pentru asocieri:", membersErr.message);
+      throw new Error(`Eroare Supabase (store_members): ${membersErr.message}`);
+    }
+
+    const { data: storesData, error: storesErr } = await supabase
+      .from('stores')
+      .select('id, name');
+
+    if (storesErr) {
+      console.error("Eroare la obținerea magazinelor pentru asocieri:", storesErr.message);
+      throw new Error(`Eroare Supabase (stores): ${storesErr.message}`);
+    }
+
+    const rawProfiles = (profilesData || []) as ProfileDbRow[];
+    const rawMembers = (membersData || []) as StoreMemberDbRow[];
+    const rawStores = (storesData || []) as { id: string; name: string }[];
+
+    const storeMap = new Map<string, string>(rawStores.map(s => [s.id, s.name]));
+
+    return rawProfiles.map(profile => {
+      const userMembers = rawMembers.filter(m => m.profile_id === profile.id);
+      const assignedStores = userMembers.map(m => ({
+        storeId: m.store_id,
+        storeName: storeMap.get(m.store_id) || 'Magazin Necunoscut',
+        role: (m.role as OwnerMemberRole) || 'casier',
+        active: m.active ?? true
+      }));
+
+      return {
+        id: profile.id,
+        email: profile.email || 'fara_email@domeniu.com',
+        fullName: profile.full_name || null,
+        globalRole: profile.role || 'casier',
+        active: profile.active ?? true,
+        createdAt: profile.created_at || new Date().toISOString(),
+        storeCount: assignedStores.length,
+        assignedStores
+      };
+    });
+  },
+
+  /**
+   * Obține profilele care nu sunt asociate niciunui magazin
+   */
+  async getUnassignedProfiles(): Promise<UnassignedProfile[]> {
+    const profiles = await this.getProfiles();
+    return profiles
+      .filter(p => p.storeCount === 0)
+      .map(p => ({
+        id: p.id,
+        email: p.email,
+        fullName: p.fullName,
+        globalRole: p.globalRole,
+        active: p.active,
+        createdAt: p.createdAt
+      }));
+  },
+
+  /**
+   * Obține magazinele care nu au niciun administrator activ alocat
+   */
+  async getStoresWithoutAdmin(): Promise<StoreWithoutAdmin[]> {
+    const stores = await this.getStores();
+    const { data: membersData, error: membersErr } = await supabase
+      .from('store_members')
+      .select('store_id, role, active');
+
+    if (membersErr) {
+      console.error("Eroare la obținerea membrilor pentru magazine fără admin:", membersErr.message);
+      throw new Error(`Eroare Supabase (store_members): ${membersErr.message}`);
+    }
+
+    const rawMembers = (membersData || []) as { store_id: string; role: string; active?: boolean | null }[];
+
+    return stores
+      .filter(store => {
+        const hasActiveAdmin = rawMembers.some(
+          m => m.store_id === store.id && m.role === 'admin' && m.active !== false
+        );
+        return !hasActiveAdmin;
+      })
+      .map(store => ({
+        storeId: store.id,
+        storeName: store.name,
+        active: store.active,
+        memberCount: store.membersCount
+      }));
+  },
+
+  /**
+   * Obține datele agregate pentru Owner Console (statistici, magazine, membri magazin selectat, profile, alerte)
    */
   async getOwnerConsoleData(): Promise<OwnerConsoleData> {
     const stores = await this.getStores();
     const selectedStoreMembers = stores.length > 0 ? await this.getStoreMembers(stores[0].id) : [];
+    const profiles = await this.getProfiles();
 
     const { data: allMembers, error: membersErr } = await supabase
       .from('store_members')
-      .select('profile_id, role, active');
+      .select('store_id, profile_id, role, active');
 
     if (membersErr) {
       console.error("Eroare la obținerea tuturor membrilor pentru statistici:", membersErr.message);
       throw new Error(`Eroare Supabase (statistici): ${membersErr.message}`);
     }
 
-    const rawAllMembers = (allMembers || []) as { profile_id: string; role: string; active?: boolean | null }[];
+    const rawAllMembers = (allMembers || []) as { store_id: string; profile_id: string; role: string; active?: boolean | null }[];
 
+    // Calculăm unassignedProfiles din profiles
+    const unassignedProfiles = profiles
+      .filter(p => p.storeCount === 0)
+      .map(p => ({
+        id: p.id,
+        email: p.email,
+        fullName: p.fullName,
+        globalRole: p.globalRole,
+        active: p.active,
+        createdAt: p.createdAt
+      }));
+
+    // Calculăm storesWithoutAdmin
+    const storesWithoutAdmin = stores
+      .filter(store => {
+        const hasActiveAdmin = rawAllMembers.some(
+          m => m.store_id === store.id && m.role === 'admin' && m.active !== false
+        );
+        return !hasActiveAdmin;
+      })
+      .map(store => ({
+        storeId: store.id,
+        storeName: store.name,
+        active: store.active,
+        memberCount: store.membersCount
+      }));
+
+    // Calculăm statistici
     const storesCount = stores.length;
     const activeStoresCount = stores.filter(s => s.active).length;
 
-    // Calculăm numărul unic de membri activi în sistem
     const uniqueMembers = new Set(rawAllMembers.filter(m => m.active !== false).map(m => m.profile_id));
     const membersCount = uniqueMembers.size;
 
-    // Calculăm numărul unic de administratori de magazin
     const uniqueAdmins = new Set(rawAllMembers.filter(m => m.active !== false && m.role === 'admin').map(m => m.profile_id));
     const adminsCount = uniqueAdmins.size;
 
+    const totalStores = storesCount;
+    const activeStores = activeStoresCount;
+    const totalProfiles = profiles.length;
+    const activeProfiles = profiles.filter(p => p.active).length;
+    const totalStoreMembers = rawAllMembers.length;
+    const activeStoreMembers = rawAllMembers.filter(m => m.active !== false).length;
+    const totalStoreAdmins = rawAllMembers.filter(m => m.role === 'admin').length;
+    const unassignedProfilesCount = unassignedProfiles.length;
+    const storesWithoutAdminCount = storesWithoutAdmin.length;
+
     return {
       stats: {
+        // Nume existente pentru compatibilitate cu componentele vechi
         storesCount,
         activeStoresCount,
         membersCount,
-        adminsCount
+        adminsCount,
+
+        // Nume extinse
+        totalStores,
+        activeStores,
+        totalProfiles,
+        activeProfiles,
+        totalStoreMembers,
+        activeStoreMembers,
+        totalStoreAdmins,
+        unassignedProfiles: unassignedProfilesCount,
+        storesWithoutAdmin: storesWithoutAdminCount
       },
       stores,
-      selectedStoreMembers
+      selectedStoreMembers,
+      profiles,
+      unassignedProfiles,
+      storesWithoutAdmin
     };
   },
 
@@ -176,9 +336,6 @@ export const ownerConsoleService = {
       console.error(`Eroare la actualizarea stării membrului storeId=${storeId}, profileId=${profileId}:`, memberErr.message);
       throw new Error(`Eroare Supabase (update store_members): ${memberErr.message}`);
     }
-
-    // Notă: profiles.active nu este modificat aici. Activarea/dezactivarea accesului 
-    // la un magazin nu trebuie să dezactiveze profilul global al utilizatorului.
   },
 
   /**
@@ -209,7 +366,5 @@ export const ownerConsoleService = {
       console.error(`Eroare la actualizarea rolului pentru membrul storeId=${storeId}, profileId=${profileId}:`, memberErr.message);
       throw new Error(`Eroare Supabase (update store_members): ${memberErr.message}`);
     }
-
-    // Rolul global din profiles nu este modificat aici. Owner Console gestionează rolul per magazin prin store_members.role.
   }
 };

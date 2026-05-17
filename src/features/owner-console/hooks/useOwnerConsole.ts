@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ownerConsoleService } from '../services/ownerConsoleService';
-import { OwnerConsoleStats, OwnerStore, OwnerStoreMember, OwnerMemberRole } from '../types';
+import { OwnerConsoleStats, OwnerStore, OwnerStoreMember, OwnerMemberRole, OwnerProfile, UnassignedProfile, StoreWithoutAdmin } from '../types';
 import { useAuth } from '../../auth/useAuth';
+
+export type OwnerConsoleTab = 'overview' | 'stores' | 'profiles' | 'members';
 
 export const useOwnerConsole = () => {
   const { role } = useAuth();
@@ -9,6 +11,13 @@ export const useOwnerConsole = () => {
   const [stores, setStores] = useState<OwnerStore[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedStoreMembers, setSelectedStoreMembers] = useState<OwnerStoreMember[]>([]);
+
+  // State-uri noi solicitate pentru Etapa 5E.2
+  const [profiles, setProfiles] = useState<OwnerProfile[]>([]);
+  const [unassignedProfiles, setUnassignedProfiles] = useState<UnassignedProfile[]>([]);
+  const [storesWithoutAdmin, setStoresWithoutAdmin] = useState<StoreWithoutAdmin[]>([]);
+  const [selectedTab, setSelectedTab] = useState<OwnerConsoleTab>('overview');
+
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +34,10 @@ export const useOwnerConsole = () => {
       const data = await ownerConsoleService.getOwnerConsoleData();
       setStats(data.stats);
       setStores(data.stores);
+      setProfiles(data.profiles);
+      setUnassignedProfiles(data.unassignedProfiles);
+      setStoresWithoutAdmin(data.storesWithoutAdmin);
+
       if (data.stores.length > 0) {
         setSelectedStoreId(data.stores[0].id);
         setSelectedStoreMembers(data.selectedStoreMembers);
@@ -72,10 +85,13 @@ export const useOwnerConsole = () => {
       await ownerConsoleService.setStoreMemberActive(storeId, profileId, active);
       // Actualizează starea locală
       setSelectedStoreMembers(prev => prev.map(m => (m.storeId === storeId && m.profileId === profileId) ? { ...m, active } : m));
-      // Reîmprospătează statisticile generale
+      // Reîmprospătează toate datele
       const data = await ownerConsoleService.getOwnerConsoleData();
       setStats(data.stats);
       setStores(data.stores);
+      setProfiles(data.profiles);
+      setUnassignedProfiles(data.unassignedProfiles);
+      setStoresWithoutAdmin(data.storesWithoutAdmin);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Operațiunea nu a putut fi finalizată.';
       setError(message);
@@ -94,9 +110,12 @@ export const useOwnerConsole = () => {
       await ownerConsoleService.updateStoreMemberRole(storeId, profileId, memberRole);
       // Actualizează starea locală
       setSelectedStoreMembers(prev => prev.map(m => (m.storeId === storeId && m.profileId === profileId) ? { ...m, role: memberRole } : m));
-      // Reîmprospătează statisticile generale
+      // Reîmprospătează toate datele
       const data = await ownerConsoleService.getOwnerConsoleData();
       setStats(data.stats);
+      setProfiles(data.profiles);
+      setUnassignedProfiles(data.unassignedProfiles);
+      setStoresWithoutAdmin(data.storesWithoutAdmin);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Operațiunea nu a putut fi finalizată.';
       setError(message);
@@ -109,11 +128,18 @@ export const useOwnerConsole = () => {
     stores,
     selectedStoreId,
     selectedStoreMembers,
+    profiles,
+    unassignedProfiles,
+    storesWithoutAdmin,
+    selectedTab,
+    setSelectedTab,
     loading,
     error,
     selectStore,
     toggleMemberActive,
     changeMemberRole,
-    refreshData: loadInitialData
+    refreshData: loadInitialData,
+    refreshAll: loadInitialData
   };
 };
+
