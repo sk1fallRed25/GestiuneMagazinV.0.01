@@ -17,11 +17,12 @@ Platforma a finalizat cu succes toate etapele de dezvoltare, refactorizare și s
 - **Autentificare & RBAC**: Sistemul folosește exclusiv Supabase Auth v2, cu rute protejate și permisiuni ierarhice stricte (`platform_owner`, `admin`, `manager`, `gestionar`, `casier`).
 - **Owner Console**: Modulul este complet funcțional și securizat (Hardening 4J.1). Acesta gestionează permisiunile la nivel de magazin (`store_members`) și **NU** atinge/sincronizează starea globală sau rolul din tabela `profiles`.
 - **Experiență Platform Owner (5C.1)**: Utilizatorul `platform_owner` folosește Owner Console ca landing page (`/owner`) și dispune de un empty state dedicat în Dashboard atunci când nu are un magazin selectat.
+- **Consistență Tranzacțională (5D.0)**: S-a realizat auditul tehnic și s-a creat blueprint-ul SQL pentru proceduri stocate atomice (RPC) aferente fluxurilor de stoc și vânzare (`finalize_sale`, `receive_stock`, `transfer_stock`, `record_waste`). În prezent, aplicația funcționează corect pe varianta multi-step din frontend, RPC-urile fiind o propunere arhitecturală (blueprint) pregătită pentru aplicare ulterioară.
 - **Build & Stabilitate**: Proiectul se compilează perfect (`npm run build` returnează `Exit code: 0`), fără erori sau avertizări TypeScript/Vite.
 
 ---
 
-## 2. Documentația Oficială Curentă (Etapa 5A)
+## 2. Documentația Oficială Curentă (Etapa 5A - 5D.0)
 
 Pentru planificarea demonstrațiilor, verificarea stării tehnice sau auditarea istoricului de dezvoltare, consultați exclusiv următoarele documente actualizate:
 
@@ -31,6 +32,8 @@ Pentru planificarea demonstrațiilor, verificarea stării tehnice sau auditarea 
    - Grila de verificare tehnică a mediului, a bazei de date, a rutei de autentificare și a modulelor operaționale.
 3. [Changelog MVP & Istoric Etape (Etapa 5A)](./mvp_internal_changelog_5a.md)
    - Sinteza cronologică a tuturor celor 20 de sub-etape parcurse de la inițializarea proiectului până în prezent.
+4. [Audit RPC Atomic Hardening (Etapa 5D.0)](./rpc_atomic_hardening_audit_5d0.md)
+   - Analiza riscurilor de non-atomicitate în serviciile frontend și specificațiile celor 4 proceduri stocate propuse.
 
 ---
 
@@ -46,9 +49,10 @@ Următoarele categorii de afirmații prezente în rapoartele vechi (din folderul
 
 ---
 
-## 4. Următorii Pași Recomandați (Post-5A)
+## 4. Următorii Pași Recomandați (Post-5D.0)
 
-După finalizarea demonstrației interne pe baza ghidului 5A, echipa poate opta pentru una dintre următoarele direcții strategice:
+După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua implementarea tranzacțională astfel:
 
-- **Etapa 5B (Opțiunea 1)**: Demo intern ghidat / Colectare listă de feedback (Feedback list & UX fine-tuning).
-- **Etapa 5B (Opțiunea 2)**: Întărirea securității prin proceduri stocate atomice (Atomic RPC hardening) pentru toate fluxurile de stoc (eliminarea completă a calculelor multi-step din frontend).
+- **Etapa 5D.1**: Aplicarea manuală a scriptului SQL `proposed_atomic_rpcs_5d.sql` în Supabase SQL Editor.
+- **Etapa 5D.2 - 5D.5**: Migrarea succesivă a serviciilor frontend (`transferService`, `lossService`, `receptionService`, `posService`) pentru a apela noile funcții RPC.
+- **Etapa 5D.6**: Smoke testing tranzacțional pentru validarea fluxurilor atomice sub sarcină.
