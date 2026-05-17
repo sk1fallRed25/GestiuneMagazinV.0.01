@@ -17,7 +17,7 @@ Acest document reprezintă grila de verificare tehnică (Technical Status Checkl
 - [x] **`products` count > 0**: Tabela conține catalogul de produse active importate în etapele anterioare.
 - [x] **`product_prices` count > 0**: Fiecare produs are prețuri active (achiziție și vânzare) asociate corect.
 - [x] **`stock_batches` count > 0**: Există loturi de stoc inițializate (ex. 10 buc în Depozit, 20 buc în Magazin) pentru fiecare produs activ.
-- [x] **RLS enabled**: Row Level Security este activat pe toate tabelele din schema `public` (`products`, `stores`, `store_members`, `profiles`, `stock_batches`, `transactions`, `waste_events`).
+- [x] **RLS enabled**: Row Level Security este activat pe toate tabelele din schema `public` (`products`, `stores`, `store_members`, `profiles`, `stock_batches`, `sales`, `sale_items`, `payments`, `stock_movements`, `waste_events`).
 - [x] **Hardening 4H.2 applied**: Politicile de securitate verificate blochează accesul neautorizat și previn escaladarea privilegiilor.
 - [x] **Users in `profiles`/`store_members`**: Utilizatorii de test au rolurile și asocierile de magazin setate corect în baza de date.
 

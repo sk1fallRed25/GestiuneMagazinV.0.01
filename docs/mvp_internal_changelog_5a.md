@@ -8,7 +8,7 @@ Acest document prezintă evoluția cronologică și sinteza etapizată a dezvolt
 
 ### 1J: Reset schema v2
 - **Scop**: Migrarea de la vechea structură monolitică la o schemă de baze de date modernă, normalizată și pregătită pentru multi-store și RBAC.
-- **Rezultat**: Crearea tabelelor de bază (`stores`, `profiles`, `store_members`, `products`, `product_prices`, `stock_batches`, `transactions`, `waste_events`).
+- **Rezultat**: Crearea tabelelor de bază (`stores`, `profiles`, `store_members`, `products`, `product_prices`, `stock_batches`, `sales`, `sale_items`, `payments`, `stock_movements`, `waste_events`).
 - **Status**: `PASS / COMPLETED`
 
 ### 2A: Auth / Store context
@@ -48,7 +48,7 @@ Acest document prezintă evoluția cronologică și sinteza etapizată a dezvolt
 
 ### 3B: Sales history
 - **Scop**: Auditarea și vizualizarea bonurilor emise prin POS.
-- **Rezultat**: Tabel detaliat cu istoricul vânzărilor (`transactions`), permițând managerilor verificarea fiecărui bon în parte.
+- **Rezultat**: Tabel detaliat cu istoricul vânzărilor (`sales`, `sale_items`, `payments`), permițând managerilor verificarea fiecărui bon în parte.
 - **Status**: `PASS / COMPLETED`
 
 ### 3C: Dashboard
