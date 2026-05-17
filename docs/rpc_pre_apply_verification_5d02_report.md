@@ -42,3 +42,8 @@ Analiza payload-ului frontend a revelat o lipsă minoră de sincronizare rezolva
 Scriptul `database/proposed_atomic_rpcs_5d.sql` a ajuns la maturitate completă. El este corelat perfect atât cu schema Supabase reală, cât și cu necesitățile de payload ale codului sursă actual. Funcțiile includ securitate avansată (`SECURITY DEFINER`, `search_path=public`, `FOR UPDATE`), ceea ce le face gata pentru mediul de producție/demo.
 
 **Pasul Următor**: Aplicarea manuală a SQL-ului (`Etapa 5D.1`) în Supabase, urmată de refactorizarea secvențială a serviciilor frontend menționate pentru a utiliza aceste RPC-uri în loc de interogările directe ORM (`Etapa 5D.2+`).
+
+## 6. Post-Apply Finding
+- Noile RPC-uri au fost create corect, respectând structura și securitatea dorită.
+- S-au găsit overload-uri vechi (variante anterioare ale funcțiilor ce primeau un singur parametru JSONB) care încă au `anon_execute=true`.
+- Se impune execuția etapei **5D.1.1** (Legacy RPC Grants Cleanup) pentru securizarea acestor funcții înainte de migrarea efectivă a frontend-ului.

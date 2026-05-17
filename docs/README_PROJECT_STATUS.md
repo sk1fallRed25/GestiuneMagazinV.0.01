@@ -53,6 +53,7 @@ Următoarele categorii de afirmații prezente în rapoartele vechi (din folderul
 
 După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua implementarea tranzacțională astfel:
 
-- **Etapa 5D.1**: Aplicarea manuală a scriptului SQL `proposed_atomic_rpcs_5d.sql` în Supabase SQL Editor.
+- **Etapa 5D.1**: Aplicarea manuală a scriptului SQL `proposed_atomic_rpcs_5d.sql` în Supabase SQL Editor (Realizat - funcții noi adăugate).
+- **Etapa 5D.1.1**: Curățarea granturilor (REVOKE EXECUTE anon) pe vechile overload-uri RPC înainte de migrare (Pending - SQL pregătit, necesită aplicare manuală).
 - **Etapa 5D.2 - 5D.5**: Migrarea succesivă a serviciilor frontend (`transferService`, `lossService`, `receptionService`, `posService`) pentru a apela noile funcții RPC.
 - **Etapa 5D.6**: Smoke testing tranzacțional pentru validarea fluxurilor atomice sub sarcină.
