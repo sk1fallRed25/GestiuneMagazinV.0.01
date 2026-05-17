@@ -42,7 +42,7 @@ export const SalesHistoryTable: React.FC<SalesHistoryTableProps> = ({ sales, loa
                             <th className="p-6 text-center">METODĂ PLATĂ</th>
                             <th className="p-6 text-right">TOTAL</th>
                             <th className="p-6 text-center">STATUS</th>
-                            <th className="p-6 text-center">ACȚIUNI</th>
+                            <th className="p-6 text-center sticky right-0 bg-gray-50 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.05)]">ACȚIUNI</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
@@ -82,7 +82,7 @@ export const SalesHistoryTable: React.FC<SalesHistoryTableProps> = ({ sales, loa
                                 <td className="p-6 text-center">
                                     <SaleStatusBadge status={sale.status} />
                                 </td>
-                                <td className="p-6 text-center">
+                                <td className="p-6 text-center sticky right-0 bg-white group-hover:bg-gray-50/80 transition-colors shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.05)]">
                                     <button
                                         onClick={() => onViewDetails(sale.id)}
                                         className="p-3 bg-gray-50 text-gray-400 hover:bg-indigo-600 hover:text-white rounded-xl transition-all active:scale-90"

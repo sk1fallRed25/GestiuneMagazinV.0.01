@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 const initialForm: FastAddForm = {
     barcode: '',
     name: '',
-    unit: 'buc',
+    unit: '',
     priceSale: '',
     pricePurchase: '',
     vatPercent: '19',
