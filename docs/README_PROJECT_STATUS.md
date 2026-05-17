@@ -64,5 +64,6 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 5D.4.1**: test E2E/Playwright pentru Recepție RPC — PASS. Recepția prin RPC este validată operațional.
 - **Etapa 5D.5**: Migrare Vânzări / POS la RPC atomic `finalize_sale` (Realizat - frontend-ul nu mai execută logică multi-step pentru vânzare. Transfer, Pierderi și Recepție sunt deja migrate și validate operațional).
 - **Etapa 5D.5.1**: test E2E/Playwright pentru POS RPC — PASS. Toate modurile de vânzare (cash, card, mixt) și verificările de stoc sunt validate operațional.
-- **Etapa 5D.6**: Smoke testing tranzacțional pentru validarea fluxurilor atomice sub sarcină.
+- **Etapa 5D.6**: Smoke testing tranzacțional pentru validarea fluxurilor atomice în regim end-to-end — **PASS**. Toate cele 4 fluxuri operaționale critice (`receive_stock`, `transfer_stock`, `finalize_sale`, `record_waste`) funcționează complet integrat, securizat (Security Definer cu RLS activ) și fără nicio regresie.
+- **Etapa 5E (Următorul Pas)**: Implementarea Owner Console v2 / experiența dedicată pentru `admin@owner.com`.
 
