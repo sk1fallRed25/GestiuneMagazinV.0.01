@@ -186,15 +186,14 @@ GRANT EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB) TO auth
 
 ---
 
-## 10. Corecții Etapa 5D.0.1 — Aliniere cu schema reală
+## 10. Corecții Etapa 5D.0.1 & 5D.0.2 — Aliniere cu schema reală și Pre-Apply Verification
 
-În etapa 5D.0.1, documentația și scriptul SQL aferent blueprint-ului (`database/proposed_atomic_rpcs_5d.sql`) au fost actualizate pentru o aliniere 100% cu structura exactă a schemei de date din Supabase:
-- **`sales`**: S-a folosit coloana reală `total` în loc de `total_amount`. Parametrul `p_notes` a fost eliminat, neexistând o coloană dedicată pe antetul de vânzare.
+În etapa 5D.0.1 și 5D.0.2, documentația și scriptul SQL aferent blueprint-ului (`database/proposed_atomic_rpcs_5d.sql`) au fost actualizate pentru o aliniere 100% cu structura exactă a schemei de date din Supabase, pe baza analizei codului sursă frontend (`posService.ts`, `receptionService.ts`, etc.):
+- **`sales`**: S-a folosit coloana reală `total` în loc de `total_amount`. Parametrul `p_notes` a fost eliminat. **În etapa 5D.0.2 s-a adăugat parametrul `p_shift_id`**, necesar pentru a asocia vânzarea cu un shift deschis, conform schemei `sales`.
+- **Validări JSON**: S-au adăugat verificări stricte de tip array (`jsonb_typeof`) pentru `p_items` și `p_payments` în funcțiile `finalize_sale` și `receive_stock`.
 - **`sale_items`**: S-a folosit coloana reală `total_item` în loc de `total_price` și a fost adăugat parametrul lipsă obligatoriu `batch_id`.
 - **Prețuri de vânzare citite exclusiv din DB**: `finalize_sale` nu mai primește `unit_price` ca parametru JSON de la interfață, ci interoghează `product_prices`.
-- **Toleranțe matematice la plăți**: Compararea diferențelor dintre `payments.amount` și calculele vânzărilor utilizează toleranță `< 0.01` în loc de inegalitate strictă, acoperind eventualele discrepanțe la zecimale.
+- **Toleranțe matematice la plăți**: Compararea diferențelor dintre `payments.amount` și calculele vânzărilor utilizează toleranță `< 0.01`.
 - **`p_document_date`**: Semnătura lui `receive_stock` acceptă acum tipul `DATE` conform bazei de date.
-- **Roluri stricte RBAC**: Au fost eliminate roluri fără necesitate operațională în procesele direct vizate (ex. manager scos de la finalizarea de pe POS și de la recepții).
-- **Stoc disponibil garantat pe `record_waste`**: S-a adăugat o interogare `SUM(quantity)` globală la începutul casărilor, pentru un răspuns rapid de eșec (fail fast).
-- **Atenționare Constrângeri Unice**: Adăugat avertisment referitor la dependența de constrângerea `UNIQUE` de pe tabelul `product_prices` în cadrul procedurii de recepție de marfă (`ON CONFLICT`).
-- S-a menținut integritatea sistemului curent (nicio modificare pe fișierele Typescript TS/TSX sau mediu Supabase Prod). SQL-ul propus încă NU este aplicat.
+- **Verificare statică servicii**: Analiza serviciilor frontend a confirmat că payload-urile curente sunt perfect compatibile (cu mici mapări la nivel de chei) cu semnăturile RPC.
+- S-a menținut integritatea sistemului curent. SQL-ul propus încă NU este aplicat.

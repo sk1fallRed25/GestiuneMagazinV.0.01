@@ -17,7 +17,8 @@ CREATE OR REPLACE FUNCTION public.finalize_sale(
     p_store_id UUID,
     p_profile_id UUID,
     p_items JSONB,
-    p_payments JSONB
+    p_payments JSONB,
+    p_shift_id UUID DEFAULT NULL
 ) RETURNS JSONB AS $$
 DECLARE
     v_sale_id UUID;
@@ -42,6 +43,10 @@ BEGIN
     END IF;
 
     -- 2. Calcul total din DB (prețuri din product_prices) și validare cantități
+    IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+        RAISE EXCEPTION 'Nu au fost furnizate produse valide pentru vânzare.';
+    END IF;
+
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
     LOOP
         v_product_id := (v_item->>'product_id')::UUID;
@@ -64,10 +69,10 @@ BEGIN
     END LOOP;
 
     -- 3. Verificare plăți
-    v_payment_count := jsonb_array_length(p_payments);
-    IF v_payment_count = 0 THEN
+    IF p_payments IS NULL OR jsonb_typeof(p_payments) <> 'array' OR jsonb_array_length(p_payments) = 0 THEN
         RAISE EXCEPTION 'Nu a fost furnizată nicio plată.';
     END IF;
+    v_payment_count := jsonb_array_length(p_payments);
 
     FOR v_payment IN SELECT * FROM jsonb_array_elements(p_payments)
     LOOP
@@ -93,8 +98,8 @@ BEGIN
     END IF;
 
     -- 4. Creare Header Sale (coloană: total)
-    INSERT INTO public.sales (store_id, profile_id, total, payment_method, status)
-    VALUES (p_store_id, p_profile_id, v_total_calc, v_payment_method, 'completed')
+    INSERT INTO public.sales (store_id, profile_id, shift_id, total, payment_method, status)
+    VALUES (p_store_id, p_profile_id, p_shift_id, v_total_calc, v_payment_method, 'completed')
     RETURNING id INTO v_sale_id;
 
     -- 5. Inserare plăți detaliate
@@ -156,9 +161,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
-REVOKE EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB) FROM anon;
-GRANT EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB, UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB, UUID) FROM anon;
+GRANT EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB, UUID) TO authenticated;
 
 
 -- ============================================================================
@@ -201,7 +206,7 @@ BEGIN
         RAISE EXCEPTION 'Numărul documentului este obligatoriu.';
     END IF;
     
-    IF jsonb_array_length(p_items) = 0 THEN
+    IF jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
         RAISE EXCEPTION 'Recepția trebuie să conțină cel puțin un produs.';
     END IF;
 
