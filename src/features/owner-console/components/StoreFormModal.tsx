@@ -19,33 +19,29 @@ export const StoreFormModal: React.FC<StoreFormModalProps> = ({
   onSubmit,
   loading = false
 }) => {
-  const [name, setName] = useState<string>('');
-  const [fiscalCode, setFiscalCode] = useState<string>('');
-  const [workpointNumber, setWorkpointNumber] = useState<string>('1');
-  const [address, setAddress] = useState<string>('');
-  const [companyName, setCompanyName] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
-  const [active, setActive] = useState<boolean>(true);
+  const [name, setName] = useState<string>(mode === 'edit' && store ? store.name || '' : '');
+  const [fiscalCode, setFiscalCode] = useState<string>(mode === 'edit' && store ? store.fiscalCode || '' : '');
+  const [workpointNumber, setWorkpointNumber] = useState<string>(mode === 'edit' && store && store.workpointNumber !== undefined && store.workpointNumber !== null ? String(store.workpointNumber) : '1');
+  const [address, setAddress] = useState<string>(mode === 'edit' && store ? store.address || '' : '');
+  const [companyName, setCompanyName] = useState<string>(mode === 'edit' && store ? store.settings?.companyName || '' : '');
+  const [notes, setNotes] = useState<string>(mode === 'edit' && store ? store.settings?.notes || '' : '');
+  const [active, setActive] = useState<boolean>(mode === 'edit' && store ? store.active ?? true : true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       if (mode === 'edit' && store) {
-        setName(store.name || '');
-        setFiscalCode(store.fiscalCode || '');
-        setWorkpointNumber(store.workpointNumber !== undefined && store.workpointNumber !== null ? String(store.workpointNumber) : '1');
-        setAddress(store.address || '');
-        setCompanyName(store.settings?.companyName || '');
-        setNotes(store.settings?.notes || '');
-        setActive(store.active ?? true);
+        setName(prev => prev !== (store.name || '') ? (store.name || '') : prev);
+        setFiscalCode(prev => prev !== (store.fiscalCode || '') ? (store.fiscalCode || '') : prev);
+        const wp = store.workpointNumber !== undefined && store.workpointNumber !== null ? String(store.workpointNumber) : '1';
+        setWorkpointNumber(prev => prev !== wp ? wp : prev);
+        setAddress(prev => prev !== (store.address || '') ? (store.address || '') : prev);
+        setCompanyName(prev => prev !== (store.settings?.companyName || '') ? (store.settings?.companyName || '') : prev);
+        setNotes(prev => prev !== (store.settings?.notes || '') ? (store.settings?.notes || '') : prev);
+        setActive(prev => prev !== (store.active ?? true) ? (store.active ?? true) : prev);
       } else {
-        setName('');
-        setFiscalCode('');
-        setWorkpointNumber('1');
-        setAddress('');
-        setCompanyName('');
-        setNotes('');
-        setActive(true);
+        setName(prev => prev === '' ? '' : prev);
+        setFiscalCode(prev => prev === '' ? '' : prev);
       }
       setError(null);
     }
