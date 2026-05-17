@@ -36,3 +36,9 @@ A fost generat un script pentru curățarea acestor permisiuni vechi:
 
 ## 6. Decision
 - Nu se va începe Etapa 5D.2 (migrarea serviciilor frontend) până când `anon_execute=false` nu este asigurat pentru toate overload-urile sensibile vizate de acest hotfix.
+
+## 7. Post-Hotfix Verification — Etapa 5D.1.2
+- **Hotfix aplicat**: Da. Scriptul `database/proposed_rpc_legacy_grants_cleanup_5d11.sql` a fost aplicat manual cu succes.
+- **Confirmare**: Toate cele 4 overload-uri legacy (`jsonb`) au acum `anon_execute=false`.
+- **Securitate**: Supabase Security Advisors confirmă că aceste 4 funcții nu mai expun un risc de execuție publică.
+- **Decizie**: Proiectul este complet pregătit pentru Etapa 5D.2 (Transfer RPC migration).
