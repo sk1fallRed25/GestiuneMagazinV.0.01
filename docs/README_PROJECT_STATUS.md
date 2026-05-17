@@ -65,5 +65,6 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 5D.5**: Migrare Vânzări / POS la RPC atomic `finalize_sale` (Realizat - frontend-ul nu mai execută logică multi-step pentru vânzare. Transfer, Pierderi și Recepție sunt deja migrate și validate operațional).
 - **Etapa 5D.5.1**: test E2E/Playwright pentru POS RPC — PASS. Toate modurile de vânzare (cash, card, mixt) și verificările de stoc sunt validate operațional.
 - **Etapa 5D.6**: Smoke testing tranzacțional pentru validarea fluxurilor atomice în regim end-to-end — **PASS**. Toate cele 4 fluxuri operaționale critice (`receive_stock`, `transfer_stock`, `finalize_sale`, `record_waste`) funcționează complet integrat, securizat (Security Definer cu RLS activ) și fără nicio regresie.
-- **Etapa 5E (Următorul Pas)**: Implementarea Owner Console v2 / experiența dedicată pentru `admin@owner.com`.
+- **Etapa 5E.0 (Owner Console v2 Audit & Plan)**: S-a realizat auditul consolei de proprietar existente și s-a creat planul tehnic complet de implementare pentru `admin@owner.com` (`docs/owner_console_v2_audit_plan_5e0.md`). S-a documentat clar că fluxul de creare a noilor utilizatori depinde strict de aplicarea manuală a blueprint-ului de curățare a trigger-ului Auth (`database/proposed_auth_trigger_v2_cleanup_5d13.sql`).
+- **Etapa 5E.1 (Următorul Pas)**: Verificarea și aplicarea curățării trigger-ului Auth în Supabase SQL Editor.
 
