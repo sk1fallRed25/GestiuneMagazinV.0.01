@@ -60,7 +60,8 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 5D.2.1**: test E2E/Playwright pentru Transfer RPC — PASS. Transferul prin RPC este validat operațional.
 - **Etapa 5D.3**: Migrare Pierderi/Casări la RPC atomic `record_waste` (Realizat - frontend-ul nu mai execută pași multi-step pentru pierderi/casări).
 - **Etapa 5D.3.1**: test E2E/Playwright pentru Pierderi RPC — PASS. Pierderile prin RPC sunt validate operațional, incluzând rezolvarea trunchierii datelor PostgREST prin paginare automată.
-- **Etapa 5D.4**: Migrare Recepție Marfă la RPC atomic `receive_stock` (Realizat - frontend-ul nu mai face multi-step pentru recepție. Transfer și Pierderi sunt deja migrate și validate operațional, iar POS urmează să fie migrat).
+- **Etapa 5D.4**: Migrare Recepție Marfă la RPC atomic `receive_stock` (Realizat - frontend-ul nu mai face multi-step pentru recepție).
+- **Etapa 5D.4.1**: test E2E/Playwright pentru Recepție RPC — PASS. Recepția prin RPC este validată operațional.
 - **Etapa 5D.5**: Migrare Vânzări / POS la RPC atomic `finalize_sale`.
 - **Etapa 5D.6**: Smoke testing tranzacțional pentru validarea fluxurilor atomice sub sarcină.
 

@@ -43,8 +43,7 @@ export const receptionService = {
     },
 
     /**
-     * Creează o recepție completă (receptions, items, stocks, prices, movements).
-     * NOTĂ: Ideal, acest flux ar trebui mutat într-un RPC (funcție PostgreSQL) pentru atomicitate.
+     * Creează o recepție completă prin RPC atomic receive_stock.
      */
     async createReception(payload: CreateReceptionPayload): Promise<string> {
         const { storeId, profileId, document, lines } = payload;
