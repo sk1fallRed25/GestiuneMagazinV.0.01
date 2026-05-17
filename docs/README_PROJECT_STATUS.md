@@ -57,6 +57,7 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 5D.1.1 & 5D.1.2**: Curățarea granturilor (REVOKE EXECUTE anon) pe vechile overload-uri RPC și verificarea securizării acestora (Realizat - funcțiile vechi nu mai permit acces public).
 - **Etapa 5D.1.3 (Auth Trigger Legacy Cleanup)**: S-a descoperit trigger-ul legacy `handle_new_user` pe `auth.users` care încearcă să insereze în tabela inexistentă (legacy) `public.utilizatori`. S-a creat blueprint-ul SQL `database/proposed_auth_trigger_v2_cleanup_5d13.sql` și raportul de audit. Acest trigger necesită cleanup (aplicare manuală a blueprint-ului) înainte de a putea crea utilizatori noi din Supabase Auth. (Owner Console actual gestionează membrii existenți, dar nu creează utilizatori Auth).
 - **Etapa 5D.2**: Migrarea serviciului frontend de Transfer Marfă (`transferService.ts`) pentru a apela noul RPC atomic `transfer_stock` (Realizat - frontend-ul nu mai execută pași multi-step vulnerabili).
+- **Etapa 5D.2.1**: test E2E/Playwright pentru Transfer RPC — PASS. Transferul prin RPC este validat operațional. Se poate trece la 5D.3 Pierderi / record_waste.
 - **Etapa 5D.3 - 5D.5**: Migrarea succesivă a celorlalte servicii frontend (`lossService`, `receptionService`, `posService`) pentru a apela noile funcții RPC. (Urmează 5D.3 Pierderi / record_waste)
 - **Etapa 5D.6**: Smoke testing tranzacțional pentru validarea fluxurilor atomice sub sarcină.
 
