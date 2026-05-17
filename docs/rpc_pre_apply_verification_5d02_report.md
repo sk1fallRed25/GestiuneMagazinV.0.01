@@ -6,15 +6,22 @@ Acest raport confirmă finalizarea Etapei 5D.0.2: Verificarea statică și de co
 ## 2. Acțiuni Efectuate
 *   S-a realizat analiza statică a codului Typescript pentru serviciile: `posService.ts`, `receptionService.ts`, `transferService.ts` și `lossService.ts`.
 *   S-a evaluat compatibilitatea structurii payload-urilor frontend cu parametrii așteptați de noile RPC-uri din blueprint.
-*   S-a reverificat structura bazei de date. Din cauza unei instabilități de rețea cu serverul MCP Supabase (Bad Gateway), interogarea funcțiilor de helper (`has_store_role`, `is_platform_owner`) a fost bazată pe rezultatele etapelor anterioare (4H.2), unde s-a demonstrat stabilitatea politicilor RLS bazate pe aceste funcții.
-
+*   S-a reverificat structura bazei de date.
+    *   helper functions au fost confirmate real în Supabase:
+        *   has_store_role(uuid, text[]) exists, SECURITY DEFINER, search_path=public
+        *   is_platform_owner() exists, SECURITY DEFINER, search_path=public
 ## 3. Descoperiri și Corecții (Blueprint SQL)
 Analiza payload-ului frontend a revelat o lipsă minoră de sincronizare rezolvată astfel:
 1.  **Modificarea funcției `finalize_sale`**: Serviciul frontend trimitea un `shift_id` obligatoriu. Schema bazei de date cere `shift_id` pentru tabelul `sales`. Funcția RPC a fost corectată pentru a accepta parametrul `p_shift_id UUID DEFAULT NULL` și a-l insera corespunzător.
 2.  **Validarea Tipului de Date JSON**: Frontend-ul poate trimite payload-uri cu diferite validări. Pentru a preîntâmpina erori în Postgres, au fost adăugate instrucțiuni stricte de validare în PL/pgSQL: `jsonb_typeof(p_items) <> 'array'` pe listele de iteme (POS, recepții) și metode de plată, oprind execuția instant (`RAISE EXCEPTION`) dacă payload-ul e malformat.
 
-## 4. Evaluare Compatibilitate Frontend -> RPC
+## Corecții Etapa 5D.0.3
+- `sales.status` aliniat la valoarea reală `finalized` (anterior `completed` din greșeală în blueprint)
+- `receive_stock` validare explicită NULL pentru `p_items`
+- valori reale confirmate pentru `payments.method` (card, cash), `stock_batches.zone` (depozit, magazin), `stock_movements.type` (inventory_adjustment, sale, transfer, waste)
+- SQL încă NU a fost aplicat
 
+## 4. Evaluare Compatibilitate Frontend -> RPC
 ### POS (`finalize_sale`)
 *   **Stare**: Compatibil (cu reformatare la nivelul serviciului).
 *   **Acțiune Necesară la Migrare**: În `posService.ts`, datele referitoare la plățile cash și card vor trebui grupate într-un array JSON `payments` înainte de a fi trimise către RPC `supabase.rpc('finalize_sale', {...})`.

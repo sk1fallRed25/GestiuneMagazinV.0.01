@@ -197,3 +197,14 @@ GRANT EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB) TO auth
 - **`p_document_date`**: Semnătura lui `receive_stock` acceptă acum tipul `DATE` conform bazei de date.
 - **Verificare statică servicii**: Analiza serviciilor frontend a confirmat că payload-urile curente sunt perfect compatibile (cu mici mapări la nivel de chei) cu semnăturile RPC.
 - S-a menținut integritatea sistemului curent. SQL-ul propus încă NU este aplicat.
+
+---
+
+## 11. Corecții Etapa 5D.0.3 — Final Pre-Apply Patch
+
+În etapa 5D.0.3, pe baza verificării valorilor reale din baza de date, au fost aplicate următoarele corecții pe blueprint:
+- **`sales.status`**: S-a modificat statusul inserat din `completed` (care nu există în constrângeri) în `finalized`.
+- **Validare `receive_stock`**: S-a adăugat verificarea explicită de NULL pentru parametrul `p_items` (`IF p_items IS NULL OR...`).
+- S-au validat helper functions direct în Supabase, confirmând existența lor, prezența `SECURITY DEFINER` și a `SET search_path=public`.
+- Valori reale pentru `payments.method` (card, cash), `stock_batches.zone` (depozit, magazin), și `stock_movements.type` (inventory_adjustment, sale, transfer, waste) sunt confirmate și respectate în scriptul SQL.
+- Blueprint-ul rămâne încă neaplicat pe Supabase.

@@ -99,7 +99,7 @@ BEGIN
 
     -- 4. Creare Header Sale (coloană: total)
     INSERT INTO public.sales (store_id, profile_id, shift_id, total, payment_method, status)
-    VALUES (p_store_id, p_profile_id, p_shift_id, v_total_calc, v_payment_method, 'completed')
+    VALUES (p_store_id, p_profile_id, p_shift_id, v_total_calc, v_payment_method, 'finalized')
     RETURNING id INTO v_sale_id;
 
     -- 5. Inserare plăți detaliate
@@ -206,7 +206,7 @@ BEGIN
         RAISE EXCEPTION 'Numărul documentului este obligatoriu.';
     END IF;
     
-    IF jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+    IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
         RAISE EXCEPTION 'Recepția trebuie să conțină cel puțin un produs.';
     END IF;
 
