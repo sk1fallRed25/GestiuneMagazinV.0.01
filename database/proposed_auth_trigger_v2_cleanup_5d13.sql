@@ -17,8 +17,9 @@
   - Funcția are SECURITY DEFINER și search_path = public.
   - Folosește exclusiv tabele v2 (public.profiles).
   - Nu inserează automat în `store_members` (asocierea se va face din Owner Console sau manual).
-  - Previne escaladarea privilegiilor: nu permite setarea rolului de `platform_owner` din metadata.
-  - Rolurile permise sunt validate împotriva constrângerii din `profiles` ('admin', 'manager', 'gestionar', 'casier').
+  - Previne escaladarea privilegiilor: ignoră complet metadata.role și forțează rolul global minimal `casier`.
+  - Rolul real de administrare sau gestiune per magazin se setează ulterior prin `store_members.role` în Owner Console.
+  - La conflict (ON CONFLICT pe id), se actualizează doar emailul, numele (dacă cel existent este null/gol) și updated_at, protejând rolul și starea de activare.
   - Păstrează trigger-ul existent `on_auth_user_created` de pe `auth.users`, actualizând doar funcția.
   - Nu face DROP TABLE, nu șterge utilizatori și nu modifică structura auth.users.
 */
@@ -39,18 +40,21 @@ BEGIN
   )
   VALUES (
     NEW.id,
-    NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1)),
-    CASE 
-      WHEN NEW.raw_user_meta_data->>'role' IN ('admin', 'manager', 'gestionar', 'casier') THEN NEW.raw_user_meta_data->>'role'
-      ELSE 'casier'
-    END,
+    lower(NEW.email),
+    COALESCE(
+      NULLIF(NEW.raw_user_meta_data->>'full_name', ''),
+      split_part(lower(NEW.email), '@', 1)
+    ),
+    'casier',
     true
   )
   ON CONFLICT (id) DO UPDATE
   SET
     email = EXCLUDED.email,
-    full_name = COALESCE(public.profiles.full_name, EXCLUDED.full_name),
+    full_name = COALESCE(
+      NULLIF(public.profiles.full_name, ''),
+      EXCLUDED.full_name
+    ),
     updated_at = NOW();
 
   RETURN NEW;
