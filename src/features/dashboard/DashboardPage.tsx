@@ -9,11 +9,32 @@ import { WasteSummaryCard } from './components/WasteSummaryCard';
 import { SalesChartCard } from './components/SalesChartCard';
 import { BrainCircuit, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../auth/useAuth';
 
 const DashboardPage: React.FC = () => {
     const { data, loading, error, refreshDashboard } = useDashboard();
+    const { role } = useAuth();
 
     if (error) {
+        if (role === 'platform_owner' && error === "Selectează un magazin pentru a vedea dashboard-ul.") {
+            return (
+                <div className="p-8 max-w-7xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center font-sans">
+                    <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-indigo-100">
+                        <BrainCircuit size={40} />
+                    </div>
+                    <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Administrare Globală Platformă</h2>
+                    <p className="text-gray-600 font-medium max-w-md mb-1">Dashboard-ul este disponibil după selectarea unui magazin.</p>
+                    <p className="text-gray-400 font-medium max-w-md mb-8">Pentru administrarea globală, folosește Owner Console.</p>
+                    <Link 
+                        to="/owner"
+                        className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-100 uppercase tracking-wider text-sm"
+                    >
+                        Mergi la Owner Console
+                    </Link>
+                </div>
+            );
+        }
+
         return (
             <div className="p-8 max-w-7xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center">
                 <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-red-100">
@@ -30,6 +51,7 @@ const DashboardPage: React.FC = () => {
             </div>
         );
     }
+
 
     return (
         <div className="p-8 max-w-7xl mx-auto pb-20 font-sans bg-gray-50/30 min-h-screen">

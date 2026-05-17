@@ -16,6 +16,7 @@ Platforma a finalizat cu succes toate etapele de dezvoltare, refactorizare și s
 - **Securitate (RLS)**: Row Level Security este **activat și întărit (hardened)** pe toate tabelele din public, conform auditului 4H.2. Accesul public necontrolat este complet blocat.
 - **Autentificare & RBAC**: Sistemul folosește exclusiv Supabase Auth v2, cu rute protejate și permisiuni ierarhice stricte (`platform_owner`, `admin`, `manager`, `gestionar`, `casier`).
 - **Owner Console**: Modulul este complet funcțional și securizat (Hardening 4J.1). Acesta gestionează permisiunile la nivel de magazin (`store_members`) și **NU** atinge/sincronizează starea globală sau rolul din tabela `profiles`.
+- **Experiență Platform Owner (5C.1)**: Utilizatorul `platform_owner` folosește Owner Console ca landing page (`/owner`) și dispune de un empty state dedicat în Dashboard atunci când nu are un magazin selectat.
 - **Build & Stabilitate**: Proiectul se compilează perfect (`npm run build` returnează `Exit code: 0`), fără erori sau avertizări TypeScript/Vite.
 
 ---

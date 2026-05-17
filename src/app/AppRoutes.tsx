@@ -20,6 +20,16 @@ import AiConsultant from '../AiConsultant';
 import FastAdd from '../FastAdd';
 import { OwnerConsolePage } from '../features/owner-console';
 
+const DefaultLandingRoute: React.FC = () => {
+    const { role, currentStoreId } = useAuth();
+
+    if (role === 'platform_owner' && !currentStoreId) {
+        return <Navigate to="/owner" replace />;
+    }
+
+    return <Dashboard />;
+};
+
 const AppRoutes = () => {
     const { role: authRole, logout: authLogout } = useAuth();
 
@@ -63,7 +73,7 @@ const AppRoutes = () => {
                         <Routes>
                             <Route path="/" element={
                                 <ProtectedRoute allowedRoles={['admin', 'platform_owner', 'manager']}>
-                                    <Dashboard />
+                                    <DefaultLandingRoute />
                                 </ProtectedRoute>
                             } />
                             <Route path="/produse" element={

@@ -54,7 +54,14 @@ Tabelele din aplicație au fost revizuite pentru a oferi un feedback vizual plă
 S-a verificat și validat caseta de informare (`disclaimer`) din `AiConsultantPage.tsx`, care explică transparent utilizatorilor mecanismul din spate:
 > *"Sistem de consultanță operațională bazat pe reguli deterministe v2. Momentan nu se utilizează modele AI externe (LLM/ML). Toate recomandările sunt calculate local pentru maximă siguranță."*
 
+### 2.6. Corecții Etapa 5C.1 — Platform Owner Landing
+În timpul testării s-a observat că utilizatorul `admin@owner.com` (`platform_owner`), la autentificarea inițială fără un magazin selectat (`!currentStoreId`), era direcționat pe ruta `/` (Dashboard) unde întâmpina mesajul de eroare critică *"Selectează un magazin pentru a vedea dashboard-ul."*. Deoarece `platform_owner` are rol de administrare globală și poate opera fără un magazin curent, s-au implementat următoarele corecții de fine-tuning UX/routing:
+- **Redirecționare la Landing (`AppRoutes.tsx`)**: S-a creat componenta `DefaultLandingRoute`. Dacă utilizatorul are rolul `platform_owner` și nu are `currentStoreId`, este redirecționat automat către `/owner` (Owner Console).
+- **Stare Goală Elegantă în Dashboard (`DashboardPage.tsx`)**: Dacă `platform_owner` navighează manual pe ruta `/` fără un magazin selectat, în locul erorii critice este afișat un empty state dedicat și prietenos (*"Dashboard-ul este disponibil după selectarea unui magazin. Pentru administrarea globală, folosește Owner Console."*) împreună cu butonul de acțiune rapidă *"Mergi la Owner Console"*.
+- **Rezultat Build**: Aplicația a fost compilată cu succes prin `npm run build`, fără erori TypeScript sau de integrare.
+
 ---
+
 
 ## 3. Starea Sistemului și Verificarea Build-ului
 
