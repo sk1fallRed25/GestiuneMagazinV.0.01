@@ -131,192 +131,81 @@ export const posService = {
             throw new Error("Date vânzare incomplete.");
         }
 
-        // Validare items și recalculare totalSale
-        let totalSale = 0;
+        // Validare items frontend și construire payload items pentru RPC
+        let totalSaleUI = 0;
+        const itemsForRpc: { product_id: string; quantity: number }[] = [];
+
         for (const item of items) {
             if (!item.productId || item.quantity <= 0 || item.price < 0) {
                 throw new Error(`Produs invalid în coș: ${item.name || 'ID ' + item.productId}`);
             }
             const itemQty = toNumberStrict(item.quantity, `cantitate ${item.name}`);
             const itemPrice = toNumberStrict(item.price, `preț ${item.name}`);
-            totalSale += itemQty * itemPrice;
+            totalSaleUI += itemQty * itemPrice;
+
+            itemsForRpc.push({
+                product_id: item.productId,
+                quantity: itemQty
+            });
         }
 
-        if (totalSale <= 0) {
+        if (totalSaleUI <= 0) {
             throw new Error("Totalul vânzării trebuie să fie pozitiv.");
         }
 
-        // Validare runtime paymentMethod
+        // Validare runtime paymentMethod și construire payload plăți pentru RPC
         const validMethods = ['cash', 'card', 'mixed'];
         if (!validMethods.includes(paymentMethod)) {
             throw new Error("Metodă de plată invalidă.");
         }
 
-        // Validare sume plată pentru mixed
+        const paymentsForRpc: { method: string; amount: number }[] = [];
+
         if (paymentMethod === 'mixed') {
             const cAmount = toNumberStrict(cashAmount || 0, 'sumă cash');
             const cdAmount = toNumberStrict(cardAmount || 0, 'sumă card');
             const paid = cAmount + cdAmount;
             
-            if (Math.abs(paid - totalSale) > 0.01) {
-                throw new Error(`Suma plătită (${paid.toFixed(2)}) nu coincide cu totalul (${totalSale.toFixed(2)}).`);
+            if (Math.abs(paid - totalSaleUI) > 0.01) {
+                throw new Error(`Suma plătită (${paid.toFixed(2)}) nu coincide cu totalul (${totalSaleUI.toFixed(2)}).`);
             }
             if (paid <= 0) {
                 throw new Error("Suma plătită trebuie să fie pozitivă.");
             }
+            if (cAmount > 0) paymentsForRpc.push({ method: 'cash', amount: cAmount });
+            if (cdAmount > 0) paymentsForRpc.push({ method: 'card', amount: cdAmount });
+        } else {
+            paymentsForRpc.push({ method: paymentMethod, amount: totalSaleUI });
         }
 
-        // 1. Pre-verificare stoc
-        for (const item of items) {
-            const { data: batches, error: bError } = await supabase
-                .from('stock_batches')
-                .select('quantity')
-                .eq('store_id', storeId)
-                .eq('product_id', item.productId)
-                .eq('zone', 'magazin')
-                .gt('quantity', 0);
+        // Apelare RPC atomic
+        const { data, error } = await supabase.rpc('finalize_sale', {
+            p_store_id: storeId,
+            p_profile_id: profileId,
+            p_items: itemsForRpc,
+            p_payments: paymentsForRpc,
+            p_shift_id: shiftId || null
+        });
 
-            if (bError) throw bError;
-            const available = (batches || []).reduce((acc, b) => acc + toNumberStrict(b.quantity, 'stoc lot'), 0);
-
-            if (available < item.quantity) {
-                throw new Error(`Stoc insuficient pentru ${item.name}. Disponibil: ${available} ${item.unit}.`);
+        if (error) {
+            console.error("RPC finalize_sale error:", error);
+            const msg = error.message || "";
+            if (msg.includes("Stoc insuficient")) {
+                throw new Error("Stoc insuficient pentru finalizarea vânzării.");
             }
+            if (msg.includes("Acces refuzat") || msg.includes("Acces interzis") || msg.includes("permisiuni")) {
+                throw new Error("Acces refuzat pentru finalizarea vânzării.");
+            }
+            if (msg.includes("Plăți") || msg.includes("plată") || msg.includes("total")) {
+                throw new Error("Totalul plății nu corespunde cu prețurile actuale. Reîncarcă produsele și încearcă din nou.");
+            }
+            if (msg.includes("preț") || msg.includes("pret") || msg.includes("price")) {
+                throw new Error("Prețul produsului nu este configurat corect.");
+            }
+            throw new Error(msg || "Vânzarea nu a putut fi finalizată.");
         }
 
-        // 2. Creare vânzare (Header)
-        const { data: sale, error: sError } = await supabase
-            .from('sales')
-            .insert({
-                store_id: storeId,
-                profile_id: profileId,
-                shift_id: shiftId || null,
-                total: totalSale,
-                payment_method: paymentMethod,
-                status: 'finalized'
-            })
-            .select()
-            .single();
-
-        if (sError) throw sError;
-
-        // 3. Consum loturi (FEFO/FIFO)
-        for (const item of items) {
-            let remainingToConsume = item.quantity;
-
-            const { data: batches, error: bError } = await supabase
-                .from('stock_batches')
-                .select('*')
-                .eq('store_id', storeId)
-                .eq('product_id', item.productId)
-                .eq('zone', 'magazin')
-                .gt('quantity', 0)
-                .order('expiry_date', { ascending: true, nullsFirst: false })
-                .order('created_at', { ascending: true });
-
-            if (bError) throw bError;
-            if (!batches || batches.length === 0) {
-                throw new Error(`Stoc epuizat pentru ${item.name} în timpul procesării.`);
-            }
-
-            for (const batch of (batches as StockBatch[])) {
-                if (remainingToConsume <= 0) break;
-
-                const batchQty = toNumberStrict(batch.quantity, 'cantitate lot');
-                if (batchQty <= 0) continue;
-
-                const toTake = Math.min(batchQty, remainingToConsume);
-                const newQty = batchQty - toTake;
-                
-                if (newQty < 0) throw new Error("Vânzare invalidă: stoc sursă negativ detected.");
-
-                // Update stock_batches cu store_id filter
-                const { error: uError } = await supabase
-                    .from('stock_batches')
-                    .update({ quantity: newQty })
-                    .eq('id', batch.id)
-                    .eq('store_id', storeId);
-
-                if (uError) throw uError;
-
-                // Insert sale_items
-                const { error: siError } = await supabase
-                    .from('sale_items')
-                    .insert({
-                        store_id: storeId,
-                        sale_id: sale.id,
-                        product_id: item.productId,
-                        batch_id: batch.id,
-                        quantity: toTake,
-                        unit_price: item.price,
-                        total_item: toTake * item.price
-                    });
-
-                if (siError) throw siError;
-
-                // Insert stock_movements
-                const { error: smError } = await supabase
-                    .from('stock_movements')
-                    .insert({
-                        store_id: storeId,
-                        product_id: item.productId,
-                        batch_id: batch.id,
-                        type: 'sale',
-                        quantity: toTake,
-                        source_zone: 'magazin',
-                        target_zone: 'customer',
-                        reference_id: sale.id,
-                        created_by: profileId
-                    });
-
-                if (smError) throw smError;
-
-                remainingToConsume -= toTake;
-            }
-
-            if (remainingToConsume > 0.0001) {
-                throw new Error(`Nu s-a putut consuma întreaga cantitate pentru ${item.name}.`);
-            }
-        }
-
-        // 4. Creare plăți cu error handling
-        if (paymentMethod === 'cash') {
-            const { error: pError } = await supabase.from('payments').insert({
-                store_id: storeId,
-                sale_id: sale.id,
-                method: 'cash',
-                amount: totalSale
-            });
-            if (pError) throw pError;
-        } else if (paymentMethod === 'card') {
-            const { error: pError } = await supabase.from('payments').insert({
-                store_id: storeId,
-                sale_id: sale.id,
-                method: 'card',
-                amount: totalSale
-            });
-            if (pError) throw pError;
-        } else if (paymentMethod === 'mixed') {
-            if (cashAmount && cashAmount > 0) {
-                const { error: pError } = await supabase.from('payments').insert({
-                    store_id: storeId,
-                    sale_id: sale.id,
-                    method: 'cash',
-                    amount: cashAmount
-                });
-                if (pError) throw pError;
-            }
-            if (cardAmount && cardAmount > 0) {
-                const { error: pError } = await supabase.from('payments').insert({
-                    store_id: storeId,
-                    sale_id: sale.id,
-                    method: 'card',
-                    amount: cardAmount
-                });
-                if (pError) throw pError;
-            }
-        }
-
-        return sale.id;
+        // data reprezintă sale_id returnat de PostgreSQL
+        return String(data || "");
     }
 };
