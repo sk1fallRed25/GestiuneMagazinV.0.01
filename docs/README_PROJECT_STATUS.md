@@ -63,6 +63,6 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 5D.4**: Migrare Recepție Marfă la RPC atomic `receive_stock` (Realizat - frontend-ul nu mai face multi-step pentru recepție).
 - **Etapa 5D.4.1**: test E2E/Playwright pentru Recepție RPC — PASS. Recepția prin RPC este validată operațional.
 - **Etapa 5D.5**: Migrare Vânzări / POS la RPC atomic `finalize_sale` (Realizat - frontend-ul nu mai execută logică multi-step pentru vânzare. Transfer, Pierderi și Recepție sunt deja migrate și validate operațional).
-- **Etapa 5D.5.1**: Testare manuală controlată / E2E pentru POS RPC.
+- **Etapa 5D.5.1**: test E2E/Playwright pentru POS RPC — PASS. Toate modurile de vânzare (cash, card, mixt) și verificările de stoc sunt validate operațional.
 - **Etapa 5D.6**: Smoke testing tranzacțional pentru validarea fluxurilor atomice sub sarcină.
 

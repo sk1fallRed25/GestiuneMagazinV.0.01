@@ -205,7 +205,22 @@ export const posService = {
             throw new Error(msg || "Vânzarea nu a putut fi finalizată.");
         }
 
-        // data reprezintă sale_id returnat de PostgreSQL
-        return String(data || "");
+        type FinalizeSaleRpcResult = {
+          sale_id?: unknown;
+          total?: unknown;
+        };
+
+        const result = data as FinalizeSaleRpcResult | string | null;
+
+        if (typeof result === 'string') {
+          if (!result.trim()) throw new Error("Vânzarea nu a putut fi finalizată.");
+          return result;
+        }
+
+        if (result && typeof result === 'object' && typeof result.sale_id === 'string') {
+          return result.sale_id;
+        }
+
+        throw new Error("Vânzarea nu a putut fi finalizată.");
     }
 };
