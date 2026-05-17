@@ -16,21 +16,30 @@ export const transferService = {
     async listTransferProducts(storeId: string): Promise<TransferProduct[]> {
         if (!storeId) return [];
 
-        const { data: products, error: pError } = await supabase
-            .from('products')
-            .select('*')
-            .eq('store_id', storeId)
-            .neq('status', 'deleted');
+        // Helper pentru fetch complet cu paginare (depășește limita max-rows de 1000 a PostgREST)
+        const fetchAll = async (table: string, filterCol: string, filterVal: string, extraFilter?: { col: string; val: string }) => {
+            let allRows: any[] = [];
+            let from = 0;
+            const step = 1000;
+            while (true) {
+                let query = supabase.from(table).select('*').eq(filterCol, filterVal);
+                if (extraFilter) {
+                    query = query.neq(extraFilter.col, extraFilter.val);
+                }
+                const { data, error } = await query.range(from, from + step - 1);
+                if (error) throw error;
+                if (!data || data.length === 0) break;
+                allRows = allRows.concat(data);
+                if (data.length < step) break;
+                from += step;
+            }
+            return allRows;
+        };
 
-        if (pError) throw pError;
+        const products = await fetchAll('products', 'store_id', storeId, { col: 'status', val: 'deleted' });
         if (!products || products.length === 0) return [];
 
-        const { data: batches, error: bError } = await supabase
-            .from('stock_batches')
-            .select('*')
-            .eq('store_id', storeId);
-
-        if (bError) throw bError;
+        const batches = await fetchAll('stock_batches', 'store_id', storeId);
 
         return products.map(p => {
             const productBatches = batches?.filter(b => b.product_id === p.id) || [];
