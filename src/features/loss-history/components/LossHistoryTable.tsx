@@ -37,8 +37,12 @@ export const LossHistoryTable: React.FC<Props> = ({ items, loading, onViewDetail
                             </tr>
                         ) : items.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="p-16 text-center text-slate-400 font-bold">
-                                    Nu există înregistrări conform filtrelor selectate.
+                                <td colSpan={7} className="p-16 text-center">
+                                    <div className="p-4 bg-gray-50 rounded-2xl text-gray-300 w-16 h-16 flex items-center justify-center mx-auto mb-3">
+                                        <Package size={32} />
+                                    </div>
+                                    <p className="text-sm font-bold text-gray-700 mb-1">Nu există înregistrări disponibile</p>
+                                    <p className="text-xs text-gray-400 max-w-sm mx-auto">Nu există înregistrări de pierderi sau casări conform filtrelor selectate.</p>
                                 </td>
                             </tr>
                         ) : (

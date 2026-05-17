@@ -50,7 +50,7 @@ export const useReception = () => {
             setAvailableProducts(data);
         } catch (error: unknown) {
             console.error(error);
-            toast.error("Eroare la încărcarea produselor.");
+            toast.error("Nu s-au putut încărca datele.");
         } finally {
             setLoadingProducts(false);
         }
@@ -129,6 +129,12 @@ export const useReception = () => {
             return toast.error("Adaugă cel puțin un produs.");
         }
 
+        const totalEst = lines.reduce((acc, l) => acc + (l.quantity * l.purchasePrice), 0).toFixed(2);
+        const confirmMsg = `Confirmi recepția documentului "${document.documentNumber}" cu ${lines.length} linii și total estimat ${totalEst} lei?`;
+        if (!window.confirm(confirmMsg)) {
+            return;
+        }
+
         setSubmitting(true);
         try {
             const payload: CreateReceptionPayload = {
@@ -152,7 +158,7 @@ export const useReception = () => {
             });
             setXmlStatus('');
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "Eroare la salvarea recepției.";
+            const message = error instanceof Error ? error.message : "Operațiunea nu a putut fi finalizată.";
             toast.error(message);
         } finally {
             setSubmitting(false);

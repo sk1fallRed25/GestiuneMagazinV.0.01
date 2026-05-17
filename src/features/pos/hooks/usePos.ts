@@ -17,7 +17,7 @@ export const usePos = () => {
     const [cashAmount, setCashAmount] = useState<number>(0);
     const [cardAmount, setCardAmount] = useState<number>(0);
 
-    const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : 'Eroare necunoscută';
+    const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : 'Operațiunea nu a putut fi finalizată.';
 
     // Căutare produse
     const search = useCallback(async (q: string) => {
@@ -138,6 +138,12 @@ export const usePos = () => {
             }
         }
 
+        const methodStr = paymentMethod === 'cash' ? 'cash' : (paymentMethod === 'card' ? 'card' : 'mixt');
+        const confirmMsg = `Finalizezi vânzarea în valoare de ${totalBon.toFixed(2)} lei? (Metodă: ${methodStr})`;
+        if (!window.confirm(confirmMsg)) {
+            return;
+        }
+
         setSubmitting(true);
         try {
             await posService.createSale({
@@ -155,7 +161,7 @@ export const usePos = () => {
             setQuery('');
             setSearchResults([]);
         } catch (err: unknown) {
-            toast.error("Eroare la finalizarea vânzării: " + getErrorMessage(err));
+            toast.error(getErrorMessage(err));
         } finally {
             setSubmitting(false);
         }

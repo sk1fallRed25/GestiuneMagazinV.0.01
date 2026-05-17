@@ -41,7 +41,7 @@ export const useSalesHistory = () => {
             setSummary(summ);
         } catch (err: unknown) {
             console.error("Error fetching sales history:", err);
-            toast.error("Eroare la încărcarea istoricului de vânzări.");
+            toast.error("Nu s-au putut încărca datele.");
         } finally {
             setLoading(false);
         }
@@ -60,7 +60,7 @@ export const useSalesHistory = () => {
             setSelectedSale(details);
         } catch (err: unknown) {
             console.error("Error fetching sale details:", err);
-            toast.error("Eroare la încărcarea detaliilor bonului.");
+            toast.error("Nu s-au putut încărca datele.");
             setShowDetailsModal(false);
         } finally {
             setLoadingDetails(false);

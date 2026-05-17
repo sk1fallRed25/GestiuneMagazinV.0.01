@@ -29,7 +29,7 @@ export const useTransfer = () => {
             setProducts(data);
         } catch (error: unknown) {
             console.error(error);
-            toast.error("Eroare la încărcarea produselor.");
+            toast.error("Nu s-au putut încărca datele.");
         } finally {
             setLoading(false);
         }
@@ -63,6 +63,13 @@ export const useTransfer = () => {
             return toast.error("Introdu o cantitate validă.");
         }
 
+        const source = direction === 'depozit_spre_magazin' ? 'Depozit' : 'Magazin';
+        const dest = direction === 'depozit_spre_magazin' ? 'Magazin' : 'Depozit';
+        const confirmMsg = `Confirmi transferul a ${qtyNum} buc din ${source} în ${dest} pentru produsul "${selectedProduct?.nume || ''}"?`;
+        if (!window.confirm(confirmMsg)) {
+            return;
+        }
+
         setSubmitting(true);
         try {
             const payload: TransferPayload = {
@@ -81,7 +88,7 @@ export const useTransfer = () => {
             setSearch('');
             await loadProducts(); // Refresh stocks
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "Eroare la transfer.";
+            const message = error instanceof Error ? error.message : "Operațiunea nu a putut fi finalizată.";
             toast.error(message);
         } finally {
             setSubmitting(false);

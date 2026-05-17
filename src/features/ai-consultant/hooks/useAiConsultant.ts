@@ -28,8 +28,8 @@ export const useAiConsultant = () => {
             setData(result);
         } catch (err: unknown) {
             console.error("Eroare AI Consultant:", err);
-            setError("Eroare la procesarea datelor operaționale.");
-            toast.error("Eroare la încărcarea consultantului AI.");
+            setError("Nu s-au putut încărca datele.");
+            toast.error("Nu s-au putut încărca datele.");
         } finally {
             setLoading(false);
         }

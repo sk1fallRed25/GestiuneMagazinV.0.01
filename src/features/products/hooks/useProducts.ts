@@ -22,8 +22,7 @@ export const useProducts = () => {
             const data = await productService.listProducts(currentStoreId);
             setProducts(data);
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "Eroare necunoscută la sincronizare";
-            toast.error("Eroare la sincronizarea stocului: " + message);
+            toast.error("Nu s-au putut încărca datele.");
         } finally {
             setLoading(false);
         }
@@ -55,8 +54,8 @@ export const useProducts = () => {
                 loading: 'Se procesează actualizarea...',
                 success: 'Datele produsului au fost modificate.',
                 error: (err: unknown) => {
-                    const message = err instanceof Error ? err.message : "Eroare la actualizare";
-                    return `Eroare: ${message}`;
+                    const message = err instanceof Error ? err.message : "Operațiunea nu a putut fi finalizată.";
+                    return message;
                 }
             });
 
@@ -72,6 +71,10 @@ export const useProducts = () => {
             return;
         }
 
+        if (!window.confirm("Confirmi ștergerea (arhivarea) acestui produs?")) {
+            return;
+        }
+
         try {
             const promise = productService.archiveProduct(currentStoreId, productId);
             
@@ -79,8 +82,8 @@ export const useProducts = () => {
                 loading: 'Se elimină produsul...',
                 success: 'Produs eliminat cu succes.',
                 error: (err: unknown) => {
-                    const message = err instanceof Error ? err.message : "Eroare la ștergere";
-                    return `Eroare la ștergere: ${message}`;
+                    const message = err instanceof Error ? err.message : "Operațiunea nu a putut fi finalizată.";
+                    return message;
                 }
             });
 

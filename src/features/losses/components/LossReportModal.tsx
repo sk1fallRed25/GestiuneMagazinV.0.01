@@ -79,21 +79,23 @@ export const LossReportModal: React.FC<LossReportModalProps> = ({
                         <div className="grid grid-cols-3 gap-3">
                             <button
                                 onClick={() => onSourceChange('magazin')}
-                                className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                                className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${
                                     source === 'magazin' ? 'border-red-500 bg-red-50 text-red-700 shadow-lg shadow-red-50' : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-red-200'
                                 }`}
                             >
                                 <Store size={20} />
                                 <span className="text-[10px] font-black uppercase">Magazin ({product.stoc_magazin})</span>
+                                <span className="text-[9px] text-gray-400 leading-tight text-center">Stoc disponibil la raft/POS.</span>
                             </button>
                             <button
                                 onClick={() => onSourceChange('depozit')}
-                                className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                                className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${
                                     source === 'depozit' ? 'border-red-500 bg-red-50 text-red-700 shadow-lg shadow-red-50' : 'border-gray-50 bg-gray-50 text-gray-400 hover:border-red-200'
                                 }`}
                             >
                                 <Warehouse size={20} />
                                 <span className="text-[10px] font-black uppercase">Depozit ({product.stoc_depozit})</span>
+                                <span className="text-[9px] text-gray-400 leading-tight text-center">Stoc de rezervă, folosit pentru aprovizionarea raftului.</span>
                             </button>
                             <button
                                 onClick={() => onSourceChange('auto')}

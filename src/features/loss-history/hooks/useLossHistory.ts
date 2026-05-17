@@ -38,7 +38,7 @@ export const useLossHistory = () => {
             setSummary(lossHistoryService.getLossSummary(data));
         } catch (err: unknown) {
             console.error("Eroare refresh pierderi:", err);
-            toast.error("Eroare la încărcarea istoricului de pierderi.");
+            toast.error("Nu s-au putut încărca datele.");
         } finally {
             setLoading(false);
         }
@@ -61,7 +61,7 @@ export const useLossHistory = () => {
             setSelectedLoss(details);
         } catch (err: unknown) {
             console.error("Eroare detalii pierdere:", err);
-            toast.error("Eroare la încărcarea detaliilor pierderii.");
+            toast.error("Nu s-au putut încărca datele.");
             setShowDetailsModal(false);
         } finally {
             setLoadingDetails(false);

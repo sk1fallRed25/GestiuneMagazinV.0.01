@@ -22,24 +22,30 @@ export const StoreMembersTable: React.FC<StoreMembersTableProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleToggleActive = async (member: OwnerStoreMember, newActive: boolean) => {
+    if (!newActive) {
+      const confirmMsg = `Confirmi dezactivarea accesului pentru ${member.email} la magazinul ${selectedStore?.name || ''}?`;
+      if (!window.confirm(confirmMsg)) return;
+    }
     setProcessingId(member.id);
     setErrorMsg(null);
     try {
       await onToggleActive(member.storeId, member.profileId, newActive);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'Eroare la modificarea stării.');
+      setErrorMsg(err instanceof Error ? err.message : 'Operațiunea nu a putut fi finalizată.');
     } finally {
       setProcessingId(null);
     }
   };
 
   const handleChangeRole = async (member: OwnerStoreMember, newRole: OwnerMemberRole) => {
+    const confirmMsg = `Confirmi schimbarea rolului pentru ${member.email} din rol ${member.role} în rol ${newRole}?`;
+    if (!window.confirm(confirmMsg)) return;
     setProcessingId(member.id);
     setErrorMsg(null);
     try {
       await onChangeRole(member.storeId, member.profileId, newRole);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'Eroare la modificarea rolului.');
+      setErrorMsg(err instanceof Error ? err.message : 'Operațiunea nu a putut fi finalizată.');
     } finally {
       setProcessingId(null);
     }

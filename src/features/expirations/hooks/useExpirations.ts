@@ -24,8 +24,7 @@ export const useExpirations = () => {
             const data = await expirationService.listExpirations(currentStoreId);
             setItems(data);
         } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : 'Eroare necunoscută';
-            toast.error("Eroare la încărcarea expirărilor: " + msg);
+            toast.error("Nu s-au putut încărca datele.");
         } finally {
             setLoading(false);
         }

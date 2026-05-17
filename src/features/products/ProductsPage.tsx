@@ -32,10 +32,7 @@ const ProductsPage = () => {
     };
 
     const handleDelete = async (id: string) => {
-        const message = "Sunteți sigur că doriți eliminarea acestui reper? Produsul va fi marcat ca 'șters' în baza de date.";
-        if (window.confirm(message)) {
-            await deleteProduct(id);
-        }
+        await deleteProduct(id);
     };
 
     if (loading) return (

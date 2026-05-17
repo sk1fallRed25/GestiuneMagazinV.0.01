@@ -28,8 +28,8 @@ export const useDashboard = () => {
             setData(dashboardData);
         } catch (err: unknown) {
             console.error("Dashboard Error:", err);
-            setError("Eroare la încărcarea datelor din dashboard.");
-            toast.error("Nu s-au putut încărca statisticile dashboard-ului.");
+            setError("Nu s-au putut încărca datele.");
+            toast.error("Nu s-au putut încărca datele.");
         } finally {
             setLoading(false);
         }

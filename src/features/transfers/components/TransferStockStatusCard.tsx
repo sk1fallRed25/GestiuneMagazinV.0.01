@@ -35,6 +35,7 @@ export const TransferStockStatusCard = ({ product }: TransferStockStatusCardProp
                         <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Depozit</p>
                             <p className="font-bold text-slate-800">Zona de Recepție</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">Stoc de rezervă, folosit pentru aprovizionarea raftului.</p>
                         </div>
                     </div>
                     <div className="text-right">
@@ -51,6 +52,7 @@ export const TransferStockStatusCard = ({ product }: TransferStockStatusCardProp
                         <div>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Magazin</p>
                             <p className="font-bold text-slate-800">Zona de Vânzare</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">Stoc disponibil la raft/POS.</p>
                         </div>
                     </div>
                     <div className="text-right">

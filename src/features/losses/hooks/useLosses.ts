@@ -22,7 +22,7 @@ export const useLosses = () => {
     const [description, setDescription] = useState('');
     const [source, setSource] = useState<LossStockSource>('auto');
 
-    const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : 'Eroare necunoscută';
+    const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : 'Operațiunea nu a putut fi finalizată.';
 
     const refreshProducts = useCallback(async (isInitial = false) => {
         if (!currentStoreId) return;
@@ -44,7 +44,7 @@ export const useLosses = () => {
                 }
             }
         } catch (err: unknown) {
-            toast.error("Eroare la încărcarea produselor: " + getErrorMessage(err));
+            toast.error("Nu s-au putut încărca datele.");
         } finally {
             setLoading(false);
         }
@@ -102,6 +102,12 @@ export const useLosses = () => {
             return toast.error(`Stoc insuficient în sursa aleasă. Disponibil: ${available} ${selectedProduct.um}`);
         }
 
+        const sourceName = source === 'magazin' ? 'Magazin' : (source === 'depozit' ? 'Depozit' : 'Auto/FIFO');
+        const confirmMsg = `Confirmi casarea a ${qty} buc din ${sourceName} pentru produsul "${selectedProduct.nume}"?\nMotiv: ${reason}`;
+        if (!window.confirm(confirmMsg)) {
+            return;
+        }
+
         setSubmitting(true);
         try {
             await lossService.createLoss({
@@ -119,7 +125,7 @@ export const useLosses = () => {
             await refreshProducts();
 
         } catch (err: unknown) {
-            toast.error("Eroare la raportare: " + getErrorMessage(err));
+            toast.error(getErrorMessage(err));
         } finally {
             setSubmitting(false);
         }

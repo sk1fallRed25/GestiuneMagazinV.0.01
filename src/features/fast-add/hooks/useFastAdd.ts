@@ -110,7 +110,7 @@ export const useFastAdd = () => {
             return true;
         } catch (err: unknown) {
             console.error("FastAdd Error:", err);
-            const msg = err instanceof Error ? err.message : "Eroare necunoscută la adăugarea produsului.";
+            const msg = err instanceof Error ? err.message : "Operațiunea nu a putut fi finalizată.";
             setError(msg);
             toast.error(msg);
             return false;

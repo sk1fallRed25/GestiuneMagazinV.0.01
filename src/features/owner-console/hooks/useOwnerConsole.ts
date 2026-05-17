@@ -30,7 +30,7 @@ export const useOwnerConsole = () => {
         setSelectedStoreMembers(data.selectedStoreMembers);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Eroare neașteptată la încărcarea datelor Owner Console.';
+      const message = err instanceof Error ? err.message : 'Nu s-au putut încărca datele.';
       setError(message);
     } finally {
       setLoading(false);
@@ -54,7 +54,7 @@ export const useOwnerConsole = () => {
       const members = await ownerConsoleService.getStoreMembers(storeId);
       setSelectedStoreMembers(members);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Eroare la obținerea membrilor magazinului.';
+      const message = err instanceof Error ? err.message : 'Nu s-au putut încărca datele.';
       setError(message);
     } finally {
       setLoading(false);
@@ -77,7 +77,7 @@ export const useOwnerConsole = () => {
       setStats(data.stats);
       setStores(data.stores);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Eroare la modificarea stării membrului.';
+      const message = err instanceof Error ? err.message : 'Operațiunea nu a putut fi finalizată.';
       setError(message);
       throw err;
     }
@@ -98,7 +98,7 @@ export const useOwnerConsole = () => {
       const data = await ownerConsoleService.getOwnerConsoleData();
       setStats(data.stats);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Eroare la modificarea rolului membrului.';
+      const message = err instanceof Error ? err.message : 'Operațiunea nu a putut fi finalizată.';
       setError(message);
       throw err;
     }

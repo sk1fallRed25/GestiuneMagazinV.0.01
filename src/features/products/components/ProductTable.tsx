@@ -79,8 +79,12 @@ const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProp
                 </tbody>
             </table>
             {products.length === 0 && (
-                <div className="p-12 text-center text-gray-400 italic">
-                    Nu au fost găsite produse care să corespundă căutării în acest magazin.
+                <div className="p-16 flex flex-col items-center justify-center text-center">
+                    <div className="p-4 bg-gray-50 rounded-2xl text-gray-300 mb-3">
+                        <Package size={32} />
+                    </div>
+                    <p className="text-sm font-bold text-gray-700 mb-1">Nu există înregistrări disponibile</p>
+                    <p className="text-xs text-gray-400 max-w-sm">Nu au fost găsite produse care să corespundă criteriilor de căutare în acest magazin.</p>
                 </div>
             )}
         </div>
