@@ -55,5 +55,7 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 
 - **Etapa 5D.1**: Aplicarea manuală a scriptului SQL `proposed_atomic_rpcs_5d.sql` în Supabase SQL Editor (Realizat - funcții noi adăugate).
 - **Etapa 5D.1.1 & 5D.1.2**: Curățarea granturilor (REVOKE EXECUTE anon) pe vechile overload-uri RPC și verificarea securizării acestora (Realizat - funcțiile vechi nu mai permit acces public).
-- **Etapa 5D.2 - 5D.5**: Migrarea succesivă a serviciilor frontend (`transferService`, `lossService`, `receptionService`, `posService`) pentru a apela noile funcții RPC. (Start cu 5D.2 Transfer RPC)
+- **Etapa 5D.2**: Migrarea serviciului frontend de Transfer Marfă (`transferService.ts`) pentru a apela noul RPC atomic `transfer_stock` (Realizat - frontend-ul nu mai execută pași multi-step vulnerabili).
+- **Etapa 5D.3 - 5D.5**: Migrarea succesivă a celorlalte servicii frontend (`lossService`, `receptionService`, `posService`) pentru a apela noile funcții RPC. (Urmează 5D.3 Pierderi / record_waste)
 - **Etapa 5D.6**: Smoke testing tranzacțional pentru validarea fluxurilor atomice sub sarcină.
+

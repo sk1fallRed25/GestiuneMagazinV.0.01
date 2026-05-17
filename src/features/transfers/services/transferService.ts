@@ -76,158 +76,58 @@ export const transferService = {
     },
 
     /**
-     * Execută transferul între zone folosind algoritmul FIFO/FEFO pe loturi.
-     * NOTĂ: Acest flux ar trebui mutat ulterior într-un RPC atomic 'transfer_stock'.
+     * Execută transferul între zone folosind RPC atomic 'transfer_stock'.
      */
-    async executeTransfer(payload: TransferPayload): Promise<void> {
+    async executeTransfer(payload: TransferPayload): Promise<number> {
         const { storeId, productId, quantity, direction, profileId } = payload;
 
         if (!storeId || !productId || quantity <= 0) {
-            throw new Error("Date transfer invalide.");
+            throw new Error("Transferul nu a putut fi finalizat.");
         }
 
-        // Validare runtime pentru direcție
-        if (direction !== 'depozit_spre_magazin' && direction !== 'magazin_spre_depozit') {
-            throw new Error("Direcție transfer invalidă.");
+        if (!profileId) {
+            throw new Error("Acces refuzat pentru transfer.");
         }
 
-        const sourceZone = direction === 'depozit_spre_magazin' ? 'depozit' : 'magazin';
-        const targetZone = direction === 'depozit_spre_magazin' ? 'magazin' : 'depozit';
+        let p_source_zone: string;
+        let p_target_zone: string;
 
-        // 1. Verifică stoc disponibil
-        const stocks = await this.getProductStock(storeId, productId);
-        const available = sourceZone === 'depozit' ? stocks.depozit : stocks.magazin;
-
-        if (available < quantity) {
-            throw new Error(`Stoc insuficient în ${sourceZone === 'depozit' ? 'depozit' : 'magazin'}. (Disponibil: ${available})`);
+        if (direction === 'depozit_spre_magazin') {
+            p_source_zone = 'depozit';
+            p_target_zone = 'magazin';
+        } else if (direction === 'magazin_spre_depozit') {
+            p_source_zone = 'magazin';
+            p_target_zone = 'depozit';
+        } else {
+            throw new Error("Direcție de transfer invalidă.");
         }
 
-        // 2. Citește loturile sursă (FEFO: expiry_date ASC, FIFO: created_at ASC)
-        const { data: sourceBatches, error: sbError } = await supabase
-            .from('stock_batches')
-            .select('*')
-            .eq('store_id', storeId)
-            .eq('product_id', productId)
-            .eq('zone', sourceZone)
-            .gt('quantity', 0)
-            .order('expiry_date', { ascending: true, nullsFirst: false })
-            .order('created_at', { ascending: true });
+        const { data, error } = await supabase.rpc('transfer_stock', {
+            p_store_id: storeId,
+            p_profile_id: profileId,
+            p_product_id: productId,
+            p_quantity: quantity,
+            p_source_zone,
+            p_target_zone,
+        });
 
-        if (sbError) throw sbError;
-        if (!sourceBatches || sourceBatches.length === 0) {
-            throw new Error(`Nu s-au găsit loturi cu stoc în ${sourceZone}.`);
-        }
-
-        let remainingToTransfer = quantity;
-
-        for (const sBatch of sourceBatches) {
-            if (remainingToTransfer <= 0) break;
-
-            const currentQty = toNumber(sBatch.quantity);
-            if (currentQty <= 0) continue;
-
-            const qtyToTake = Math.min(currentQty, remainingToTransfer);
-            const newSourceQty = currentQty - qtyToTake;
-
-            if (newSourceQty < 0) {
-                throw new Error("Transfer invalid: stoc sursă negativ.");
+        if (error) {
+            console.error("RPC transfer_stock error:", error);
+            if (error.message.includes("Stoc insuficient")) {
+                throw new Error("Stoc insuficient pentru transfer.");
             }
-
-            // A. Scade din lotul sursă
-            const { error: updateSourceError } = await supabase
-                .from('stock_batches')
-                .update({ quantity: newSourceQty })
-                .eq('id', sBatch.id)
-                .eq('store_id', storeId);
-
-            if (updateSourceError) throw updateSourceError;
-
-            // B. Adaugă în lotul țintă (caută lot identic în zona țintă)
-            let query = supabase
-                .from('stock_batches')
-                .select('*')
-                .eq('store_id', storeId)
-                .eq('product_id', productId)
-                .eq('zone', targetZone);
-
-            // Handle NULLs correctly for lookup
-            if (sBatch.batch_number) {
-                query = query.eq('batch_number', sBatch.batch_number);
-            } else {
-                query = query.is('batch_number', null);
+            if (error.message.includes("Acces refuzat")) {
+                throw new Error("Acces refuzat pentru transfer.");
             }
-
-            if (sBatch.expiry_date) {
-                query = query.eq('expiry_date', sBatch.expiry_date);
-            } else {
-                query = query.is('expiry_date', null);
-            }
-
-            if (sBatch.purchase_price !== null && sBatch.purchase_price !== undefined) {
-                query = query.eq('purchase_price', toNumber(sBatch.purchase_price));
-            } else {
-                query = query.is('purchase_price', null);
-            }
-
-            const { data: existingTargetBatch, error: targetLookupError } = await query.maybeSingle();
-            if (targetLookupError) throw targetLookupError;
-
-            let targetBatchId: string;
-
-            if (existingTargetBatch) {
-                const newTargetQty = toNumber(existingTargetBatch.quantity) + qtyToTake;
-                if (isNaN(newTargetQty)) {
-                    throw new Error("Lot invalid: cantitate numerică incorectă.");
-                }
-
-                const { error: updateTargetError } = await supabase
-                    .from('stock_batches')
-                    .update({ quantity: newTargetQty })
-                    .eq('id', existingTargetBatch.id)
-                    .eq('store_id', storeId);
-                
-                if (updateTargetError) throw updateTargetError;
-                targetBatchId = existingTargetBatch.id;
-            } else {
-                const { data: newTargetBatch, error: createTargetError } = await supabase
-                    .from('stock_batches')
-                    .insert({
-                        store_id: storeId,
-                        product_id: productId,
-                        zone: targetZone,
-                        quantity: qtyToTake,
-                        batch_number: sBatch.batch_number,
-                        expiry_date: sBatch.expiry_date,
-                        purchase_price: sBatch.purchase_price
-                    })
-                    .select()
-                    .single();
-                
-                if (createTargetError) throw createTargetError;
-                targetBatchId = newTargetBatch.id;
-            }
-
-            // C. Jurnalizare mișcare
-            const { error: movementError } = await supabase
-                .from('stock_movements')
-                .insert({
-                    store_id: storeId,
-                    product_id: productId,
-                    batch_id: sBatch.id,
-                    type: 'transfer',
-                    quantity: qtyToTake,
-                    source_zone: sourceZone,
-                    target_zone: targetZone,
-                    created_by: profileId
-                });
-
-            if (movementError) throw movementError;
-
-            remainingToTransfer -= qtyToTake;
+            throw new Error(error.message || 'Transferul nu a putut fi finalizat.');
         }
 
-        if (remainingToTransfer > 0) {
-            throw new Error(`Eroare critică: nu s-a putut transfera întreaga cantitate (${remainingToTransfer} rămas).`);
+        const transferredQuantity = Number(data);
+        if (!Number.isFinite(transferredQuantity)) {
+            throw new Error('Transferul nu a putut fi finalizat.');
         }
+
+        return transferredQuantity;
     }
 };
+
