@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ownerConsoleService } from '../services/ownerConsoleService';
-import { OwnerConsoleStats, OwnerStore, OwnerStoreMember, OwnerMemberRole, OwnerProfile, UnassignedProfile, StoreWithoutAdmin } from '../types';
+import { OwnerConsoleStats, OwnerStore, OwnerStoreMember, OwnerMemberRole, OwnerProfile, UnassignedProfile, StoreWithoutAdmin, AssignStoreMemberPayload } from '../types';
 import { useAuth } from '../../auth/useAuth';
 
 export type OwnerConsoleTab = 'overview' | 'stores' | 'profiles' | 'members';
@@ -123,6 +123,39 @@ export const useOwnerConsole = () => {
     }
   }, [role]);
 
+  const assignMemberToStore = useCallback(async (payload: AssignStoreMemberPayload) => {
+    if (role !== 'platform_owner') {
+      setError("Acces permis doar pentru Platform Owner.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      await ownerConsoleService.assignStoreMember(payload);
+      // Reîmprospătează toate datele pentru a reflecta alocarea în UI
+      const data = await ownerConsoleService.getOwnerConsoleData();
+      setStats(data.stats);
+      setStores(data.stores);
+      setProfiles(data.profiles);
+      setUnassignedProfiles(data.unassignedProfiles);
+      setStoresWithoutAdmin(data.storesWithoutAdmin);
+      if (selectedStoreId) {
+        const members = await ownerConsoleService.getStoreMembers(selectedStoreId);
+        setSelectedStoreMembers(members);
+      } else if (data.stores.length > 0) {
+        setSelectedStoreId(data.stores[0].id);
+        setSelectedStoreMembers(data.selectedStoreMembers);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Operațiunea nu a putut fi finalizată.';
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [role, selectedStoreId]);
+
   return {
     stats,
     stores,
@@ -138,8 +171,10 @@ export const useOwnerConsole = () => {
     selectStore,
     toggleMemberActive,
     changeMemberRole,
+    assignMemberToStore,
     refreshData: loadInitialData,
     refreshAll: loadInitialData
   };
 };
+
 

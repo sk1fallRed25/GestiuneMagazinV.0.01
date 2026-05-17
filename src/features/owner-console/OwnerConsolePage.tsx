@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useOwnerConsole } from './hooks/useOwnerConsole';
 import { OwnerHeader } from './components/OwnerHeader';
@@ -9,6 +9,7 @@ import { StoresWithoutAdminPanel } from './components/StoresWithoutAdminPanel';
 import { StoresTable } from './components/StoresTable';
 import { OwnerProfilesTable } from './components/OwnerProfilesTable';
 import { StoreMembersTable } from './components/StoreMembersTable';
+import { AssignMemberModal } from './components/AssignMemberModal';
 
 export const OwnerConsolePage: React.FC = () => {
   const {
@@ -26,8 +27,12 @@ export const OwnerConsolePage: React.FC = () => {
     selectStore,
     toggleMemberActive,
     changeMemberRole,
+    assignMemberToStore,
     refreshAll
   } = useOwnerConsole();
+
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState<boolean>(false);
+  const [assignModalProfileId, setAssignModalProfileId] = useState<string | undefined>(undefined);
 
   const selectedStore = useMemo(() => {
     return stores.find(s => s.id === selectedStoreId) || null;
@@ -38,6 +43,11 @@ export const OwnerConsolePage: React.FC = () => {
     setSelectedTab('members');
   };
 
+  const handleOpenAssignModal = (profileId?: string) => {
+    setAssignModalProfileId(profileId);
+    setIsAssignModalOpen(true);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
       {/* Header */}
@@ -46,7 +56,7 @@ export const OwnerConsolePage: React.FC = () => {
       {/* Error Banner */}
       {error && (
         <div className="mb-8 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl flex items-center gap-3 text-sm text-red-800 dark:text-red-300 shadow-sm animate-shake">
-          <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+          <AlertCircle className="w-5 h-5 shrink-0 text-red-50" />
           <p>{error}</p>
         </div>
       )}
@@ -64,7 +74,10 @@ export const OwnerConsolePage: React.FC = () => {
       {selectedTab === 'overview' && (
         <div className="space-y-8 animate-fade-in">
           <OwnerGlobalStatsCards stats={stats} />
-          <OwnerUnassignedProfilesPanel unassignedProfiles={unassignedProfiles} />
+          <OwnerUnassignedProfilesPanel
+            unassignedProfiles={unassignedProfiles}
+            onOpenAssignModal={handleOpenAssignModal}
+          />
           <StoresWithoutAdminPanel
             storesWithoutAdmin={storesWithoutAdmin}
             onSelectStore={handleSelectStoreFromPanel}
@@ -79,8 +92,8 @@ export const OwnerConsolePage: React.FC = () => {
             stores={stores}
             selectedStoreId={selectedStoreId}
             onSelectStore={(id) => {
-              selectStore(id);
-              setSelectedTab('members');
+               selectStore(id);
+               setSelectedTab('members');
             }}
             loading={loading}
           />
@@ -90,7 +103,11 @@ export const OwnerConsolePage: React.FC = () => {
       {/* Secțiunea Profile Utilizatori */}
       {selectedTab === 'profiles' && (
         <div className="animate-fade-in">
-          <OwnerProfilesTable profiles={profiles} loading={loading} />
+          <OwnerProfilesTable
+            profiles={profiles}
+            loading={loading}
+            onOpenAssignModal={handleOpenAssignModal}
+          />
         </div>
       )}
 
@@ -112,6 +129,16 @@ export const OwnerConsolePage: React.FC = () => {
           />
         </div>
       )}
+
+      {/* Modal Alocare Utilizator la Magazin */}
+      <AssignMemberModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        onAssign={assignMemberToStore}
+        profiles={profiles}
+        stores={stores}
+        initialProfileId={assignModalProfileId}
+      />
     </div>
   );
 };

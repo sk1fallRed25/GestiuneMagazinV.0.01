@@ -1,5 +1,26 @@
 export type OwnerMemberRole = 'admin' | 'manager' | 'gestionar' | 'casier';
 
+export interface AssignStoreMemberPayload {
+  profileId: string;
+  storeId: string;
+  role: OwnerMemberRole;
+  active: boolean;
+}
+
+export interface AssignStoreMemberResult {
+  storeId: string;
+  profileId: string;
+  role: OwnerMemberRole;
+  active: boolean;
+}
+
+export interface AssignMemberFormState {
+  profileId: string;
+  storeId: string;
+  role: OwnerMemberRole;
+  active: boolean;
+}
+
 export interface OwnerStore {
   id: string;
   name: string;

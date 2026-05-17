@@ -4,9 +4,10 @@ import { UnassignedProfile } from '../types';
 
 interface OwnerUnassignedProfilesPanelProps {
   unassignedProfiles: UnassignedProfile[];
+  onOpenAssignModal?: (profileId?: string) => void;
 }
 
-export const OwnerUnassignedProfilesPanel: React.FC<OwnerUnassignedProfilesPanelProps> = ({ unassignedProfiles }) => {
+export const OwnerUnassignedProfilesPanel: React.FC<OwnerUnassignedProfilesPanelProps> = ({ unassignedProfiles, onOpenAssignModal }) => {
   const platformOwners = unassignedProfiles.filter(p => p.globalRole === 'platform_owner');
   const regularUnassigned = unassignedProfiles.filter(p => p.globalRole !== 'platform_owner');
 
@@ -108,9 +109,8 @@ export const OwnerUnassignedProfilesPanel: React.FC<OwnerUnassignedProfilesPanel
                     {new Date(p.createdAt).toLocaleDateString('ro-RO')}
                   </span>
                   <button
-                    disabled
-                    title="Alocarea la magazin va fi disponibilă în Etapa 5E.3"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded-xl text-xs font-semibold cursor-not-allowed border border-amber-200 dark:border-amber-700/50"
+                    onClick={() => onOpenAssignModal && onOpenAssignModal(p.id)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
                   >
                     <UserPlus className="w-3 h-3" />
                     <span>Alocă</span>
@@ -124,3 +124,4 @@ export const OwnerUnassignedProfilesPanel: React.FC<OwnerUnassignedProfilesPanel
     </div>
   );
 };
+

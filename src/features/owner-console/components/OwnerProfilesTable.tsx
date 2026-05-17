@@ -5,9 +5,10 @@ import { OwnerProfile } from '../types';
 interface OwnerProfilesTableProps {
   profiles: OwnerProfile[];
   loading?: boolean;
+  onOpenAssignModal?: (profileId?: string) => void;
 }
 
-export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles, loading }) => {
+export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles, loading, onOpenAssignModal }) => {
   if (loading && profiles.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700/60 flex flex-col items-center justify-center min-h-[300px]">
@@ -29,9 +30,18 @@ export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Toate conturile înregistrate în baza de date Supabase</p>
           </div>
         </div>
-        <span className="text-xs font-semibold px-2.5 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 rounded-full">
-          {profiles.length} Profile
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-semibold px-2.5 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 rounded-full">
+            {profiles.length} Profile
+          </span>
+          <button
+            onClick={() => onOpenAssignModal && onOpenAssignModal()}
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm hover:shadow transition-all"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Alocă Utilizator la Magazin</span>
+          </button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -147,9 +157,8 @@ export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles
 
                   <td className="py-4 px-6 text-right">
                     <button
-                      disabled
-                      title="Alocarea utilizatorilor la magazine va fi disponibilă în Etapa 5E.3"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 rounded-xl text-xs font-semibold cursor-not-allowed border border-gray-200 dark:border-gray-600/50"
+                      onClick={() => onOpenAssignModal && onOpenAssignModal(profile.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-semibold transition-colors border border-indigo-100 dark:border-indigo-800/50"
                     >
                       <UserPlus className="w-3.5 h-3.5" />
                       <span>Alocă la magazin</span>
@@ -164,3 +173,4 @@ export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles
     </div>
   );
 };
+

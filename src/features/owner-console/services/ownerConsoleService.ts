@@ -1,5 +1,5 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
-import { OwnerConsoleData, OwnerStore, OwnerStoreMember, OwnerMemberRole, OwnerProfile, UnassignedProfile, StoreWithoutAdmin } from '../types';
+import { OwnerConsoleData, OwnerStore, OwnerStoreMember, OwnerMemberRole, OwnerProfile, UnassignedProfile, StoreWithoutAdmin, AssignStoreMemberPayload, AssignStoreMemberResult } from '../types';
 
 interface StoreDbRow {
   id: string;
@@ -366,5 +366,114 @@ export const ownerConsoleService = {
       console.error(`Eroare la actualizarea rolului pentru membrul storeId=${storeId}, profileId=${profileId}:`, memberErr.message);
       throw new Error(`Eroare Supabase (update store_members): ${memberErr.message}`);
     }
+  },
+
+  /**
+   * Alocă sau actualizează un utilizator existent la un magazin în store_members
+   */
+  async assignStoreMember(payload: AssignStoreMemberPayload): Promise<AssignStoreMemberResult> {
+    const { profileId, storeId, role, active } = payload;
+
+    if (!profileId) {
+      throw new Error("Profilul selectat nu există.");
+    }
+    if (!storeId) {
+      throw new Error("Magazinul selectat nu există.");
+    }
+    if ((role as string) === 'platform_owner') {
+      throw new Error("Rol invalid pentru magazin.");
+    }
+    const validRoles: OwnerMemberRole[] = ['admin', 'manager', 'gestionar', 'casier'];
+    if (!validRoles.includes(role)) {
+      throw new Error("Rol invalid pentru magazin.");
+    }
+
+    // 1. Verifică dacă profilul există
+    const { data: profileData, error: profileErr } = await supabase
+      .from('profiles')
+      .select('id, email, role, active')
+      .eq('id', profileId)
+      .maybeSingle();
+
+    if (profileErr || !profileData) {
+      throw new Error("Profilul selectat nu există.");
+    }
+
+    // 2. Verifică dacă magazinul există
+    const { data: storeData, error: storeErr } = await supabase
+      .from('stores')
+      .select('id, name, active')
+      .eq('id', storeId)
+      .maybeSingle();
+
+    if (storeErr || !storeData) {
+      throw new Error("Magazinul selectat nu există.");
+    }
+
+    // 3. Upsert în store_members, cu fallback la select + update/insert dacă upsert eșuează din lipsă constraint unic
+    const { error: upsertErr } = await supabase
+      .from('store_members')
+      .upsert({
+        store_id: storeId,
+        profile_id: profileId,
+        role,
+        active
+      }, {
+        onConflict: 'store_id,profile_id'
+      });
+
+    if (upsertErr) {
+      console.warn("Upsert în store_members a eșuat (posibil lipsă constraint unic pe store_id, profile_id). Încercăm fallback select + update/insert:", upsertErr.message);
+
+      // Fallback: verificăm dacă rândul există
+      const { data: existingMember, error: checkErr } = await supabase
+        .from('store_members')
+        .select('store_id, profile_id')
+        .eq('store_id', storeId)
+        .eq('profile_id', profileId)
+        .maybeSingle();
+
+      if (checkErr) {
+        console.error("Eroare la verificarea existenței membrului în fallback:", checkErr.message);
+        throw new Error("Utilizatorul nu a putut fi alocat la magazin.");
+      }
+
+      if (existingMember) {
+        // Rândul există, facem update
+        const { error: updateErr } = await supabase
+          .from('store_members')
+          .update({ role, active })
+          .eq('store_id', storeId)
+          .eq('profile_id', profileId);
+
+        if (updateErr) {
+          console.error("Eroare la actualizarea membrului în fallback:", updateErr.message);
+          throw new Error("Utilizatorul nu a putut fi alocat la magazin.");
+        }
+      } else {
+        // Rândul nu există, facem insert
+        const { error: insertErr } = await supabase
+          .from('store_members')
+          .insert({
+            store_id: storeId,
+            profile_id: profileId,
+            role,
+            active
+          });
+
+        if (insertErr) {
+          console.error("Eroare la inserarea membrului în fallback:", insertErr.message);
+          throw new Error("Utilizatorul nu a putut fi alocat la magazin.");
+        }
+      }
+    }
+
+    return {
+      storeId,
+      profileId,
+      role,
+      active
+    };
   }
 };
+
