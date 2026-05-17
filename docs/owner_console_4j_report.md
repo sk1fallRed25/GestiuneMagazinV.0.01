@@ -39,13 +39,14 @@ Metode implementate:
 - `getStores()`: Obține toate magazinele și calculează dinamic numărul de membri activi per magazin.
 - `getStoreMembers(storeId)`: Returnează lista membrilor asociați unui magazin, îmbogățind datele din `store_members` cu informațiile de profil (email, nume complet, data creării) din `profiles`.
 - `getOwnerConsoleData()`: Metodă agregată ce returnează statisticile globale, lista magazinelor și membrii primului magazin pentru inițializarea rapidă a paginii.
-- `setStoreMemberActive(memberId, active)`: Permite activarea/dezactivarea accesului unui utilizator la un magazin prin tabela `store_members`. Include o verificare de sincronizare pentru a dezactiva și profilul general dacă utilizatorul nu mai are niciun magazin activ.
-- `updateStoreMemberRole(memberId, role)`: Actualizează rolul utilizatorului atât în `store_members` cât și în `profiles` pentru a menține o consistență perfectă a stării la autentificare.
+- `setStoreMemberActive(storeId, profileId, active)`: Permite activarea/dezactivarea accesului unui utilizator la un magazin prin tabela `store_members`. S-a eliminat sincronizarea cu profilul general (`profiles.active` nu mai este atins) pentru a nu afecta accesul utilizatorului la alte magazine.
+- `updateStoreMemberRole(storeId, profileId, role)`: Actualizează rolul utilizatorului strict în tabela `store_members`. Rolul global din `profiles.role` rămâne nemodificat, permițând flexibilitate și roluri diferite per magazin.
 
 ### 3.2. Reguli și Restricții Enforceate în Cod
 1. **Fără `platform_owner` din consolă**: Serviciul respinge explicit orice tentativă de a seta rolul `platform_owner` unui membru de magazin.
 2. **Roluri stricte**: Sunt permise doar rolurile operaționale din v2: `admin`, `manager`, `gestionar`, `casier`.
 3. **Fără Service Role / Anon Bypass**: Toate apelurile se fac în contextul utilizatorului curent autentificat, garantând respectarea auditului și a securității.
+4. **Protecție Hook pentru `platform_owner`**: Hook-ul `useOwnerConsole` verifică explicit rolul utilizatorului curent și blochează orice apel de rețea dacă acesta nu este `platform_owner`.
 
 ---
 
@@ -67,7 +68,7 @@ S-a rulat comanda de build hibrid (TypeScript + Vite) pentru a valida integritat
 > sistem-magazin@1.0.0 build
 > tsc && vite build
 ✓ 2492 modules transformed.
-✓ built in 2.49s
+✓ built in 2.50s
 Exit code: 0
 ```
 Rezultatul confirmă că nu există erori de tipaj, importuri lipsă sau probleme de configurare.
@@ -75,8 +76,8 @@ Rezultatul confirmă că nu există erori de tipaj, importuri lipsă sau problem
 ### 5.2. Scenarii de Verificare Funcțională (Smoke Test)
 - **Vizualizare**: `admin@owner.com` (având rolul `platform_owner`) accesează `/owner`, vede toate magazinele și statisticile globale.
 - **Selecție Magazin**: Clic pe oricare magazin din tabelul superior încarcă instantaneu personalul alocat în tabelul inferior.
-- **Modificare Stare**: Comutarea butonului "Activ/Inactiv" din tabelul de membri apelează `setStoreMemberActive`, actualizând accesul și reîmprospătând numărătorile de statistici.
-- **Modificare Rol**: Schimbarea din meniul drop-down (ex. din `casier` în `gestionar`) apelează `updateStoreMemberRole`, propagând schimbarea în ambele tabele (`store_members` și `profiles`).
+- **Modificare Stare**: Comutarea butonului "Activ/Inactiv" din tabelul de membri apelează `setStoreMemberActive`, actualizând accesul la nivel de magazin și reîmprospătând numărătorile de statistici (fără a afecta `profiles.active`).
+- **Modificare Rol**: Schimbarea din meniul drop-down (ex. din `casier` în `gestionar`) apelează `updateStoreMemberRole`, propagând schimbarea exclusiv în tabela `store_members` (fără a atinge `profiles.role`).
 
 ---
 
@@ -84,3 +85,31 @@ Rezultatul confirmă că nu există erori de tipaj, importuri lipsă sau problem
 Modulul **Owner Console** este complet funcțional, respectă toate cerințele de securitate și arhitectură și oferă o experiență de utilizare premium (UI/UX modern, ecrane de încărcare, tratare elegantă a erorilor).
 
 Aplicația este pregătită pentru demonstrații interne și testare avansată în regim de producție/staging.
+
+---
+
+## 7. Corecții Etapa 4J.1 (Hardening Owner Console)
+
+În urma procesului de auditare și hardening (Etapa 4J.1), s-au efectuat următoarele optimizări și corecții arhitecturale pentru a garanta stabilitatea în medii de producție multi-store:
+
+1. **Eliminare `memberId` compus pentru logica de update**:
+   - S-a eliminat pattern-ul fragil `memberId.split('_')` din metodele serviciului.
+   - Funcțiile `setStoreMemberActive` și `updateStoreMemberRole` primesc acum explicit parametrii `storeId: string` și `profileId: string`.
+   - Proprietatea `OwnerStoreMember.id` (`storeId_profileId`) a fost păstrată exclusiv pentru proprietatea `key` din React, eliminându-se rolul său de sursă a adevărului în logica de update.
+
+2. **Decuplarea stării `store_members.active` de `profiles.active`**:
+   - S-a șters blocul de cod care sincroniza starea de activitate cu tabela `profiles`.
+   - Modificarea stării din Owner Console afectează strict accesul utilizatorului la magazinul selectat (`store_members.active`), protejând contul global al utilizatorului (care poate avea acces legitim la alte magazine).
+
+3. **Decuplarea rolului `store_members.role` de `profiles.role`**:
+   - S-a șters blocul de cod care suprascria rolul din `profiles.role`.
+   - `profiles.role` rămâne rolul global/primar al utilizatorului, în timp ce Owner Console gestionează granular permisiunile pe fiecare magazin prin `store_members.role`, eliminând riscul de inconsistențe în scenarii multi-store.
+
+4. **Protecție suplimentară în Hook-ul `useOwnerConsole`**:
+   - S-a integrat hook-ul `useAuth()` direct în `useOwnerConsole`.
+   - Se verifică explicit dacă `role === 'platform_owner'`. În caz contrar, se blochează execuția apelurilor de rețea și se setează un mesaj clar de eroare în UI (`"Acces permis doar pentru Platform Owner."`).
+
+5. **Type Safety și Validări Stricte**:
+   - Toate blocurile `catch` au fost tipizate corect cu `unknown`.
+   - Validarea rolurilor permise (`['admin', 'manager', 'gestionar', 'casier']`) și respingerea explicită a rolului `platform_owner` au fost menținute și consolidate.
+   - S-a verificat compilarea prin `npm run build`, confirmând `Exit code: 0` fără nicio eroare de tipaj sau de asamblare.

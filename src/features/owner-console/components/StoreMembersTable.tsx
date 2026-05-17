@@ -6,8 +6,8 @@ import { MemberRoleBadge } from './MemberRoleBadge';
 interface StoreMembersTableProps {
   members: OwnerStoreMember[];
   selectedStore: OwnerStore | null;
-  onToggleActive: (memberId: string, active: boolean) => Promise<void>;
-  onChangeRole: (memberId: string, role: OwnerMemberRole) => Promise<void>;
+  onToggleActive: (storeId: string, profileId: string, active: boolean) => Promise<void>;
+  onChangeRole: (storeId: string, profileId: string, role: OwnerMemberRole) => Promise<void>;
   loading?: boolean;
 }
 
@@ -25,7 +25,7 @@ export const StoreMembersTable: React.FC<StoreMembersTableProps> = ({
     setProcessingId(member.id);
     setErrorMsg(null);
     try {
-      await onToggleActive(member.id, newActive);
+      await onToggleActive(member.storeId, member.profileId, newActive);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Eroare la modificarea stării.');
     } finally {
@@ -37,7 +37,7 @@ export const StoreMembersTable: React.FC<StoreMembersTableProps> = ({
     setProcessingId(member.id);
     setErrorMsg(null);
     try {
-      await onChangeRole(member.id, newRole);
+      await onChangeRole(member.storeId, member.profileId, newRole);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Eroare la modificarea rolului.');
     } finally {

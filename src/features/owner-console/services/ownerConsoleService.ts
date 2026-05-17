@@ -160,10 +160,9 @@ export const ownerConsoleService = {
   /**
    * Activează sau dezactivează accesul unui membru la un magazin
    */
-  async setStoreMemberActive(memberId: string, active: boolean): Promise<void> {
-    const [storeId, profileId] = memberId.split('_');
+  async setStoreMemberActive(storeId: string, profileId: string, active: boolean): Promise<void> {
     if (!storeId || !profileId) {
-      throw new Error(`ID membru invalid: ${memberId}`);
+      throw new Error(`Identificatori invalizi: storeId=${storeId}, profileId=${profileId}`);
     }
 
     // 1. Actualizează starea în store_members
@@ -174,31 +173,18 @@ export const ownerConsoleService = {
       .eq('profile_id', profileId);
 
     if (memberErr) {
-      console.error(`Eroare la actualizarea stării membrului ${memberId}:`, memberErr.message);
+      console.error(`Eroare la actualizarea stării membrului storeId=${storeId}, profileId=${profileId}:`, memberErr.message);
       throw new Error(`Eroare Supabase (update store_members): ${memberErr.message}`);
     }
 
-    // 2. Pentru consecvență, verificăm dacă e cazul să actualizăm și profilul public
-    // (Dacă utilizatorul e dezactivat din magazin, menținem profilul activ general, dar actualizăm dacă e singurul magazin)
-    const { data: userMemberships, error: checkErr } = await supabase
-      .from('store_members')
-      .select('store_id, active')
-      .eq('profile_id', profileId)
-      .eq('active', true);
-
-    if (!checkErr && (!userMemberships || userMemberships.length === 0)) {
-      // Dacă nu mai are niciun magazin activ, putem seta și profilul ca inactiv
-      await supabase.from('profiles').update({ active: false }).eq('id', profileId);
-    } else if (active) {
-      // Dacă a fost reactivat, ne asigurăm că profilul general este activ
-      await supabase.from('profiles').update({ active: true }).eq('id', profileId);
-    }
+    // Notă: profiles.active nu este modificat aici. Activarea/dezactivarea accesului 
+    // la un magazin nu trebuie să dezactiveze profilul global al utilizatorului.
   },
 
   /**
    * Actualizează rolul unui membru într-un magazin
    */
-  async updateStoreMemberRole(memberId: string, role: OwnerMemberRole): Promise<void> {
+  async updateStoreMemberRole(storeId: string, profileId: string, role: OwnerMemberRole): Promise<void> {
     if (role as string === 'platform_owner') {
       throw new Error("Nu este permisă setarea rolului platform_owner prin Owner Console.");
     }
@@ -208,9 +194,8 @@ export const ownerConsoleService = {
       throw new Error(`Rol invalid specificat: ${role}`);
     }
 
-    const [storeId, profileId] = memberId.split('_');
     if (!storeId || !profileId) {
-      throw new Error(`ID membru invalid: ${memberId}`);
+      throw new Error(`Identificatori invalizi: storeId=${storeId}, profileId=${profileId}`);
     }
 
     // 1. Actualizează rolul în store_members
@@ -221,19 +206,10 @@ export const ownerConsoleService = {
       .eq('profile_id', profileId);
 
     if (memberErr) {
-      console.error(`Eroare la actualizarea rolului pentru membrul ${memberId}:`, memberErr.message);
+      console.error(`Eroare la actualizarea rolului pentru membrul storeId=${storeId}, profileId=${profileId}:`, memberErr.message);
       throw new Error(`Eroare Supabase (update store_members): ${memberErr.message}`);
     }
 
-    // 2. Actualizează rolul și în profiles pentru sincronizare perfectă a rolului principal
-    const { error: profileErr } = await supabase
-      .from('profiles')
-      .update({ role })
-      .eq('id', profileId);
-
-    if (profileErr) {
-      console.error(`Eroare la actualizarea rolului în profiles pentru ${profileId}:`, profileErr.message);
-      throw new Error(`Eroare Supabase (update profiles): ${profileErr.message}`);
-    }
+    // Rolul global din profiles nu este modificat aici. Owner Console gestionează rolul per magazin prin store_members.role.
   }
 };
