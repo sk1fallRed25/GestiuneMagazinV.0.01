@@ -41,6 +41,7 @@ Următoarele categorii de afirmații prezente în rapoartele vechi (din folderul
 - ❌ *„Sistemul permite fallback la login legacy prin VITE_ALLOW_LEGACY_LOGIN”* 👉 **FALS**: Mecanismele legacy au fost complet eliminate în etapa 4E.
 - ❌ *„Owner Console sincronizează câmpurile active și role din tabela profiles”* 👉 **FALS**: Logica a fost decuplată și securizată în etapa 4J.1; se modifică exclusiv `store_members`.
 - ❌ *„Etapa următoare este curățarea codului sau implementarea de bază POS”* 👉 **FALS**: Toate aceste module sunt deja implementate și funcționale.
+- ℹ️ *„Fiscal Bridge și Offline Sync”* 👉 **CLARIFICARE**: Ambele funcționalități (integrarea cu case de marcat fizice și suportul offline avansat Dexie v2) aparțin etapei post-MVP (v3/Comercial) și nu sunt necesare pentru validarea demo-ului intern curent.
 
 ---
 
