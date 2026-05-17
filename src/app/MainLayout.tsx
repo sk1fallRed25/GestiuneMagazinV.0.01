@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { 
     LayoutDashboard, Package, CalendarClock, AlertOctagon, PackagePlus, 
     ArrowRightLeft, BrainCircuit, 
-    ShoppingCart, FileText, Settings, LogOut, Search, Bell, AlertTriangle, History 
+    ShoppingCart, FileText, Settings, LogOut, Search, Bell, AlertTriangle, History, ShieldAlert 
 } from 'lucide-react';
 import { supabase } from '../shared/supabase/supabaseClient';
 import { isAdminLike, isManagerLike, isStockOperator, isCashierLike } from '../features/auth/permissions';
@@ -165,6 +165,9 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                         <>
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Sistem</div>
                             <NavLink to="/fast-add" label="Adăugare Rapidă" icon={<Settings size={18} />} />
+                            {role === 'platform_owner' && (
+                                <NavLink to="/owner" label="Consolă Proprietar" icon={<ShieldAlert size={18} />} />
+                            )}
                         </>
                     )}
                 </nav>

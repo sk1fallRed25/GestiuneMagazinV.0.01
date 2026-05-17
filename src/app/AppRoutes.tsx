@@ -18,6 +18,7 @@ import Vanzare from '../Vanzare';
 import IstoricVanzari from '../IstoricVanzari';
 import AiConsultant from '../AiConsultant';
 import FastAdd from '../FastAdd';
+import { OwnerConsolePage } from '../features/owner-console';
 
 const AppRoutes = () => {
     const { role: authRole, logout: authLogout } = useAuth();
@@ -113,6 +114,11 @@ const AppRoutes = () => {
                             <Route path="/fast-add" element={
                                 <ProtectedRoute allowedRoles={ROLES_ADMIN}>
                                     <FastAdd />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/owner" element={
+                                <ProtectedRoute allowedRoles={['platform_owner']}>
+                                    <OwnerConsolePage />
                                 </ProtectedRoute>
                             } />
                             <Route path="*" element={<Navigate to="/" replace />} />
