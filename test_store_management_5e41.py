@@ -143,7 +143,7 @@ def run_test():
         page.locator("button[type='submit']:has-text('Creează magazin')").click()
         
         # Verifică mesajul de eroare
-        err_msg = page.locator("text=Există deja un magazin pentru acest CUI și punct de lucru.")
+        err_msg = page.locator("text=Există deja un magazin pentru acest CUI și punct de lucru.").first
         err_msg.wait_for(state="visible", timeout=5000)
         print("[PASS] Eroarea de duplicat a fost afisata corect in UI.")
         
@@ -234,7 +234,7 @@ def run_test():
             page.locator("input[type='password']").fill("admin123")
             page.locator("button[type='submit']").click()
             
-            page.locator("text=Magazin Principal").wait_for(state="visible", timeout=10000)
+            page.locator("text=Magazin Principal").first.wait_for(state="visible", timeout=10000)
             print("[PASS] Login reusit ca magazin@magazin.com.")
             
             # Verificam daca exista selector de magazin
