@@ -1,9 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ownerConsoleService } from '../services/ownerConsoleService';
-import { OwnerConsoleStats, OwnerStore, OwnerStoreMember, OwnerMemberRole, OwnerProfile, UnassignedProfile, StoreWithoutAdmin, AssignStoreMemberPayload, CreateStorePayload, UpdateStorePayload } from '../types';
+import {
+  OwnerConsoleStats,
+  OwnerStore,
+  OwnerStoreMember,
+  OwnerMemberRole,
+  OwnerProfile,
+  UnassignedProfile,
+  StoreWithoutAdmin,
+  AssignStoreMemberPayload,
+  CreateStorePayload,
+  UpdateStorePayload,
+  OwnerAuditLogView
+} from '../types';
 import { useAuth } from '../../auth/useAuth';
 
-export type OwnerConsoleTab = 'overview' | 'stores' | 'profiles' | 'members';
+export type OwnerConsoleTab = 'overview' | 'stores' | 'profiles' | 'members' | 'audit';
 
 export const useOwnerConsole = () => {
   const { role } = useAuth();
@@ -12,14 +24,29 @@ export const useOwnerConsole = () => {
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedStoreMembers, setSelectedStoreMembers] = useState<OwnerStoreMember[]>([]);
 
-  // State-uri noi solicitate pentru Etapa 5E.2
+  // State-uri solicitate pentru Etapa 5E.2 și 5E.5
   const [profiles, setProfiles] = useState<OwnerProfile[]>([]);
   const [unassignedProfiles, setUnassignedProfiles] = useState<UnassignedProfile[]>([]);
   const [storesWithoutAdmin, setStoresWithoutAdmin] = useState<StoreWithoutAdmin[]>([]);
+  const [auditLogs, setAuditLogs] = useState<OwnerAuditLogView[]>([]);
   const [selectedTab, setSelectedTab] = useState<OwnerConsoleTab>('overview');
 
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const loadAuditLogs = useCallback(async () => {
+    if (role !== 'platform_owner') return;
+    setLoadingAuditLogs(true);
+    try {
+      const logs = await ownerConsoleService.getOwnerAuditLogs(50);
+      setAuditLogs(logs);
+    } catch (err: unknown) {
+      console.error("Eroare la încărcarea audit logs:", err);
+    } finally {
+      setLoadingAuditLogs(false);
+    }
+  }, [role]);
 
   const loadInitialData = useCallback(async () => {
     if (role !== 'platform_owner') {
@@ -42,13 +69,15 @@ export const useOwnerConsole = () => {
         setSelectedStoreId(data.stores[0].id);
         setSelectedStoreMembers(data.selectedStoreMembers);
       }
+
+      await loadAuditLogs();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Nu s-au putut încărca datele.';
       setError(message);
     } finally {
       setLoading(false);
     }
-  }, [role]);
+  }, [role, loadAuditLogs]);
 
   useEffect(() => {
     loadInitialData();
@@ -92,12 +121,13 @@ export const useOwnerConsole = () => {
       setProfiles(data.profiles);
       setUnassignedProfiles(data.unassignedProfiles);
       setStoresWithoutAdmin(data.storesWithoutAdmin);
+      await loadAuditLogs();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Operațiunea nu a putut fi finalizată.';
       setError(message);
       throw err;
     }
-  }, [role]);
+  }, [role, loadAuditLogs]);
 
   const changeMemberRole = useCallback(async (storeId: string, profileId: string, memberRole: OwnerMemberRole) => {
     if (role !== 'platform_owner') {
@@ -116,12 +146,13 @@ export const useOwnerConsole = () => {
       setProfiles(data.profiles);
       setUnassignedProfiles(data.unassignedProfiles);
       setStoresWithoutAdmin(data.storesWithoutAdmin);
+      await loadAuditLogs();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Operațiunea nu a putut fi finalizată.';
       setError(message);
       throw err;
     }
-  }, [role]);
+  }, [role, loadAuditLogs]);
 
   const assignMemberToStore = useCallback(async (payload: AssignStoreMemberPayload) => {
     if (role !== 'platform_owner') {
@@ -147,6 +178,7 @@ export const useOwnerConsole = () => {
         setSelectedStoreId(data.stores[0].id);
         setSelectedStoreMembers(data.selectedStoreMembers);
       }
+      await loadAuditLogs();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Operațiunea nu a putut fi finalizată.';
       setError(message);
@@ -154,7 +186,7 @@ export const useOwnerConsole = () => {
     } finally {
       setLoading(false);
     }
-  }, [role, selectedStoreId]);
+  }, [role, selectedStoreId, loadAuditLogs]);
 
   const createStore = useCallback(async (payload: CreateStorePayload): Promise<void> => {
     if (role !== 'platform_owner') {
@@ -176,6 +208,7 @@ export const useOwnerConsole = () => {
       setSelectedStoreId(res.storeId);
       const members = await ownerConsoleService.getStoreMembers(res.storeId);
       setSelectedStoreMembers(members);
+      await loadAuditLogs();
     } catch (err: unknown) {
       let message = "Magazinul nu a putut fi creat.";
       if (err instanceof Error) {
@@ -190,7 +223,7 @@ export const useOwnerConsole = () => {
     } finally {
       setLoading(false);
     }
-  }, [role]);
+  }, [role, loadAuditLogs]);
 
   const updateStore = useCallback(async (payload: UpdateStorePayload): Promise<void> => {
     if (role !== 'platform_owner') {
@@ -213,6 +246,7 @@ export const useOwnerConsole = () => {
         const members = await ownerConsoleService.getStoreMembers(selectedStoreId);
         setSelectedStoreMembers(members);
       }
+      await loadAuditLogs();
     } catch (err: unknown) {
       let message = "Magazinul nu a putut fi actualizat.";
       if (err instanceof Error) {
@@ -227,7 +261,7 @@ export const useOwnerConsole = () => {
     } finally {
       setLoading(false);
     }
-  }, [role, selectedStoreId]);
+  }, [role, selectedStoreId, loadAuditLogs]);
 
   return {
     stats,
@@ -237,9 +271,11 @@ export const useOwnerConsole = () => {
     profiles,
     unassignedProfiles,
     storesWithoutAdmin,
+    auditLogs,
     selectedTab,
     setSelectedTab,
     loading,
+    loadingAuditLogs,
     error,
     selectStore,
     toggleMemberActive,
@@ -248,7 +284,8 @@ export const useOwnerConsole = () => {
     createStore,
     updateStore,
     refreshData: loadInitialData,
-    refreshAll: loadInitialData
+    refreshAll: loadInitialData,
+    loadAuditLogs
   };
 };
 

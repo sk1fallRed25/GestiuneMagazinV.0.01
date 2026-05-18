@@ -12,7 +12,11 @@ import {
   CreateStorePayload,
   UpdateStorePayload,
   StoreManagementResult,
-  StoreSettings
+  StoreSettings,
+  OwnerAuditAction,
+  OwnerAuditEntityType,
+  CreateOwnerAuditLogPayload,
+  OwnerAuditLogView
 } from '../types';
 
 interface StoreDbRow {
@@ -103,6 +107,129 @@ const parseStoreSettings = (rawSettings: unknown, fiscalCode: string | null): St
 };
 
 export const ownerConsoleService = {
+  /**
+   * Creează un log de audit în tabela public.audit_logs (non-blocking)
+   */
+  async createOwnerAuditLog(payload: CreateOwnerAuditLogPayload): Promise<void> {
+    try {
+      let profileId = payload.profileId;
+      if (!profileId) {
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user) {
+          profileId = authData.user.id;
+        }
+      }
+
+      const { error: auditErr } = await supabase
+        .from('audit_logs')
+        .insert({
+          store_id: payload.storeId ?? null,
+          profile_id: profileId ?? null,
+          action: payload.action,
+          entity_type: payload.entityType,
+          entity_id: payload.entityId ?? null,
+          old_data: payload.oldData ?? null,
+          new_data: payload.newData ?? null,
+          ip_address: null
+        });
+
+      if (auditErr) {
+        console.warn("Audit log failed:", auditErr.message);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("Audit log failed:", msg);
+    }
+  },
+
+  /**
+   * Obține lista de audit logs pentru platform_owner
+   */
+  async getOwnerAuditLogs(limit = 50): Promise<OwnerAuditLogView[]> {
+    const { data: auditData, error: auditErr } = await supabase
+      .from('audit_logs')
+      .select('id, store_id, profile_id, action, entity_type, entity_id, old_data, new_data, ip_address, created_at')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (auditErr) {
+      console.error("Eroare la obținerea audit logs:", auditErr.message);
+      throw new Error(`Eroare Supabase (audit_logs): ${auditErr.message}`);
+    }
+
+    const rawLogs = (auditData || []) as {
+      id: string;
+      store_id?: string | null;
+      profile_id?: string | null;
+      action: string;
+      entity_type: string;
+      entity_id?: string | null;
+      old_data?: unknown;
+      new_data?: unknown;
+      ip_address?: string | null;
+      created_at?: string | null;
+    }[];
+
+    if (rawLogs.length === 0) return [];
+
+    const storeIds = Array.from(new Set(rawLogs.map(l => l.store_id).filter(Boolean) as string[]));
+    const profileIds = Array.from(new Set(rawLogs.map(l => l.profile_id).filter(Boolean) as string[]));
+
+    let storeMap = new Map<string, string>();
+    if (storeIds.length > 0) {
+      const { data: storesData } = await supabase.from('stores').select('id, name').in('id', storeIds);
+      if (storesData) {
+        storeMap = new Map(storesData.map(s => [s.id, s.name]));
+      }
+    }
+
+    let profileMap = new Map<string, string>();
+    if (profileIds.length > 0) {
+      const { data: profilesData } = await supabase.from('profiles').select('id, email').in('id', profileIds);
+      if (profilesData) {
+        profileMap = new Map(profilesData.map(p => [p.id, p.email]));
+      }
+    }
+
+    return rawLogs.map(log => {
+      const storeName = log.store_id ? (storeMap.get(log.store_id) || 'Magazin Necunoscut') : 'Sistem Global';
+      const actorEmail = log.profile_id ? (profileMap.get(log.profile_id) || 'Utilizator Necunoscut') : 'Sistem';
+
+      let summary = '';
+      switch (log.action) {
+        case 'store.create':
+          summary = `Creare magazin: ${(log.new_data as Record<string, unknown>)?.name || storeName}`;
+          break;
+        case 'store.update':
+          summary = `Actualizare magazin: ${storeName}`;
+          break;
+        case 'member.assign':
+          summary = `Alocare membru: ${(log.new_data as Record<string, unknown>)?.role || 'casier'} la ${storeName}`;
+          break;
+        case 'member.role_update':
+          summary = `Modificare rol membru în ${(log.new_data as Record<string, unknown>)?.role || 'necunoscut'} la ${storeName}`;
+          break;
+        case 'member.active_update':
+          summary = `Setare stare activare membru (${(log.new_data as Record<string, unknown>)?.active ? 'activ' : 'inactiv'}) la ${storeName}`;
+          break;
+        default:
+          summary = `Acțiune: ${log.action}`;
+      }
+
+      return {
+        id: log.id,
+        storeName,
+        actorEmail,
+        action: log.action as OwnerAuditAction,
+        entityType: log.entity_type as OwnerAuditEntityType,
+        createdAt: log.created_at || new Date().toISOString(),
+        summary,
+        oldData: (log.old_data as Record<string, unknown>) || null,
+        newData: (log.new_data as Record<string, unknown>) || null
+      };
+    });
+  },
+
   /**
    * Obține lista completă de magazine pentru platform_owner
    */
@@ -407,6 +534,13 @@ export const ownerConsoleService = {
       throw new Error(`Identificatori invalizi: storeId=${storeId}, profileId=${profileId}`);
     }
 
+    const { data: oldRow } = await supabase
+      .from('store_members')
+      .select('active')
+      .eq('store_id', storeId)
+      .eq('profile_id', profileId)
+      .maybeSingle();
+
     // 1. Actualizează starea în store_members
     const { error: memberErr } = await supabase
       .from('store_members')
@@ -418,6 +552,15 @@ export const ownerConsoleService = {
       console.error(`Eroare la actualizarea stării membrului storeId=${storeId}, profileId=${profileId}:`, memberErr.message);
       throw new Error(`Eroare Supabase (update store_members): ${memberErr.message}`);
     }
+
+    await this.createOwnerAuditLog({
+      storeId,
+      action: 'member.active_update',
+      entityType: 'store_member',
+      entityId: profileId,
+      oldData: oldRow ? { active: oldRow.active } : null,
+      newData: { active }
+    });
   },
 
   /**
@@ -437,6 +580,13 @@ export const ownerConsoleService = {
       throw new Error(`Identificatori invalizi: storeId=${storeId}, profileId=${profileId}`);
     }
 
+    const { data: oldRow } = await supabase
+      .from('store_members')
+      .select('role')
+      .eq('store_id', storeId)
+      .eq('profile_id', profileId)
+      .maybeSingle();
+
     // 1. Actualizează rolul în store_members
     const { error: memberErr } = await supabase
       .from('store_members')
@@ -448,6 +598,15 @@ export const ownerConsoleService = {
       console.error(`Eroare la actualizarea rolului pentru membrul storeId=${storeId}, profileId=${profileId}:`, memberErr.message);
       throw new Error(`Eroare Supabase (update store_members): ${memberErr.message}`);
     }
+
+    await this.createOwnerAuditLog({
+      storeId,
+      action: 'member.role_update',
+      entityType: 'store_member',
+      entityId: profileId,
+      oldData: oldRow ? { role: oldRow.role } : null,
+      newData: { role }
+    });
   },
 
   /**
@@ -491,6 +650,17 @@ export const ownerConsoleService = {
     if (storeErr || !storeData) {
       throw new Error("Magazinul selectat nu există.");
     }
+
+    const { data: existingBefore } = await supabase
+      .from('store_members')
+      .select('role, active')
+      .eq('store_id', storeId)
+      .eq('profile_id', profileId)
+      .maybeSingle();
+
+    const oldData: Record<string, unknown> = existingBefore
+      ? { role: existingBefore.role, active: existingBefore.active, existed: true }
+      : { role: null, active: null, existed: false };
 
     // 3. Upsert în store_members, cu fallback la select + update/insert dacă upsert eșuează din lipsă constraint unic
     const { error: upsertErr } = await supabase
@@ -549,6 +719,20 @@ export const ownerConsoleService = {
         }
       }
     }
+
+    await this.createOwnerAuditLog({
+      storeId,
+      action: 'member.assign',
+      entityType: 'store_member',
+      entityId: profileId,
+      oldData,
+      newData: {
+        profileId,
+        storeId,
+        role,
+        active
+      }
+    });
 
     return {
       storeId,
@@ -612,6 +796,23 @@ export const ownerConsoleService = {
       throw new Error("Magazinul nu a putut fi creat.");
     }
 
+    await this.createOwnerAuditLog({
+      storeId: insertedStore.id,
+      action: 'store.create',
+      entityType: 'store',
+      entityId: insertedStore.id,
+      oldData: null,
+      newData: {
+        name: payload.name.trim(),
+        fiscalCode: normFiscalCode,
+        workpointNumber: wpNum,
+        displayCode: dispCode,
+        active: payload.active,
+        address: payload.address ? payload.address.trim() : null,
+        companyName: payload.companyName || null
+      }
+    });
+
     return {
       storeId: insertedStore.id,
       name: payload.name.trim(),
@@ -633,10 +834,10 @@ export const ownerConsoleService = {
     const wpNum = parseWorkpointNumber(payload.workpointNumber);
     const dispCode = buildStoreDisplayCode(normFiscalCode, wpNum);
 
-    // Verifică duplicat pe alt store
+    // Verifică duplicat pe alt store și obține snapshot-ul vechi
     const { data: existingStores, error: checkErr } = await supabase
       .from('stores')
-      .select('id, fiscal_code, settings')
+      .select('id, name, address, fiscal_code, active, settings')
       .eq('fiscal_code', normFiscalCode);
 
     if (checkErr) {
@@ -655,7 +856,7 @@ export const ownerConsoleService = {
       throw new Error("Există deja un magazin pentru acest CUI și punct de lucru.");
     }
 
-    // Găsește setările vechi pentru a face merge sigur
+    // Găsește setările vechi pentru a face merge sigur și pentru oldData
     const currentStore = rawExisting.find(st => st.id === payload.storeId);
     let mergedSettings: Record<string, unknown> = {};
     if (currentStore?.settings && typeof currentStore.settings === 'object') {
@@ -666,6 +867,28 @@ export const ownerConsoleService = {
     mergedSettings.displayCode = dispCode;
     mergedSettings.companyName = payload.companyName || null;
     mergedSettings.notes = payload.notes || null;
+
+    const oldData: Record<string, unknown> | null = currentStore ? {
+      id: currentStore.id,
+      name: currentStore.name,
+      fiscalCode: currentStore.fiscal_code,
+      address: currentStore.address,
+      active: currentStore.active,
+      settings: currentStore.settings
+    } : null;
+
+    const newData: Record<string, unknown> = {
+      id: payload.storeId,
+      name: payload.name.trim(),
+      fiscalCode: normFiscalCode,
+      workpointNumber: wpNum,
+      displayCode: dispCode,
+      address: payload.address ? payload.address.trim() : null,
+      active: payload.active,
+      companyName: payload.companyName || null,
+      notes: payload.notes || null,
+      settings: mergedSettings
+    };
 
     const { error: updateErr } = await supabase
       .from('stores')
@@ -683,6 +906,15 @@ export const ownerConsoleService = {
       console.error("Eroare la actualizarea magazinului:", updateErr.message);
       throw new Error("Magazinul nu a putut fi actualizat.");
     }
+
+    await this.createOwnerAuditLog({
+      storeId: payload.storeId,
+      action: 'store.update',
+      entityType: 'store',
+      entityId: payload.storeId,
+      oldData,
+      newData
+    });
 
     return {
       storeId: payload.storeId,

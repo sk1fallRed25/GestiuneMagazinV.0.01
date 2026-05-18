@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Store, Users, UserCheck } from 'lucide-react';
+import { LayoutDashboard, Store, Users, UserCheck, History } from 'lucide-react';
 import { OwnerConsoleTab } from '../hooks/useOwnerConsole';
 
 interface OwnerTabsProps {
@@ -8,6 +8,7 @@ interface OwnerTabsProps {
   storesCount: number;
   profilesCount: number;
   membersCount: number;
+  auditCount: number;
 }
 
 interface TabItem {
@@ -22,13 +23,15 @@ export const OwnerTabs: React.FC<OwnerTabsProps> = ({
   onSelectTab,
   storesCount,
   profilesCount,
-  membersCount
+  membersCount,
+  auditCount
 }) => {
   const tabs: TabItem[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'stores', label: 'Magazine', icon: Store, count: storesCount },
     { id: 'profiles', label: 'Profile Utilizatori', icon: Users, count: profilesCount },
     { id: 'members', label: 'Membri Magazin', icon: UserCheck, count: membersCount },
+    { id: 'audit', label: 'Audit Logs', icon: History, count: auditCount },
   ];
 
   return (

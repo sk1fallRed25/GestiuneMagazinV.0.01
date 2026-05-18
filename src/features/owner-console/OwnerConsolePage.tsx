@@ -11,6 +11,7 @@ import { OwnerProfilesTable } from './components/OwnerProfilesTable';
 import { StoreMembersTable } from './components/StoreMembersTable';
 import { AssignMemberModal } from './components/AssignMemberModal';
 import { StoreFormModal } from './components/StoreFormModal';
+import { OwnerAuditLogsPanel } from './components/OwnerAuditLogsPanel';
 import { OwnerStore, CreateStorePayload, UpdateStorePayload } from './types';
 
 export const OwnerConsolePage: React.FC = () => {
@@ -22,9 +23,11 @@ export const OwnerConsolePage: React.FC = () => {
     profiles,
     unassignedProfiles,
     storesWithoutAdmin,
+    auditLogs,
     selectedTab,
     setSelectedTab,
     loading,
+    loadingAuditLogs,
     error,
     selectStore,
     toggleMemberActive,
@@ -32,7 +35,8 @@ export const OwnerConsolePage: React.FC = () => {
     assignMemberToStore,
     createStore,
     updateStore,
-    refreshAll
+    refreshAll,
+    loadAuditLogs
   } = useOwnerConsole();
 
   const [isAssignModalOpen, setIsAssignModalOpen] = useState<boolean>(false);
@@ -88,6 +92,7 @@ export const OwnerConsolePage: React.FC = () => {
         storesCount={stores.length}
         profilesCount={profiles.length}
         membersCount={selectedStoreMembers.length}
+        auditCount={auditLogs.length}
       />
 
       {/* Secțiunea Overview */}
@@ -154,6 +159,17 @@ export const OwnerConsolePage: React.FC = () => {
         </div>
       )}
 
+      {/* Secțiunea Audit Logs */}
+      {selectedTab === 'audit' && (
+        <div className="animate-fade-in">
+          <OwnerAuditLogsPanel
+            logs={auditLogs}
+            loading={loadingAuditLogs}
+            onRefresh={loadAuditLogs}
+          />
+        </div>
+      )}
+
       {/* Modal Alocare Utilizator la Magazin */}
       <AssignMemberModal
         isOpen={isAssignModalOpen}
@@ -184,4 +200,5 @@ export const OwnerConsolePage: React.FC = () => {
 };
 
 export default OwnerConsolePage;
+
 

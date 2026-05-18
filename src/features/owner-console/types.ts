@@ -153,3 +153,47 @@ export interface OwnerConsoleData {
   storesWithoutAdmin: StoreWithoutAdmin[];
 }
 
+export type OwnerAuditAction =
+  | 'store.create'
+  | 'store.update'
+  | 'member.assign'
+  | 'member.role_update'
+  | 'member.active_update';
+
+export type OwnerAuditEntityType = 'store' | 'store_member';
+
+export interface OwnerAuditLog {
+  id: string;
+  storeId: string | null;
+  profileId: string | null;
+  action: OwnerAuditAction;
+  entityType: OwnerAuditEntityType;
+  entityId: string | null;
+  oldData: Record<string, unknown> | null;
+  newData: Record<string, unknown> | null;
+  ipAddress: string | null;
+  createdAt: string;
+}
+
+export interface CreateOwnerAuditLogPayload {
+  storeId?: string | null;
+  profileId?: string | null;
+  action: OwnerAuditAction;
+  entityType: OwnerAuditEntityType;
+  entityId?: string | null;
+  oldData?: Record<string, unknown> | null;
+  newData?: Record<string, unknown> | null;
+}
+
+export interface OwnerAuditLogView {
+  id: string;
+  storeName: string;
+  actorEmail: string;
+  action: OwnerAuditAction;
+  entityType: OwnerAuditEntityType;
+  createdAt: string;
+  summary: string;
+  oldData: Record<string, unknown> | null;
+  newData: Record<string, unknown> | null;
+}
+
