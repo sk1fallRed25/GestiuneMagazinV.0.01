@@ -48,3 +48,65 @@ export interface PosLocationState {
     // momentan nu avem nevoie de state special la navigare POS, 
     // dar păstrăm tiparul pentru consistență
 }
+
+export interface CashRegister {
+    id: string;
+    storeId: string;
+    name: string;
+    code: string | null;
+    active: boolean;
+}
+
+export interface ActiveShiftTotals {
+    totalSales: number;
+    totalCash: number;
+    totalCard: number;
+    totalMixed: number;
+    expectedCash: number;
+    transactionsCount: number;
+}
+
+export interface ActiveShift {
+    shiftId: string;
+    status: 'open' | 'closed' | 'cancelled';
+    openingCash: number;
+    openedAt: string;
+    cashRegisterId: string | null;
+    cashRegisterName: string | null;
+    currentTotals: ActiveShiftTotals;
+}
+
+export interface OpenShiftPayload {
+    storeId: string;
+    profileId: string;
+    cashRegisterId: string | null;
+    openingCash: number;
+    notes?: string | null;
+}
+
+export interface CloseShiftPayload {
+    storeId: string;
+    profileId: string;
+    shiftId: string;
+    declaredCash: number;
+    closingNotes?: string | null;
+}
+
+export interface ShiftCloseResultSummary {
+    openingCash: number;
+    totalSales: number;
+    totalCash: number;
+    totalCard: number;
+    totalMixed: number;
+    expectedCash: number;
+    declaredCash: number;
+    cashDifference: number;
+    transactionsCount: number;
+}
+
+export interface ShiftCloseResult {
+    shiftId: string;
+    status: string;
+    closedAt: string;
+    summary: ShiftCloseResultSummary;
+}

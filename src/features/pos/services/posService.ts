@@ -1,5 +1,14 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
-import { PosProduct, CreateSalePayload, StockBatch } from '../types';
+import { 
+    PosProduct, 
+    CreateSalePayload, 
+    StockBatch, 
+    CashRegister, 
+    ActiveShift, 
+    OpenShiftPayload, 
+    CloseShiftPayload, 
+    ShiftCloseResult 
+} from '../types';
 
 const toNumberStrict = (value: unknown, fieldName: string): number => {
     const n = Number(value);
@@ -190,6 +199,9 @@ export const posService = {
         if (error) {
             console.error("RPC finalize_sale error:", error);
             const msg = error.message || "";
+            if (msg.includes("tură activă este obligatorie") || msg.includes("nu este activă")) {
+                throw new Error("O tură activă este obligatorie pentru a finaliza vânzarea. Deschide tura înainte de a vinde.");
+            }
             if (msg.includes("Stoc insuficient")) {
                 throw new Error("Stoc insuficient pentru finalizarea vânzării.");
             }
@@ -222,5 +234,227 @@ export const posService = {
         }
 
         throw new Error("Vânzarea nu a putut fi finalizată.");
+    },
+
+    /**
+     * Încarcă lista de case de marcat din magazinul activ.
+     */
+    async listCashRegisters(storeId: string): Promise<CashRegister[]> {
+        if (!storeId) return [];
+        const { data, error } = await supabase
+            .from('cash_registers')
+            .select('id, store_id, name, code, active')
+            .eq('store_id', storeId)
+            .eq('active', true)
+            .order('name');
+
+        if (error) {
+            console.error("listCashRegisters error:", error);
+            throw new Error("Nu s-au putut încărca casele de marcat.");
+        }
+
+        return (data || []).map(r => ({
+            id: r.id,
+            storeId: r.store_id,
+            name: r.name,
+            code: r.code,
+            active: r.active
+        }));
+    },
+
+    /**
+     * Încarcă tura activă a utilizatorului din magazin.
+     */
+    async getActiveShift(storeId: string, profileId: string): Promise<ActiveShift | null> {
+        if (!storeId || !profileId) return null;
+        const { data, error } = await supabase.rpc('get_active_pos_shift', {
+            p_store_id: storeId,
+            p_profile_id: profileId
+        });
+
+        if (error) {
+            console.error("getActiveShift error:", error);
+            throw new Error("Nu s-a putut încărca tura activă.");
+        }
+
+        if (!data) return null;
+
+        type RpcShiftResult = {
+            shift_id?: string;
+            status?: string;
+            opening_cash?: number;
+            opened_at?: string;
+            cash_register_id?: string | null;
+            cash_register_name?: string | null;
+            current_totals?: {
+                total_sales?: number;
+                total_cash?: number;
+                total_card?: number;
+                total_mixed?: number;
+                expected_cash?: number;
+                transactions_count?: number;
+            };
+        };
+
+        const res = data as RpcShiftResult;
+        if (!res.shift_id) return null;
+
+        const currentTotals = res.current_totals || {};
+
+        return {
+            shiftId: res.shift_id,
+            status: (res.status as 'open' | 'closed' | 'cancelled') || 'open',
+            openingCash: toNumberStrict(res.opening_cash ?? 0, 'sold deschidere'),
+            openedAt: res.opened_at || new Date().toISOString(),
+            cashRegisterId: res.cash_register_id || null,
+            cashRegisterName: res.cash_register_name || null,
+            currentTotals: {
+                totalSales: toNumberStrict(currentTotals.total_sales ?? 0, 'total vânzări'),
+                totalCash: toNumberStrict(currentTotals.total_cash ?? 0, 'total cash'),
+                totalCard: toNumberStrict(currentTotals.total_card ?? 0, 'total card'),
+                totalMixed: toNumberStrict(currentTotals.total_mixed ?? 0, 'total mixt'),
+                expectedCash: toNumberStrict(currentTotals.expected_cash ?? 0, 'numerar așteptat'),
+                transactionsCount: toNumberStrict(currentTotals.transactions_count ?? 0, 'număr tranzacții')
+            }
+        };
+    },
+
+    /**
+     * Deschide o tură nouă.
+     */
+    async openShift(payload: OpenShiftPayload): Promise<string> {
+        const { storeId, profileId, cashRegisterId, openingCash, notes } = payload;
+        if (!storeId || !profileId) {
+            throw new Error("Date incomplete pentru deschiderea turei.");
+        }
+        const oCash = toNumberStrict(openingCash, 'sold inițial');
+        if (oCash < 0) {
+            throw new Error("Suma inițială nu poate fi negativă.");
+        }
+
+        const { data, error } = await supabase.rpc('open_pos_shift', {
+            p_store_id: storeId,
+            p_profile_id: profileId,
+            p_cash_register_id: cashRegisterId || null,
+            p_opening_cash: oCash,
+            p_notes: notes || null
+        });
+
+        if (error) {
+            console.error("openShift error:", error);
+            const msg = error.message || "";
+            if (msg.includes("deja o tură deschisă")) {
+                throw new Error("Ai deja o tură deschisă în acest magazin.");
+            }
+            if (msg.includes("deja o tură deschisă de către alt")) {
+                throw new Error("Casa de marcat este deja folosită de alt utilizator.");
+            }
+            throw new Error("Nu s-a putut deschide tura.");
+        }
+
+        if (typeof data === 'string' && data.trim()) {
+            return data;
+        }
+
+        throw new Error("Nu s-a putut deschide tura.");
+    },
+
+    /**
+     * Închide tura activă.
+     */
+    async closeShift(payload: CloseShiftPayload): Promise<ShiftCloseResult> {
+        const { storeId, profileId, shiftId, declaredCash, closingNotes } = payload;
+        if (!storeId || !profileId || !shiftId) {
+            throw new Error("Date incomplete pentru închiderea turei.");
+        }
+        const dCash = toNumberStrict(declaredCash, 'numerar faptic declarat');
+        if (dCash < 0) {
+            throw new Error("Numerarul declarat nu poate fi negativ.");
+        }
+
+        const { data, error } = await supabase.rpc('close_pos_shift', {
+            p_store_id: storeId,
+            p_profile_id: profileId,
+            p_shift_id: shiftId,
+            p_declared_cash: dCash,
+            p_closing_notes: closingNotes || null
+        });
+
+        if (error) {
+            console.error("closeShift error:", error);
+            throw new Error("Nu s-a putut închide tura.");
+        }
+
+        type RpcCloseResult = {
+            shift_id?: string;
+            status?: string;
+            closed_at?: string;
+            summary?: {
+                opening_cash?: number;
+                total_sales?: number;
+                total_cash?: number;
+                total_card?: number;
+                total_mixed?: number;
+                expected_cash?: number;
+                declared_cash?: number;
+                cash_difference?: number;
+                transactions_count?: number;
+            };
+        };
+
+        const res = data as RpcCloseResult;
+        if (!res || !res.shift_id) {
+            throw new Error("Nu s-a putut închide tura.");
+        }
+
+        const summary = res.summary || {};
+
+        return {
+            shiftId: res.shift_id,
+            status: res.status || 'closed',
+            closedAt: res.closed_at || new Date().toISOString(),
+            summary: {
+                openingCash: toNumberStrict(summary.opening_cash ?? 0, 'sold deschidere'),
+                totalSales: toNumberStrict(summary.total_sales ?? 0, 'total vânzări'),
+                totalCash: toNumberStrict(summary.total_cash ?? 0, 'total cash'),
+                totalCard: toNumberStrict(summary.total_card ?? 0, 'total card'),
+                totalMixed: toNumberStrict(summary.total_mixed ?? 0, 'total mixt'),
+                expectedCash: toNumberStrict(summary.expected_cash ?? 0, 'numerar așteptat'),
+                declaredCash: toNumberStrict(summary.declared_cash ?? 0, 'numerar declarat'),
+                cashDifference: toNumberStrict(summary.cash_difference ?? 0, 'diferență de casă'),
+                transactionsCount: toNumberStrict(summary.transactions_count ?? 0, 'număr tranzacții')
+            }
+        };
+    },
+
+    /**
+     * Anulează o tură deschisă din greșeală (fără vânzări).
+     */
+    async cancelShift(storeId: string, profileId: string, shiftId: string, notes?: string): Promise<string> {
+        if (!storeId || !profileId || !shiftId) {
+            throw new Error("Date incomplete pentru anularea turei.");
+        }
+
+        const { data, error } = await supabase.rpc('cancel_pos_shift', {
+            p_store_id: storeId,
+            p_profile_id: profileId,
+            p_shift_id: shiftId,
+            p_notes: notes || null
+        });
+
+        if (error) {
+            console.error("cancelShift error:", error);
+            const msg = error.message || "";
+            if (msg.includes("are deja vânzări")) {
+                throw new Error("Tura nu poate fi anulată deoarece are deja vânzări înregistrate.");
+            }
+            throw new Error("Nu s-a putut anula tura.");
+        }
+
+        if (typeof data === 'string' && data.trim()) {
+            return data;
+        }
+
+        throw new Error("Nu s-a putut anula tura.");
     }
 };

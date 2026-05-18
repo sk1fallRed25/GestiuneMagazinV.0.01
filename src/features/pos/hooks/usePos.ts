@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../auth/useAuth';
 import { posService } from '../services/posService';
-import { PosProduct, CartItem, PaymentMethod } from '../types';
+import { PosProduct, CartItem, PaymentMethod, ActiveShift, CashRegister } from '../types';
 
 export const usePos = () => {
     const { user, currentStoreId } = useAuth();
@@ -17,7 +17,42 @@ export const usePos = () => {
     const [cashAmount, setCashAmount] = useState<number>(0);
     const [cardAmount, setCardAmount] = useState<number>(0);
 
+    // Shift Management State
+    const [activeShift, setActiveShift] = useState<ActiveShift | null>(null);
+    const [cashRegisters, setCashRegisters] = useState<CashRegister[]>([]);
+    const [shiftLoading, setShiftLoading] = useState(false);
+    const [shiftError, setShiftError] = useState<string | null>(null);
+
     const getErrorMessage = (error: unknown) => error instanceof Error ? error.message : 'Operațiunea nu a putut fi finalizată.';
+
+    // Încărcare date tură și case de marcat
+    const loadShiftData = useCallback(async () => {
+        if (!currentStoreId || !user) {
+            setActiveShift(null);
+            setCashRegisters([]);
+            return;
+        }
+
+        setShiftLoading(true);
+        setShiftError(null);
+        try {
+            const [shift, registers] = await Promise.all([
+                posService.getActiveShift(currentStoreId, user.id),
+                posService.listCashRegisters(currentStoreId)
+            ]);
+            setActiveShift(shift);
+            setCashRegisters(registers);
+        } catch (err: unknown) {
+            console.error("loadShiftData error:", err);
+            setShiftError(getErrorMessage(err));
+        } finally {
+            setShiftLoading(false);
+        }
+    }, [currentStoreId, user]);
+
+    useEffect(() => {
+        loadShiftData();
+    }, [loadShiftData]);
 
     // Căutare produse
     const search = useCallback(async (q: string) => {
@@ -114,10 +149,84 @@ export const usePos = () => {
         return cart.reduce((acc, item) => acc + item.total, 0);
     }, [cart]);
 
+    // Operațiuni Ture
+    const handleOpenShift = async (cashRegisterId: string | null, openingCash: number, notes?: string) => {
+        if (!currentStoreId || !user) return false;
+        setShiftLoading(true);
+        setShiftError(null);
+        try {
+            await posService.openShift({
+                storeId: currentStoreId,
+                profileId: user.id,
+                cashRegisterId,
+                openingCash,
+                notes
+            });
+            toast.success("Tura a fost deschisă cu succes!");
+            await loadShiftData();
+            return true;
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err));
+            setShiftError(getErrorMessage(err));
+            return false;
+        } finally {
+            setShiftLoading(false);
+        }
+    };
+
+    const handleCloseShift = async (declaredCash: number, closingNotes?: string) => {
+        if (!currentStoreId || !user || !activeShift) return null;
+        setShiftLoading(true);
+        setShiftError(null);
+        try {
+            const result = await posService.closeShift({
+                storeId: currentStoreId,
+                profileId: user.id,
+                shiftId: activeShift.shiftId,
+                declaredCash,
+                closingNotes
+            });
+            toast.success("Tura a fost închisă cu succes!");
+            await loadShiftData();
+            return result;
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err));
+            setShiftError(getErrorMessage(err));
+            return null;
+        } finally {
+            setShiftLoading(false);
+        }
+    };
+
+    const handleCancelShift = async (notes?: string) => {
+        if (!currentStoreId || !user || !activeShift) return false;
+        if (!window.confirm("Ești sigur că vrei să anulezi această tură? (Doar dacă a fost deschisă din greșeală și nu are tranzacții)")) {
+            return false;
+        }
+        setShiftLoading(true);
+        setShiftError(null);
+        try {
+            await posService.cancelShift(currentStoreId, user.id, activeShift.shiftId, notes);
+            toast.success("Tura a fost anulată!");
+            await loadShiftData();
+            return true;
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err));
+            setShiftError(getErrorMessage(err));
+            return false;
+        } finally {
+            setShiftLoading(false);
+        }
+    };
+
     // Finalizare vânzare
     const finalizeSale = async () => {
         if (!currentStoreId || !user) {
             toast.error("Sesiune invalidă.");
+            return;
+        }
+        if (!activeShift) {
+            toast.error("O tură activă este obligatorie pentru a finaliza vânzarea. Deschide tura înainte de a vinde.");
             return;
         }
         if (cart.length === 0) {
@@ -153,13 +262,14 @@ export const usePos = () => {
                 paymentMethod,
                 cashAmount: paymentMethod === 'mixed' ? cashAmount : (paymentMethod === 'cash' ? totalBon : 0),
                 cardAmount: paymentMethod === 'mixed' ? cardAmount : (paymentMethod === 'card' ? totalBon : 0),
-                shiftId: null
+                shiftId: activeShift.shiftId
             });
 
             toast.success("Vânzare finalizată cu succes!");
             clearCart();
             setQuery('');
             setSearchResults([]);
+            await loadShiftData(); // Actualizează totalurile turei
         } catch (err: unknown) {
             toast.error(getErrorMessage(err));
         } finally {
@@ -181,6 +291,14 @@ export const usePos = () => {
         cardAmount,
         setCardAmount,
         totalBon,
+        activeShift,
+        cashRegisters,
+        shiftLoading,
+        shiftError,
+        handleOpenShift,
+        handleCloseShift,
+        handleCancelShift,
+        loadShiftData,
         addToCart,
         removeFromCart,
         updateQuantity,
