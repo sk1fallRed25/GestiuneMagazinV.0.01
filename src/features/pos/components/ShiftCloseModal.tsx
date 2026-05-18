@@ -21,10 +21,10 @@ export const ShiftCloseModal: React.FC<ShiftCloseModalProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [result, setResult] = useState<ShiftCloseResult | null>(null);
 
-    if (!isOpen || !activeShift) return null;
+    if (!isOpen || (!activeShift && !result)) return null;
 
-    const currentTotals = activeShift.currentTotals;
-    const expectedCash = activeShift.openingCash + currentTotals.totalCash;
+    const currentTotals = activeShift?.currentTotals || { totalCash: 0, totalCard: 0, transactionsCount: 0 };
+    const expectedCash = (activeShift?.openingCash || 0) + currentTotals.totalCash;
     const declaredNum = Number(declaredCash) || 0;
     const cashDiff = declaredNum - expectedCash;
 
@@ -144,7 +144,7 @@ export const ShiftCloseModal: React.FC<ShiftCloseModalProps> = ({
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/40">
                                     <span className="block text-slate-400 text-xs mb-1">Sold Inițial:</span>
-                                    <span className="font-bold text-slate-200">{activeShift.openingCash.toFixed(2)} RON</span>
+                                    <span className="font-bold text-slate-200">{(activeShift?.openingCash || 0).toFixed(2)} RON</span>
                                 </div>
                                 <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/40">
                                     <span className="block text-slate-400 text-xs mb-1">Vânzări Cash:</span>

@@ -51,8 +51,8 @@ def run_test():
             
             // 3. Asiguram asocierile in store_members
             await supabase.from('store_members').upsert([
-                { profile_id: profile.id, store_id: magPrincipal.id, role: 'manager', active: true },
-                { profile_id: profile.id, store_id: magTest.id, role: 'manager', active: true }
+                { profile_id: profile.id, store_id: magPrincipal.id, role: 'admin', active: true },
+                { profile_id: profile.id, store_id: magTest.id, role: 'admin', active: true }
             ], { onConflict: 'store_id,profile_id' });
             
             return { success: true, magPrincipal, magTest, profile };

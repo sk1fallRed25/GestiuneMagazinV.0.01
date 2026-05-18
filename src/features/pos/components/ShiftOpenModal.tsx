@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CashRegister } from '../types';
 
 interface ShiftOpenModalProps {
@@ -22,6 +22,12 @@ export const ShiftOpenModal: React.FC<ShiftOpenModalProps> = ({
     const [openingCash, setOpeningCash] = useState<string>('0');
     const [notes, setNotes] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (cashRegisters.length > 0 && !selectedRegisterId) {
+            setSelectedRegisterId(cashRegisters[0].id);
+        }
+    }, [cashRegisters, selectedRegisterId]);
 
     if (!isOpen) return null;
 
