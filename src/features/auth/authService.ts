@@ -91,11 +91,27 @@ export const authService = {
 
     const memberships = data as unknown as RawStoreMembership[];
 
-    // Supabase poate returna 'store' ca array dacă relația nu este recunoscută ca 1-la-1 în query-ul de select
-    return (memberships || []).map((m) => ({
-      ...m,
-      store: Array.isArray(m.store) ? m.store[0] : m.store
-    })) as StoreMembership[];
+    const activeMemberships = (memberships || []).filter(m => {
+      const storeObj = Array.isArray(m.store) ? m.store[0] : m.store;
+      return storeObj && storeObj.active !== false;
+    });
+
+    return activeMemberships.map((m) => {
+      const storeObj = (Array.isArray(m.store) ? m.store[0] : m.store) || undefined;
+      const settings = storeObj?.settings || {};
+      const fiscalCode = storeObj?.fiscal_code || '';
+      const workpointNumber = settings?.workpointNumber !== undefined && settings?.workpointNumber !== null ? Number(settings.workpointNumber) : 1;
+      const displayCode = String(settings?.displayCode || `${fiscalCode} / ${workpointNumber}`);
+
+      return {
+        ...m,
+        store: storeObj as unknown as StoreMembership['store'],
+        storeName: storeObj?.name || '',
+        fiscalCode,
+        workpointNumber,
+        displayCode
+      };
+    }) as StoreMembership[];
   },
 
   /**

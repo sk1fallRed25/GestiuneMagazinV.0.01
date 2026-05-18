@@ -9,6 +9,7 @@ import {
 import { supabase } from '../shared/supabase/supabaseClient';
 import { isAdminLike, isManagerLike, isStockOperator, isCashierLike } from '../features/auth/permissions';
 import { useAuth } from '../features/auth/useAuth';
+import { StoreContextSwitcher } from '../components/layout/StoreContextSwitcher';
 
 interface Notification {
     id: number;
@@ -19,7 +20,7 @@ interface Notification {
 }
 
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
-    const { role, profile, currentStore, logout } = useAuth();
+    const { role, profile, currentStore, currentStoreId, availableStores, selectStore, logout } = useAuth();
     const location = useLocation();
     const [scrolled, setScrolled] = useState(false);
 
@@ -207,10 +208,16 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                             )}
                         </div>
                         <div className="h-8 w-[1px] bg-gray-300 mx-2"></div>
+                        <StoreContextSwitcher
+                            availableStores={availableStores}
+                            currentStoreId={currentStoreId}
+                            onSelectStore={selectStore}
+                            isOwner={role === 'platform_owner'}
+                        />
                         <div className="flex items-center gap-3 pl-2">
                             <div className="text-right hidden md:block">
                                 <p className="text-sm font-bold text-gray-700">{profile?.full_name || 'Utilizator'}</p>
-                                <p className="text-xs text-gray-400">{currentStore?.name || (role === 'platform_owner' ? 'Platform Administration' : 'Fără magazin')}</p>
+                                <p className="text-xs text-indigo-600 font-semibold">{role || 'rol necunoscut'}</p>
                             </div>
                             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center border-2 border-white shadow-sm text-indigo-600 font-bold">
                                 {(profile?.full_name || 'U').charAt(0).toUpperCase()}

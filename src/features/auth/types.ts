@@ -30,6 +30,10 @@ export interface StoreMembership {
   role: Exclude<UserRole, 'platform_owner'>;
   active: boolean;
   store?: Store;
+  storeName?: string;
+  fiscalCode?: string;
+  workpointNumber?: number;
+  displayCode?: string;
 }
 
 export interface AuthState {
@@ -39,7 +43,9 @@ export interface AuthState {
   role: UserRole | null;
   currentStoreId: string | null;
   currentStore: Store | null;
+  currentStoreName?: string | null;
   storeRole: UserRole | null;
+  currentStoreRole?: UserRole | null;
   availableStores: StoreMembership[];
   loading: boolean;
   error: string | null;

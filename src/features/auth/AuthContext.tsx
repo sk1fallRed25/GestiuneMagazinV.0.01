@@ -8,6 +8,7 @@ interface AuthContextType extends AuthState {
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   switchStore: (storeId: string) => Promise<void>;
+  selectStore: (storeId: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,7 +21,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: null,
     currentStoreId: null,
     currentStore: null,
+    currentStoreName: null,
     storeRole: null,
+    currentStoreRole: null,
     availableStores: [],
     loading: true,
     error: null,
@@ -60,7 +63,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 4. Selectează Magazinul Curent (primul disponibil sau cel salvat anterior)
-      const currentMembership = memberships[0] || null;
+      const savedStoreId = localStorage.getItem('selected_store_id');
+      const currentMembership = memberships.find(m => m.store_id === savedStoreId) || memberships[0] || null;
+      if (currentMembership) {
+        localStorage.setItem('selected_store_id', currentMembership.store_id);
+      }
 
       setState(prev => ({
         ...prev,
@@ -69,7 +76,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         availableStores: memberships,
         currentStoreId: currentMembership?.store_id || null,
         currentStore: currentMembership?.store || null,
+        currentStoreName: currentMembership?.store?.name || null,
         storeRole: (currentMembership?.role as UserRole) || null,
+        currentStoreRole: (currentMembership?.role as UserRole) || null,
         loading: false,
         error: null
       }));
@@ -108,7 +117,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           role: null,
           currentStoreId: null,
           currentStore: null,
+          currentStoreName: null,
           storeRole: null,
+          currentStoreRole: null,
           availableStores: [],
           loading: false,
           error: null
@@ -143,6 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     await authService.signOut();
+    localStorage.removeItem('selected_store_id');
     setState({
       session: null,
       user: null,
@@ -150,7 +162,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: null,
       currentStoreId: null,
       currentStore: null,
+      currentStoreName: null,
       storeRole: null,
+      currentStoreRole: null,
       availableStores: [],
       loading: false,
       error: null
@@ -163,20 +177,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const switchStore = async (storeId: string) => {
+  const selectStore = async (storeId: string) => {
     const membership = state.availableStores.find(m => m.store_id === storeId);
     if (membership) {
+      localStorage.setItem('selected_store_id', membership.store_id);
       setState(prev => ({
         ...prev,
         currentStoreId: membership.store_id,
         currentStore: membership.store || null,
-        storeRole: (membership.role as UserRole)
+        currentStoreName: membership.store?.name || null,
+        storeRole: (membership.role as UserRole),
+        currentStoreRole: (membership.role as UserRole)
       }));
     }
   };
 
+  const switchStore = selectStore;
+
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, refreshProfile, switchStore }}>
+    <AuthContext.Provider value={{ ...state, login, logout, refreshProfile, switchStore, selectStore }}>
       {children}
     </AuthContext.Provider>
   );
