@@ -1,44 +1,45 @@
-# Raport Integrare Frontend & Service — Sales Void MVP (Etapa 6B.2.2)
+# Sales Void Frontend Integration — Etapa 6B.2.2
 
-## 1. Obiectiv
-Integrarea funcționalității de anulare totală a bonurilor fiscale (Sales Void MVP) în interfața grafică (modulul **Istoric Vânzări** / **Sales History**) prin intermediul RPC-urilor validate în baza de date (`get_sale_void_eligibility` și `void_sale`).
+## 1. Rezumat
+În această etapă s-a realizat integrarea completă în interfața grafică (frontend) a funcționalității de stornare/anulare totală de bon fiscal (Sales Void MVP). 
+- **Ce s-a integrat**: Butonul de anulare, modalul de confirmare cu validarea obligatorie a motivului, integrarea serviciilor de verificare a eligibilității și stornare, respectiv actualizarea badge-urilor de status.
+- **RPC-uri folosite**: RPC-ul database securizat `get_sale_void_eligibility` pentru verificarea eligibilității tranzacției și `void_sale` pentru executarea atomică în baza de date a stornării complete.
+- **Ce NU este inclus**: Returul parțial (care face obiectul etapei 6B.3) nu este inclus în acest MVP, axat exclusiv pe stornarea integrală a unui bon.
 
----
+## 2. Service
+Serviciul API (`src/features/sales-history/services/salesHistoryService.ts`) a fost extins cu:
+- `getSaleVoidEligibility`: Interoghează RPC-ul `get_sale_void_eligibility` folosind `storeId`, `profileId` (din AuthContext ca `user.id`) și `saleId`, efectuând o parsare defensivă a JSONB-ului returnat de Supabase.
+- `voidSale`: Apelează RPC-ul `void_sale`. Include mecanisme de interceptare a erorilor PostgreSQL (ex. tura închisă, motiv gol, status necorespunzător) și maparea acestora în mesaje de eroare intuitive în limba română (ex: *"Bonul poate fi anulat doar cât timp tura aferentă este deschisă."*).
 
-## 2. Fișiere Modificate / Create
+## 3. Hook / State
+Hook-ul `useSalesHistory.ts` a fost actualizat pentru a gestiona noul flux:
+- **Eligibilitate**: Încărcarea asincronă a stării de eligibilitate la selectarea unui bon.
+- **Modal**: Controlul deschiderii/închiderii modalului de stornare.
+- **Loading/Error**: Urmărirea progresului operațiunii și raportarea erorilor returnate de API.
+- **Refresh după anulare**: Reîncărcarea automată a listei globale de vânzări și a detaliilor bonului curent pentru a actualiza instant interfața la noul status `voided`.
+- **Adaptabilitate**: `openVoidModal` primește fie `SaleSummary` fie `SaleDetails` și face conversia corespunzătoare pentru a preveni erorile de tip.
 
-### A. Tipuri și Contracte date
-* **Modificat**: `src/features/sales-history/types.ts`
-  * S-au adăugat stările posibile în tipul `SaleStatus`: `'finalized' | 'cancelled' | 'voided' | 'partially_returned' | 'returned'`.
-  * S-au exportat interfețele `VoidEligibility`, `VoidSalePayload` și `VoidSaleResult`.
+## 4. UI
+Interfața grafică a primit îmbunătățiri de design premium:
+- **Buton ANULEAZĂ BON**: Integrat direct în `SaleDetailsModal.tsx` folosind lucide icon `AlertTriangle` și nuanțe de roșu specifice acțiunilor distructive reversibile, vizibil exclusiv dacă statusul bonului este `finalized`.
+- **VoidSaleModal**: O componentă modală complet nouă cu avertismente dinamice bazate pe regulile de eligibilitate, afișarea detaliilor financiare ale bonului, articolele returnate și input pentru motiv.
+- **Status Badges**: `SaleStatusBadge.tsx` a fost extins pentru a suporta noile stări:
+  - `voided` -> „Anulat” (roșu)
+  - `returned` -> „Returnat” (portocaliu)
+  - `partially_returned` -> „Returnat parțial” (galben)
+  - `cancelled` -> „Anulat Vechi” (gri)
 
-### B. Servicii RPC client
-* **Modificat**: `src/features/sales-history/services/salesHistoryService.ts`
-  * `getSaleVoidEligibility(storeId, profileId, saleId)`: Apel securizat al RPC-ului PostgreSQL cu parsare defensivă a răspunsului JSONB.
-  * `voidSale(payload)`: Apel securizat al RPC-ului PostgreSQL cu capturarea erorilor și maparea lor în mesaje de eroare intuitive în limba română (ex: verificări pentru tură închisă, status invalid, motiv gol).
+## 5. Securitate
+- **Modificarea stocului**: Este realizată exclusiv la nivel de bază de date prin trigger-ul aferent din schema Supabase SQL, nu din frontend.
+- **Fără calcule de refund/stoc în frontend**: UI-ul trimite doar cererea de anulare și motivul. Serverul (Supabase RPC) validează sumele și restabilește stocul pe loturile originale.
+- **Motiv obligatoriu**: Formularul blochează confirmarea dacă motivul este gol sau are sub 3 caractere.
 
-### C. Gestiune Stări și Handlere (Hooks)
-* **Modificat**: `src/features/sales-history/hooks/useSalesHistory.ts`
-  * Extinderea hook-ului cu stările de control ale modalului (`voidModalOpen`, `selectedSaleForVoid`, `voidEligibility`, `voidEligibilityLoading`, `voidActionLoading`, `voidError`).
-  * Implementarea acțiunii de confirmare `confirmVoidSale` care apelează serviciul de anulare, iar în caz de succes:
-    * Închide modalul de anulare.
-    * Reîncărcă lista de vânzări.
-    * Reîncărcă detaliile bonului curent pentru a actualiza instant interfața la noul status `voided`.
+## 6. Limitări
+- Returul parțial nu este implementat în acest MVP (este prevăzut în Etapa 6B.3).
+- Testarea automată a scenariilor E2E este planificată separat pentru Etapa 6B.2.3.
 
-### D. Componente UI noi și actualizate
-* **Nou**: `src/features/sales-history/components/VoidSaleModal.tsx`
-  * Modal interactiv care prezintă un rezumat al bonului de anulat (total, produse returnate, metode de plată afectate).
-  * Afișează avertismente dinamice pe baza eligibilității oferite de baza de date (ex: blocare completă dacă tura este închisă).
-  * Formular cu validare locală: motivul anulării este obligatoriu și trebuie să aibă minimum 3 caractere.
-* **Modificat**: `src/features/sales-history/components/SaleDetailsModal.tsx`
-  * S-a integrat butonul de acțiune „ANULEAZĂ BON” (cu iconița `AlertTriangle`), afișat exclusiv pentru bonurile care au statusul `finalized`.
-* **Modificat**: `src/features/sales-history/components/SaleStatusBadge.tsx`
-  * S-a adăugat suportul grafic pentru statusurile `voided` („Anulat”), `returned` („Returnat”), `partially_returned` („Returnat Parțial”) și `cancelled` („Anulat Vechi”).
-* **Modificat**: `src/features/sales-history/SalesHistoryPage.tsx`
-  * Găzduirea modalului `VoidSaleModal` și legarea prop-urilor cu stările oferite de `useSalesHistory`.
+## 7. Build
+Procesul de build a fost verificat prin comanda `npm run build` și s-a finalizat cu **SUCCES** (exit code 0).
 
----
-
-## 3. Verificare Compilare și Corectitudine
-* A fost rulată comanda `npm run build` pentru a asigura corectitudinea tipurilor TypeScript și construirea pachetului de producție Vite.
-* Procesul de build s-a finalizat cu **SUCCES** (exit code 0), fără erori de compilare sau de tipuri.
+## 8. Decizie
+Sistemul este complet integrat în frontend și service și este pregătit pentru testarea automată: **Ready for 6B.2.3 Sales Void E2E Test**.
