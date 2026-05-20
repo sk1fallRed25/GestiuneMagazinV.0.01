@@ -94,3 +94,62 @@ export interface VoidSaleResult {
     returnId: string;
 }
 
+export interface ReturnEligibilityItem {
+    saleItemId: string;
+    productId: string;
+    productName: string;
+    barcode: string | null;
+    batchId: string | null;
+    quantitySold: number;
+    quantityReturned: number;
+    quantityAvailableToReturn: number;
+    unitPrice: number;
+    totalItem: number;
+}
+
+export interface ReturnPreviousEntry {
+    id: string;
+    createdAt: string;
+    totalRefund: number;
+    refundMethod: 'cash' | 'card' | 'voucher' | 'mixed';
+    reason: string;
+}
+
+export interface ReturnPaymentSummary {
+    id?: string;
+    method: string;
+    amount: number;
+}
+
+export interface ReturnEligibility {
+    saleId: string;
+    status: SaleStatus;
+    total: number;
+    paymentMethod: string | null;
+    canReturn: boolean;
+    reasonIfNot: string | null;
+    items: ReturnEligibilityItem[];
+    payments: ReturnPaymentSummary[];
+    previousReturns: ReturnPreviousEntry[];
+    allowedRefundMethods: Array<'cash' | 'card' | 'voucher'>;
+}
+
+export interface ReturnSaleItemInput {
+    saleItemId: string;
+    quantity: number;
+}
+
+export interface ReturnSalePayload {
+    storeId: string;
+    profileId: string;
+    saleId: string;
+    items: ReturnSaleItemInput[];
+    reason: string;
+    refundMethod: 'cash' | 'card' | 'voucher';
+    notes?: string | null;
+}
+
+export interface ReturnSaleResult {
+    returnId: string;
+}
+

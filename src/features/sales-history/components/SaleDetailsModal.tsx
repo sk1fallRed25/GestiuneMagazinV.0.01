@@ -1,5 +1,4 @@
-import React from 'react';
-import { X, Printer, Package, CreditCard, Banknote, Calendar, User, Hash, AlertTriangle } from 'lucide-react';
+import { X, Printer, Package, CreditCard, Banknote, Calendar, User, Hash, AlertTriangle, RefreshCw } from 'lucide-react';
 import { SaleDetails, SaleSummary } from '../types';
 import { SaleStatusBadge } from './SaleStatusBadge';
 
@@ -8,9 +7,10 @@ interface SaleDetailsModalProps {
     loading: boolean;
     onClose: () => void;
     onVoidClick?: (sale: SaleSummary | SaleDetails) => void;
+    onReturnClick?: (sale: SaleSummary | SaleDetails) => void;
 }
 
-export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loading, onClose, onVoidClick }) => {
+export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loading, onClose, onVoidClick, onReturnClick }) => {
     if (!sale && !loading) return null;
 
     return (
@@ -140,6 +140,14 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
                             onClick={() => onVoidClick(sale)}
                         >
                             <AlertTriangle size={18} /> ANULEAZĂ BON
+                        </button>
+                    )}
+                    {sale && (sale.status === 'finalized' || sale.status === 'partially_returned') && onReturnClick && (
+                        <button 
+                            className="flex-1 py-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 rounded-xl font-black transition-colors flex items-center justify-center gap-2"
+                            onClick={() => onReturnClick(sale)}
+                        >
+                            <RefreshCw size={18} /> RETUR PRODUSE
                         </button>
                     )}
                     <button 

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '../../auth/useAuth';
 import { salesHistoryService } from '../services/salesHistoryService';
-import { SaleSummary, SaleDetails, SalesHistoryFilters, SalesHistorySummary, VoidEligibility } from '../types';
+import { SaleSummary, SaleDetails, SalesHistoryFilters, SalesHistorySummary, VoidEligibility, ReturnEligibility, ReturnSaleItemInput } from '../types';
 
 import { toast } from 'react-hot-toast';
 
@@ -32,6 +32,14 @@ export const useSalesHistory = () => {
     const [voidError, setVoidError] = useState<string | null>(null);
     const [voidModalOpen, setVoidModalOpen] = useState(false);
     const [selectedSaleForVoid, setSelectedSaleForVoid] = useState<SaleSummary | null>(null);
+
+    // Return states
+    const [returnEligibility, setReturnEligibility] = useState<ReturnEligibility | null>(null);
+    const [returnEligibilityLoading, setReturnEligibilityLoading] = useState(false);
+    const [returnActionLoading, setReturnActionLoading] = useState(false);
+    const [returnError, setReturnError] = useState<string | null>(null);
+    const [returnModalOpen, setReturnModalOpen] = useState(false);
+    const [selectedSaleForReturn, setSelectedSaleForReturn] = useState<SaleSummary | null>(null);
 
     const fetchSales = useCallback(async () => {
         if (!currentStoreId) {
@@ -173,6 +181,102 @@ export const useSalesHistory = () => {
         }
     }, [currentStoreId, user, selectedSaleForVoid, fetchSales, selectedSale, closeVoidModal]);
 
+    const loadReturnEligibility = useCallback(async (saleId: string) => {
+        if (!currentStoreId || !user?.id) {
+            setReturnError("Utilizator neautentificat sau magazin neselectat.");
+            return;
+        }
+        setReturnEligibilityLoading(true);
+        setReturnError(null);
+        try {
+            const eligibility = await salesHistoryService.getSaleReturnEligibility(currentStoreId, user.id, saleId);
+            setReturnEligibility(eligibility);
+        } catch (err: any) {
+            console.error("Error loading return eligibility:", err);
+            setReturnError(err?.message || "Nu s-a putut verifica eligibilitatea returului.");
+        } finally {
+            setReturnEligibilityLoading(false);
+        }
+    }, [currentStoreId, user]);
+
+    const openReturnModal = useCallback((sale: SaleSummary | SaleDetails) => {
+        const summarySale: SaleSummary = 'items' in sale ? {
+            id: sale.id,
+            createdAt: sale.createdAt,
+            total: sale.total,
+            paymentMethod: sale.paymentMethod,
+            status: sale.status,
+            cashierName: sale.cashierName,
+            itemsCount: sale.items.length,
+            paymentsTotal: sale.payments.reduce((acc, p) => acc + p.amount, 0),
+            cashPart: sale.payments.filter(p => p.method === 'cash').reduce((acc, p) => acc + p.amount, 0),
+            cardPart: sale.payments.filter(p => p.method === 'card').reduce((acc, p) => acc + p.amount, 0),
+        } : sale;
+
+        setSelectedSaleForReturn(summarySale);
+        setReturnModalOpen(true);
+        setReturnEligibility(null);
+        setReturnError(null);
+        loadReturnEligibility(summarySale.id);
+    }, [loadReturnEligibility]);
+
+    const closeReturnModal = useCallback(() => {
+        setReturnModalOpen(false);
+        setSelectedSaleForReturn(null);
+        setReturnEligibility(null);
+        setReturnError(null);
+    }, []);
+
+    const confirmReturnSale = useCallback(async (items: ReturnSaleItemInput[], refundMethod: 'cash' | 'card' | 'voucher', reason: string, notes?: string | null) => {
+        if (!currentStoreId || !user?.id || !selectedSaleForReturn) {
+            setReturnError("Informații incomplete.");
+            return;
+        }
+
+        const reasonClean = reason.trim();
+        if (!reasonClean || reasonClean.length < 3) {
+            setReturnError("Motivul trebuie să aibă cel puțin 3 caractere.");
+            return;
+        }
+
+        if (!items || items.length === 0) {
+            setReturnError("Trebuie să selectați cel puțin un produs pentru retur.");
+            return;
+        }
+
+        setReturnActionLoading(true);
+        setReturnError(null);
+        try {
+            await salesHistoryService.returnSaleItems({
+                storeId: currentStoreId,
+                profileId: user.id,
+                saleId: selectedSaleForReturn.id,
+                items,
+                refundMethod,
+                reason: reasonClean,
+                notes: notes ?? null
+            });
+
+            toast.success("Returul a fost procesat cu succes.");
+            
+            const returnedSaleId = selectedSaleForReturn.id;
+            closeReturnModal();
+            
+            // Refresh list
+            await fetchSales();
+
+            // Refresh details if open
+            if (selectedSale && selectedSale.id === returnedSaleId) {
+                openSaleDetails(returnedSaleId);
+            }
+        } catch (err: any) {
+            console.error("Error returning sale items:", err);
+            setReturnError(err?.message || "Returul nu a putut fi procesat.");
+        } finally {
+            setReturnActionLoading(false);
+        }
+    }, [currentStoreId, user, selectedSaleForReturn, fetchSales, selectedSale, closeReturnModal]);
+
     return {
         sales,
         summary,
@@ -195,6 +299,17 @@ export const useSalesHistory = () => {
         selectedSaleForVoid,
         openVoidModal,
         closeVoidModal,
-        confirmVoidSale
+        confirmVoidSale,
+
+        // Return state & actions
+        returnEligibility,
+        returnEligibilityLoading,
+        returnActionLoading,
+        returnError,
+        returnModalOpen,
+        selectedSaleForReturn,
+        openReturnModal,
+        closeReturnModal,
+        confirmReturnSale
     };
 };

@@ -6,6 +6,7 @@ import { SalesHistoryFilters } from './components/SalesHistoryFilters';
 import { SalesHistoryTable } from './components/SalesHistoryTable';
 import { SaleDetailsModal } from './components/SaleDetailsModal';
 import { VoidSaleModal } from './components/VoidSaleModal';
+import { ReturnSaleModal } from './components/ReturnSaleModal';
 
 const SalesHistoryPage: React.FC = () => {
     const {
@@ -30,7 +31,18 @@ const SalesHistoryPage: React.FC = () => {
         selectedSaleForVoid,
         openVoidModal,
         closeVoidModal,
-        confirmVoidSale
+        confirmVoidSale,
+
+        // Return state & actions
+        returnEligibility,
+        returnEligibilityLoading,
+        returnActionLoading,
+        returnError,
+        returnModalOpen,
+        selectedSaleForReturn,
+        openReturnModal,
+        closeReturnModal,
+        confirmReturnSale
     } = useSalesHistory();
 
     return (
@@ -104,6 +116,7 @@ const SalesHistoryPage: React.FC = () => {
                     loading={loadingDetails} 
                     onClose={closeDetailsModal} 
                     onVoidClick={openVoidModal}
+                    onReturnClick={openReturnModal}
                 />
             )}
 
@@ -117,6 +130,19 @@ const SalesHistoryPage: React.FC = () => {
                     error={voidError}
                     onClose={closeVoidModal}
                     onConfirm={confirmVoidSale}
+                />
+            )}
+
+            {returnModalOpen && (
+                <ReturnSaleModal
+                    isOpen={returnModalOpen}
+                    sale={selectedSaleForReturn}
+                    eligibility={returnEligibility}
+                    loading={returnEligibilityLoading}
+                    actionLoading={returnActionLoading}
+                    error={returnError}
+                    onClose={closeReturnModal}
+                    onConfirm={confirmReturnSale}
                 />
             )}
         </div>

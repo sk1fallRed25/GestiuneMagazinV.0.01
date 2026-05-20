@@ -1,5 +1,22 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
-import { SaleSummary, SaleDetails, SalesHistoryFilters, SalesHistorySummary, SaleItemDetails, SalePaymentDetails, SaleStatus, VoidEligibility, VoidSalePayload, VoidSaleResult } from '../types';
+import { 
+    SaleSummary, 
+    SaleDetails, 
+    SalesHistoryFilters, 
+    SalesHistorySummary, 
+    SaleItemDetails, 
+    SalePaymentDetails, 
+    SaleStatus, 
+    VoidEligibility, 
+    VoidSalePayload, 
+    VoidSaleResult,
+    ReturnEligibility,
+    ReturnSalePayload,
+    ReturnSaleResult,
+    ReturnEligibilityItem,
+    ReturnPaymentSummary,
+    ReturnPreviousEntry
+} from '../types';
 
 /**
  * Tipurile locale pentru răspunsurile Supabase (Joins)
@@ -347,6 +364,149 @@ export const salesHistoryService = {
                 throw new Error('Există deja o anulare sau un retur pentru acest bon.');
             }
             throw new Error('Bonul nu a putut fi anulat.');
+        }
+    },
+
+    async getSaleReturnEligibility(storeId: string, profileId: string, saleId: string): Promise<ReturnEligibility> {
+        if (!storeId || !profileId || !saleId) {
+            throw new Error('Informații de identificare lipsă.');
+        }
+
+        const { data, error } = await supabase.rpc('get_sale_return_eligibility', {
+            p_store_id: storeId,
+            p_profile_id: profileId,
+            p_sale_id: saleId
+        });
+
+        if (error) throw error;
+
+        const raw = data as unknown;
+        if (!raw || typeof raw !== 'object') {
+            throw new Error('Răspuns invalid de la server la verificarea eligibilității returului.');
+        }
+
+        const record = raw as Record<string, unknown>;
+
+        // Parse items
+        const rawItems = Array.isArray(record.items) ? record.items : [];
+        const items: ReturnEligibilityItem[] = rawItems.map((item: unknown) => {
+            const i = item as Record<string, unknown>;
+            return {
+                saleItemId: String(i.sale_item_id || ''),
+                productId: String(i.product_id || ''),
+                productName: String(i.product_name || 'Produs necunoscut'),
+                barcode: i.barcode ? String(i.barcode) : null,
+                batchId: i.batch_id ? String(i.batch_id) : null,
+                quantitySold: toNumberSafe(i.quantity_sold, 0),
+                quantityReturned: toNumberSafe(i.quantity_returned, 0),
+                quantityAvailableToReturn: toNumberSafe(i.quantity_available_to_return, 0),
+                unitPrice: toNumberSafe(i.unit_price, 0),
+                totalItem: toNumberSafe(i.total_item, 0)
+            };
+        });
+
+        // Parse payments
+        const rawPayments = Array.isArray(record.payments) ? record.payments : [];
+        const payments: ReturnPaymentSummary[] = rawPayments.map((p: unknown) => {
+            const pay = p as Record<string, unknown>;
+            return {
+                id: pay.id ? String(pay.id) : undefined,
+                method: String(pay.method || 'unknown'),
+                amount: toNumberSafe(pay.amount, 0)
+            };
+        });
+
+        // Parse previous returns
+        const rawPrevReturns = Array.isArray(record.previous_returns) ? record.previous_returns : [];
+        const previousReturns: ReturnPreviousEntry[] = rawPrevReturns.map((r: unknown) => {
+            const ret = r as Record<string, unknown>;
+            const refundMethod = String(ret.refund_method || 'cash');
+            return {
+                id: String(ret.id || ''),
+                createdAt: String(ret.created_at || ''),
+                totalRefund: toNumberSafe(ret.total_refund, 0),
+                refundMethod: (['cash', 'card', 'voucher', 'mixed'].includes(refundMethod) ? refundMethod : 'cash') as 'cash' | 'card' | 'voucher' | 'mixed',
+                reason: String(ret.reason || '')
+            };
+        });
+
+        // Parse allowed refund methods
+        const rawAllowedRefundMethods = Array.isArray(record.allowed_refund_methods) ? record.allowed_refund_methods : [];
+        const allowedRefundMethods = rawAllowedRefundMethods
+            .map((m: unknown) => String(m))
+            .filter((m): m is 'cash' | 'card' | 'voucher' => ['cash', 'card', 'voucher'].includes(m));
+
+        return {
+            saleId: String(record.sale_id || saleId),
+            status: (record.status || 'finalized') as SaleStatus,
+            total: toNumberSafe(record.total, 0),
+            paymentMethod: record.payment_method ? String(record.payment_method) : null,
+            canReturn: Boolean(record.can_return),
+            reasonIfNot: record.reason_if_not ? String(record.reason_if_not) : null,
+            items,
+            payments,
+            previousReturns,
+            allowedRefundMethods
+        };
+    },
+
+    async returnSaleItems(payload: ReturnSalePayload): Promise<ReturnSaleResult> {
+        const reasonClean = payload.reason?.trim();
+        if (!reasonClean || reasonClean.length < 3) {
+            throw new Error('Motivul returului este obligatoriu și trebuie să aibă cel puțin 3 caractere.');
+        }
+        if (!payload.items || payload.items.length === 0) {
+            throw new Error('Trebuie să selectați cel puțin un produs pentru retur.');
+        }
+        payload.items.forEach(item => {
+            if (item.quantity <= 0) {
+                throw new Error('Cantitatea returnată trebuie să fie mai mare decât 0.');
+            }
+        });
+        if (!['cash', 'card', 'voucher'].includes(payload.refundMethod)) {
+            throw new Error('Metoda de rambursare selectată este invalidă.');
+        }
+        if (!payload.storeId || !payload.profileId || !payload.saleId) {
+            throw new Error('Informații de identificare lipsă.');
+        }
+
+        try {
+            const { data, error } = await supabase.rpc('return_sale_items', {
+                p_store_id: payload.storeId,
+                p_profile_id: payload.profileId,
+                p_sale_id: payload.saleId,
+                p_items: payload.items.map(i => ({
+                    sale_item_id: i.saleItemId,
+                    quantity: i.quantity
+                })),
+                p_reason: reasonClean,
+                p_refund_method: payload.refundMethod,
+                p_notes: payload.notes ?? null
+            });
+
+            if (error) throw error;
+
+            return {
+                returnId: String(data)
+            };
+        } catch (err: unknown) {
+            const errMsg = String((err as any)?.message || '').toLowerCase();
+            if (errMsg.includes('tură') || errMsg.includes('tura') || errMsg.includes('shift')) {
+                throw new Error('Deschide o tură înainte de a procesa returul.');
+            }
+            if (errMsg.includes('acces') || errMsg.includes('permisiuni') || errMsg.includes('role') || errMsg.includes('permission')) {
+                throw new Error('Doar managerii sau administratorii pot procesa retururi.');
+            }
+            if (errMsg.includes('cantitate') || errMsg.includes('available') || errMsg.includes('quantity')) {
+                throw new Error('Cantitatea returnată depășește cantitatea disponibilă.');
+            }
+            if (errMsg.includes('lot') || errMsg.includes('batch')) {
+                throw new Error('Returul nu poate fi procesat deoarece lipsește lotul original.');
+            }
+            if (errMsg.includes('eligibil') || errMsg.includes('status')) {
+                throw new Error('Bonul nu este eligibil pentru retur.');
+            }
+            throw new Error('Returul nu a putut fi procesat.');
         }
     }
 };
