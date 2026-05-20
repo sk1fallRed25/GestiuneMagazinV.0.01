@@ -1,5 +1,5 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
-import { SaleSummary, SaleDetails, SalesHistoryFilters, SalesHistorySummary, SaleItemDetails, SalePaymentDetails } from '../types';
+import { SaleSummary, SaleDetails, SalesHistoryFilters, SalesHistorySummary, SaleItemDetails, SalePaymentDetails, SaleStatus, VoidEligibility, VoidSalePayload, VoidSaleResult } from '../types';
 
 /**
  * Tipurile locale pentru răspunsurile Supabase (Joins)
@@ -261,5 +261,92 @@ export const salesHistoryService = {
             cardTotal,
             averageSale: salesCount > 0 ? totalRevenue / salesCount : 0
         };
+    },
+
+    async getSaleVoidEligibility(storeId: string, profileId: string, saleId: string): Promise<VoidEligibility> {
+        const { data, error } = await supabase.rpc('get_sale_void_eligibility', {
+            p_store_id: storeId,
+            p_profile_id: profileId,
+            p_sale_id: saleId
+        });
+
+        if (error) throw error;
+
+        const raw = data as any;
+        if (!raw || typeof raw !== 'object') {
+            throw new Error('Răspuns invalid de la server la verificarea eligibilității.');
+        }
+
+        // Defensive parsing for items summary
+        const rawItems = Array.isArray(raw.items_summary) ? raw.items_summary : [];
+        const itemsSummary = rawItems.map((item: any) => ({
+            productId: String(item?.product_id || ''),
+            productName: String(item?.product_name || 'Produs necunoscut'),
+            quantity: toNumberSafe(item?.quantity, 0),
+            unitPrice: toNumberSafe(item?.unit_price, 0),
+            totalItem: toNumberSafe(item?.total_item, 0)
+        }));
+
+        // Defensive parsing for payments summary
+        const rawPayments = Array.isArray(raw.payments_summary) ? raw.payments_summary : [];
+        const paymentsSummary = rawPayments.map((p: any) => ({
+            method: String(p?.method || 'unknown'),
+            amount: toNumberSafe(p?.amount, 0)
+        }));
+
+        return {
+            saleId: String(raw.sale_id || saleId),
+            status: (raw.status || 'finalized') as SaleStatus,
+            total: toNumberSafe(raw.total, 0),
+            shiftId: raw.shift_id ? String(raw.shift_id) : null,
+            shiftStatus: raw.shift_status ? String(raw.shift_status) : null,
+            canVoid: Boolean(raw.can_void),
+            reasonIfNot: raw.reason_if_not ? String(raw.reason_if_not) : null,
+            itemsSummary,
+            paymentsSummary
+        };
+    },
+
+    async voidSale(payload: VoidSalePayload): Promise<VoidSaleResult> {
+        const reasonClean = payload.reason?.trim();
+        if (!reasonClean) {
+            throw new Error('Motivul anulării este obligatoriu.');
+        }
+        if (!payload.storeId || !payload.profileId || !payload.saleId) {
+            throw new Error('Informații de identificare lipsă.');
+        }
+
+        try {
+            const { data, error } = await supabase.rpc('void_sale', {
+                p_store_id: payload.storeId,
+                p_profile_id: payload.profileId,
+                p_sale_id: payload.saleId,
+                p_reason: reasonClean,
+                p_notes: payload.notes || null
+            });
+
+            if (error) {
+                throw error;
+            }
+
+            return {
+                returnId: String(data)
+            };
+        } catch (err: any) {
+            const errMsg = String(err?.message || '').toLowerCase();
+            if (errMsg.includes('motivul') || errMsg.includes('nu poate fi gol')) {
+                throw new Error('Motivul anulării este obligatoriu.');
+            }
+            if (errMsg.includes('tura închisă') || errMsg.includes('tura în care s-a emis bonul este închisă') || (errMsg.includes('tura') && (errMsg.includes('closed') || errMsg.includes('închisă') || errMsg.includes('anulată')))) {
+                throw new Error('Bonul poate fi anulat doar cât timp tura aferentă este deschisă.');
+            }
+            if (errMsg.includes('finalizate') || errMsg.includes('status curent') || errMsg.includes('finalized')) {
+                throw new Error('Doar bonurile finalizate pot fi anulate.');
+            }
+            if (errMsg.includes('există deja') || errMsg.includes('retur sau anulare finalizată') || errMsg.includes('completed')) {
+                throw new Error('Există deja o anulare sau un retur pentru acest bon.');
+            }
+            throw new Error('Bonul nu a putut fi anulat.');
+        }
     }
 };

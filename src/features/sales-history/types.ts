@@ -43,10 +43,12 @@ export interface SaleDetails {
     payments: SalePaymentDetails[];
 }
 
+export type SaleStatus = 'finalized' | 'cancelled' | 'voided' | 'partially_returned' | 'returned';
+
 export interface SalesHistoryFilters {
     search: string;
     paymentMethod: 'all' | 'cash' | 'card' | 'mixed';
-    status: 'all' | 'finalized' | 'cancelled' | 'returned' | 'partially_returned';
+    status: 'all' | SaleStatus;
     dateFrom: string;
     dateTo: string;
 }
@@ -58,3 +60,37 @@ export interface SalesHistorySummary {
     cardTotal: number;
     averageSale: number;
 }
+
+export interface VoidEligibility {
+    saleId: string;
+    status: SaleStatus;
+    total: number;
+    shiftId: string | null;
+    shiftStatus: string | null;
+    canVoid: boolean;
+    reasonIfNot: string | null;
+    itemsSummary: Array<{
+        productId: string;
+        productName: string;
+        quantity: number;
+        unitPrice: number;
+        totalItem: number;
+    }>;
+    paymentsSummary: Array<{
+        method: string;
+        amount: number;
+    }>;
+}
+
+export interface VoidSalePayload {
+    storeId: string;
+    profileId: string;
+    saleId: string;
+    reason: string;
+    notes?: string | null;
+}
+
+export interface VoidSaleResult {
+    returnId: string;
+}
+

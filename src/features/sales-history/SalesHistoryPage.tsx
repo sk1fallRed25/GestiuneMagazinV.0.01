@@ -5,6 +5,7 @@ import { SalesHistoryHeader } from './components/SalesHistoryHeader';
 import { SalesHistoryFilters } from './components/SalesHistoryFilters';
 import { SalesHistoryTable } from './components/SalesHistoryTable';
 import { SaleDetailsModal } from './components/SaleDetailsModal';
+import { VoidSaleModal } from './components/VoidSaleModal';
 
 const SalesHistoryPage: React.FC = () => {
     const {
@@ -18,7 +19,18 @@ const SalesHistoryPage: React.FC = () => {
         fetchSales,
         updateFilter,
         openSaleDetails,
-        closeDetailsModal
+        closeDetailsModal,
+
+        // Void state & actions
+        voidEligibility,
+        voidEligibilityLoading,
+        voidActionLoading,
+        voidError,
+        voidModalOpen,
+        selectedSaleForVoid,
+        openVoidModal,
+        closeVoidModal,
+        confirmVoidSale
     } = useSalesHistory();
 
     return (
@@ -91,6 +103,20 @@ const SalesHistoryPage: React.FC = () => {
                     sale={selectedSale} 
                     loading={loadingDetails} 
                     onClose={closeDetailsModal} 
+                    onVoidClick={openVoidModal}
+                />
+            )}
+
+            {voidModalOpen && (
+                <VoidSaleModal
+                    isOpen={voidModalOpen}
+                    sale={selectedSaleForVoid}
+                    eligibility={voidEligibility}
+                    loading={voidEligibilityLoading}
+                    actionLoading={voidActionLoading}
+                    error={voidError}
+                    onClose={closeVoidModal}
+                    onConfirm={confirmVoidSale}
                 />
             )}
         </div>

@@ -1,15 +1,16 @@
 import React from 'react';
-import { X, Printer, Package, CreditCard, Banknote, Calendar, User, Hash } from 'lucide-react';
-import { SaleDetails } from '../types';
+import { X, Printer, Package, CreditCard, Banknote, Calendar, User, Hash, AlertTriangle } from 'lucide-react';
+import { SaleDetails, SaleSummary } from '../types';
 import { SaleStatusBadge } from './SaleStatusBadge';
 
 interface SaleDetailsModalProps {
     sale: SaleDetails | null;
     loading: boolean;
     onClose: () => void;
+    onVoidClick?: (sale: SaleSummary | SaleDetails) => void;
 }
 
-export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loading, onClose }) => {
+export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loading, onClose, onVoidClick }) => {
     if (!sale && !loading) return null;
 
     return (
@@ -133,6 +134,14 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
                     >
                         <Printer size={18} /> RETIPĂREȘTE BON
                     </button>
+                    {sale && sale.status === 'finalized' && onVoidClick && (
+                        <button 
+                            className="flex-1 py-3 bg-red-50 hover:bg-red-100 border border-red-250 text-red-700 rounded-xl font-black transition-colors flex items-center justify-center gap-2"
+                            onClick={() => onVoidClick(sale)}
+                        >
+                            <AlertTriangle size={18} /> ANULEAZĂ BON
+                        </button>
+                    )}
                     <button 
                         className="px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition-colors"
                         onClick={onClose}
