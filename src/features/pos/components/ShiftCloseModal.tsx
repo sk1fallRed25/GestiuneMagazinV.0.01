@@ -23,8 +23,8 @@ export const ShiftCloseModal: React.FC<ShiftCloseModalProps> = ({
 
     if (!isOpen || (!activeShift && !result)) return null;
 
-    const currentTotals = activeShift?.currentTotals || { totalCash: 0, totalCard: 0, transactionsCount: 0 };
-    const expectedCash = (activeShift?.openingCash || 0) + currentTotals.totalCash;
+    const currentTotals = activeShift?.currentTotals || { totalCash: 0, totalCard: 0, transactionsCount: 0, expectedCash: 0 };
+    const expectedCash = activeShift?.currentTotals?.expectedCash ?? ((activeShift?.openingCash || 0) + currentTotals.totalCash);
     const declaredNum = Number(declaredCash) || 0;
     const cashDiff = declaredNum - expectedCash;
 
