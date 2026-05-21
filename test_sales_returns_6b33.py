@@ -347,9 +347,111 @@ def run_test():
             # Inchidem modalul detalii bon
             page.locator("button:has-text('ÎNCHIDE')").click()
             page.wait_for_timeout(1000)
+
+            # --- SCENARIUL 8: Blocare retur pe bon voided ---
+            safe_print("\n--- SCENARIUL 8: Blocare retur pe bon voided ---")
+            # Cream un bon nou si il anulam folosind interfata grafica pentru a obtine un bon voided
+            # 1. Navigam la POS
+            page.goto("http://localhost:5173/#/vanzare")
+            page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(2000)
             
-            # --- SCENARIUL 8: Reconciliere Sold Tura POS ---
-            safe_print("\n--- SCENARIUL 8: Reconciliere Sold Tura POS ---")
+            # Adaugam produs
+            page.locator("input[placeholder*='Caută produs (nume sau cod)']").fill("OTET 1L")
+            page.locator("button:has-text('OTET 1L')").wait_for(state="visible", timeout=5000)
+            page.locator("button:has-text('OTET 1L')").click()
+            page.wait_for_timeout(1000)
+            
+            # Finalizam vanzare Cash
+            page.locator("button:has-text('NUMERAR')").click()
+            page.locator("button.bg-gradient-to-r", has_text="NCASEAZ").click(no_wait_after=True)
+            page.wait_for_timeout(3000)
+            
+            # Preluam ID-ul noului bon din DB
+            void_sale_data = page.evaluate("""async () => {
+                const supabase = window.supabase;
+                const { data: stores } = await supabase.from('stores').select('id').eq('name', 'Magazin Principal').limit(1);
+                const storeId = stores[0].id;
+                
+                const { data: sales } = await supabase.from('sales')
+                    .select('id, status')
+                    .eq('store_id', storeId)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                
+                return sales && sales.length > 0 ? sales[0] : null;
+            }""")
+            
+            assert void_sale_data is not None, "Nu s-a putut obtine vanzarea proaspat creata pentru void"
+            void_sale_id = void_sale_data['id']
+            safe_print(f"[DEBUG] S-a creat vanzarea pt void cu ID: {void_sale_id}")
+            
+            # 2. Navigam la Istoric Vanzari pentru a anula bonul
+            page.goto("http://localhost:5173/#/istoric-vanzari")
+            page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(2000)
+            
+            short_id = void_sale_id[:8]
+            row = page.locator(f"tr:has-text('{short_id}')").first
+            row.locator("button[title='Detalii Bon']").click()
+            page.locator("h3:has-text('DETALII BON')").wait_for(state="visible", timeout=5000)
+            
+            # Apasam pe ANULEAZA BON
+            void_btn = page.locator("button:has-text('ANULEAZĂ BON')")
+            void_btn.wait_for(state="visible", timeout=5000)
+            void_btn.click()
+            
+            # Completam motivul si confirmam anularea
+            page.locator("h3:has-text('ANULARE BON (VOID)')").wait_for(state="visible", timeout=5000)
+            textarea_void = page.locator("textarea[placeholder*='Introduceți motivul anulării']")
+            textarea_void.fill("Anulare controlata in test E2E")
+            page.locator("button:has-text('CONFIRMĂ ANULAREA')").click()
+            page.locator("h3:has-text('ANULARE BON (VOID)')").wait_for(state="detached", timeout=8000)
+            safe_print("[PASS] Vanzarea a fost anulata cu succes.")
+            
+            # Asteptam refresh-ul detaliilor folosind un retry loop pe textul badge-ului
+            badge_locator = page.locator("h3:has-text('DETALII BON') + span")
+            badge_locator.wait_for(state="visible", timeout=5000)
+            
+            for _ in range(20):
+                badge_txt = badge_locator.text_content().strip().upper()
+                if "ANULAT" in badge_txt or "VOID" in badge_txt:
+                    break
+                page.wait_for_timeout(250)
+            else:
+                badge_txt = badge_locator.text_content().strip()
+                raise AssertionError(f"Expected status to be 'Anulat', but got '{badge_txt}'")
+            
+            safe_print(f"[DEBUG] Status bon in UI post-anulare: {badge_txt}")
+            
+            # Verificam ca butonul RETUR PRODUSE nu mai este vizibil
+            assert not page.locator("button:has-text('RETUR PRODUSE')").is_visible(), "Butonul RETUR PRODUSE nu ar trebui sa fie vizibil pe un bon voided."
+            safe_print("[PASS] Butonul RETUR PRODUSE nu apare in detalii bon pentru un bon voided.")
+            
+            # Inchidem modalul
+            page.locator("button:has-text('ÎNCHIDE')").click()
+            page.wait_for_timeout(1000)
+            
+            # Verificare eligibility RPC direct
+            eligibility_void = page.evaluate(f"""async () => {{
+                const supabase = window.supabase;
+                const {{ data: {{ user }} }} = await supabase.auth.getUser();
+                const {{ data: stores }} = await supabase.from('stores').select('id').eq('name', 'Magazin Principal').limit(1);
+                const storeId = stores[0].id;
+                const {{ data: el }} = await supabase.rpc('get_sale_return_eligibility', {{
+                    p_store_id: storeId,
+                    p_profile_id: user.id,
+                    p_sale_id: '{void_sale_id}'
+                }});
+                return el;
+            }}""")
+            
+            safe_print(f"[DEBUG] Eligibility can_return for voided sale: {eligibility_void.get('can_return')}")
+            assert eligibility_void.get('can_return') is False, "get_sale_return_eligibility ar fi trebuit sa returneze can_return = False pe un bon voided"
+            safe_print("[PASS] RPC get_sale_return_eligibility returneaza corect can_return = False pe un bon voided.")
+
+            # --- SCENARIUL 9: Reconciliere Sold Tura POS ---
+            safe_print("\n--- SCENARIUL 9: Reconciliere Sold Tura POS ---")
             page.goto("http://localhost:5173/#/vanzare")
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(2000)
