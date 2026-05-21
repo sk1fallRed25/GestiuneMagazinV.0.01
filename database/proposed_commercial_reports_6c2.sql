@@ -250,7 +250,7 @@ BEGIN
             p.name as "name",
             p.barcode as "barcode",
             COALESCE(a.qty_gross, 0)::NUMERIC as "quantitySoldGross",
-            COALESCE(a.qty_ret, 0)::NUMERIC as "quantityReturned",
+            COALESCE(a.qty_returned, 0)::NUMERIC as "quantityReturned",
             (COALESCE(a.qty_gross, 0) - COALESCE(a.qty_ret, 0))::NUMERIC as "quantitySoldNet",
             COALESCE(a.rev_gross, 0)::NUMERIC as "grossRevenue",
             COALESCE(a.rev_ret, 0)::NUMERIC as "returnedRevenue",
@@ -370,17 +370,19 @@ BEGIN
     -- 6. Sold Cash Așteptat
     v_expected_cash := v_shift.opening_cash + v_cash_sales - v_cash_returns;
 
-    -- 7. Listă vânzări sumară
-    SELECT jsonb_agg(jsonb_build_object(
-        'saleId', s.id,
-        'createdAt', s.created_at,
-        'total', s.total,
-        'paymentMethod', s.payment_method,
-        'status', s.status
-    )) INTO v_sales_summary
-    FROM public.sales s
-    WHERE s.shift_id = p_shift_id
-    ORDER BY s.created_at DESC;
+    -- 7. Listă vânzări sumară (sortată descrescător sub formă de subquery)
+    SELECT jsonb_agg(to_jsonb(sales_list)) INTO v_sales_summary
+    FROM (
+        SELECT 
+            s.id as "saleId",
+            s.created_at as "createdAt",
+            s.total as "total",
+            s.payment_method as "paymentMethod",
+            s.status as "status"
+        FROM public.sales s
+        WHERE s.shift_id = p_shift_id
+        ORDER BY s.created_at DESC
+    ) sales_list;
 
     RETURN jsonb_build_object(
         'shiftId', v_shift.id,
@@ -651,47 +653,64 @@ BEGIN
       AND we.created_at >= v_tz_from
       AND we.created_at <= v_tz_to;
 
-    -- 3. Distribuție pierderi după Motiv (Reason)
+    -- 3. Distribuție pierderi după Motiv (Reason) - Utilizând CTE pentru a evita erorile de agregări imbricate
+    WITH reason_agg AS (
+        SELECT 
+            we.reason as r_reason,
+            COUNT(DISTINCT we.id) as r_events_count,
+            SUM(wi.quantity) as r_quantity,
+            SUM(wi.quantity * COALESCE(sb.purchase_price, pp.price_purchase, 0)) as r_val
+        FROM public.waste_items wi
+        JOIN public.waste_events we ON we.id = wi.waste_id
+        LEFT JOIN public.stock_batches sb ON sb.id = wi.batch_id
+        LEFT JOIN public.product_prices pp ON pp.product_id = wi.product_id AND pp.store_id = p_store_id
+        WHERE we.store_id = p_store_id
+          AND we.created_at >= v_tz_from
+          AND we.created_at <= v_tz_to
+        GROUP BY we.reason
+    )
     SELECT jsonb_agg(
         jsonb_build_object(
-            'reason', we.reason,
-            'eventsCount', COUNT(DISTINCT we.id),
-            'quantity', SUM(wi.quantity),
-            'estimatedValue', SUM(wi.quantity * COALESCE(sb.purchase_price, pp.price_purchase, 0))
+            'reason', r_reason,
+            'eventsCount', r_events_count,
+            'quantity', r_quantity,
+            'estimatedValue', r_val
         )
     ) INTO v_by_reason
-    FROM public.waste_items wi
-    JOIN public.waste_events we ON we.id = wi.waste_id
-    LEFT JOIN public.stock_batches sb ON sb.id = wi.batch_id
-    LEFT JOIN public.product_prices pp ON pp.product_id = wi.product_id AND pp.store_id = p_store_id
-    WHERE we.store_id = p_store_id
-      AND we.created_at >= v_tz_from
-      AND we.created_at <= v_tz_to
-    GROUP BY we.reason
-    ORDER BY estimatedValue DESC;
+    FROM reason_agg;
 
-    -- 4. Top produse pierdute / casate
+    -- 4. Top produse pierdute / casate - Utilizând CTE pentru a evita erorile de agregări imbricate
+    WITH prod_agg AS (
+        SELECT 
+            p.id as p_id,
+            p.name as p_name,
+            p.barcode as p_barcode,
+            p.unit as p_unit,
+            SUM(wi.quantity) as p_quantity,
+            SUM(wi.quantity * COALESCE(sb.purchase_price, pp.price_purchase, 0)) as p_val
+        FROM public.waste_items wi
+        JOIN public.waste_events we ON we.id = wi.waste_id
+        JOIN public.products p ON p.id = wi.product_id
+        LEFT JOIN public.stock_batches sb ON sb.id = wi.batch_id
+        LEFT JOIN public.product_prices pp ON pp.product_id = wi.product_id AND pp.store_id = p_store_id
+        WHERE we.store_id = p_store_id
+          AND we.created_at >= v_tz_from
+          AND we.created_at <= v_tz_to
+        GROUP BY p.id, p.name, p.barcode, p.unit
+        ORDER BY p_val DESC
+        LIMIT 20
+    )
     SELECT jsonb_agg(
         jsonb_build_object(
-            'productId', p.id,
-            'name', p.name,
-            'barcode', p.barcode,
-            'quantity', SUM(wi.quantity),
-            'unit', p.unit,
-            'estimatedValue', SUM(wi.quantity * COALESCE(sb.purchase_price, pp.price_purchase, 0))
+            'productId', p_id,
+            'name', p_name,
+            'barcode', p_barcode,
+            'quantity', p_quantity,
+            'unit', p_unit,
+            'estimatedValue', p_val
         )
     ) INTO v_by_product
-    FROM public.waste_items wi
-    JOIN public.waste_events we ON we.id = wi.waste_id
-    JOIN public.products p ON p.id = wi.product_id
-    LEFT JOIN public.stock_batches sb ON sb.id = wi.batch_id
-    LEFT JOIN public.product_prices pp ON pp.product_id = wi.product_id AND pp.store_id = p_store_id
-    WHERE we.store_id = p_store_id
-      AND we.created_at >= v_tz_from
-      AND we.created_at <= v_tz_to
-    GROUP BY p.id, p.name, p.barcode, p.unit
-    ORDER BY estimatedValue DESC
-    LIMIT 20;
+    FROM prod_agg;
 
     RETURN jsonb_build_object(
         'totalWasteQuantity', v_total_waste_qty,
