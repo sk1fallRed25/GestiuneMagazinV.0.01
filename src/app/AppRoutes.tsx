@@ -20,6 +20,7 @@ import AiConsultant from '../AiConsultant';
 import FastAdd from '../FastAdd';
 import { OwnerConsolePage } from '../features/owner-console';
 import { ReportsPage } from '../features/reports/ReportsPage';
+import { StoreSettingsPage } from '../features/store-settings';
 
 const DefaultLandingRoute: React.FC = () => {
     const { role, currentStoreId } = useAuth();
@@ -135,6 +136,11 @@ const AppRoutes = () => {
                             <Route path="/rapoarte" element={
                                 <ProtectedRoute allowedRoles={['admin', 'platform_owner', 'manager']}>
                                     <ReportsPage />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/setari-magazin" element={
+                                <ProtectedRoute allowedRoles={['admin', 'platform_owner', 'manager']}>
+                                    <StoreSettingsPage />
                                 </ProtectedRoute>
                             } />
                             <Route path="*" element={<Navigate to="/" replace />} />

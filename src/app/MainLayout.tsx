@@ -148,6 +148,12 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
                             <NavLink to="/istoric-pierderi" label="Audit Pierderi" icon={<History size={18} />} />
                             <NavLink to="/rapoarte" label="Rapoarte Comerciale" icon={<BarChart3 size={18} />} />
+                            {isAdminLike(role) && (
+                                <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
+                            )}
+                            {role === 'manager' && (
+                                <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
+                            )}
                             <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
                         </>
                     )}

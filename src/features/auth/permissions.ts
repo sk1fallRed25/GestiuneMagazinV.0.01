@@ -13,6 +13,7 @@ export const routePermissions: Record<string, UserRole[]> = {
   '/istoric-vanzari': ['admin', 'platform_owner', 'manager'],
   '/ai-consultant': ['admin', 'platform_owner', 'manager'],
   '/rapoarte': ['admin', 'platform_owner', 'manager'],
+  '/setari-magazin': ['admin', 'platform_owner', 'manager'],
 };
 
 /**
