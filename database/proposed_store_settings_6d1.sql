@@ -1,5 +1,5 @@
 -- ============================================================================
--- SQL Blueprint: Gestiune Magazin v2 Store Settings (Etapa 6D.1.2)
+-- SQL Blueprint: Gestiune Magazin v2 Store Settings (Etapa 6D.1.3)
 -- Description: Database-level blueprint for store operations & fiscal settings.
 -- DO NOT APPLY TO THE LIVE DATABASE. This is a reference blueprint for review.
 -- ============================================================================
@@ -383,23 +383,61 @@ BEGIN
     IF v_in_tax IS NOT NULL AND jsonb_typeof(v_in_tax) = 'object' THEN
         -- Strip legacy properties from v_in_tax to keep the namespace clean
         v_in_tax := v_in_tax - 'vat_default' - 'vat_rates';
-        v_tax := v_tax || v_in_tax;
+        
+        DECLARE
+            v_in_groups jsonb;
+            v_final_groups jsonb;
+            v_grp_key text;
+            v_grp_val jsonb;
+        BEGIN
+            v_in_groups := v_in_tax -> 'vat_groups';
+            v_final_groups := v_tax -> 'vat_groups';
+            
+            -- If input has vat_groups, merge key-by-key
+            IF v_in_groups IS NOT NULL AND jsonb_typeof(v_in_groups) = 'object' THEN
+                FOR v_grp_key, v_grp_val IN SELECT * FROM jsonb_each(v_in_groups)
+                LOOP
+                    -- Only accept keys A-E
+                    IF v_grp_key IN ('A', 'B', 'C', 'D', 'E') AND jsonb_typeof(v_grp_val) = 'object' THEN
+                        -- Merge with existing group key
+                        v_final_groups := jsonb_set(
+                            v_final_groups, 
+                            ARRAY[v_grp_key], 
+                            (v_final_groups -> v_grp_key) || v_grp_val
+                        );
+                    END IF;
+                END LOOP;
+            END IF;
+            
+            -- Merge other tax settings (price_tax_policy, default_vat_group, vat_payer)
+            v_tax := v_tax || (v_in_tax - 'vat_groups');
+            -- Set final merged groups
+            v_tax := jsonb_set(v_tax, '{vat_groups}', v_final_groups);
+        END;
     END IF;
     
     -- Legacy VAT mapping (e.g. mapping 19, 9, 5 to Romanian tax groups standard A-E)
-    v_legacy_vat_default := (p_settings -> 'tax' ->> 'vat_default')::numeric;
-    IF v_legacy_vat_default IS NOT NULL THEN
-        IF v_legacy_vat_default IN (19, 21, 24, 20) THEN
-            v_tax := jsonb_set(v_tax, '{default_vat_group}', '"A"');
-        ELSIF v_legacy_vat_default IN (9, 11) THEN
-            v_tax := jsonb_set(v_tax, '{default_vat_group}', '"B"');
-        ELSIF v_legacy_vat_default = 5 THEN
-            v_tax := jsonb_set(v_tax, '{default_vat_group}', '"C"');
-        ELSIF v_legacy_vat_default = 0 THEN
-            v_tax := jsonb_set(v_tax, '{default_vat_group}', '"E"');
+    -- Only apply if default_vat_group is not explicitly provided in the new schema format
+    IF v_in_tax IS NULL OR NOT (v_in_tax ? 'default_vat_group') THEN
+        v_legacy_vat_default := (p_settings -> 'tax' ->> 'vat_default')::numeric;
+        IF v_legacy_vat_default IS NOT NULL THEN
+            IF v_legacy_vat_default IN (19, 21, 24, 20) THEN
+                v_tax := jsonb_set(v_tax, '{default_vat_group}', '"A"');
+            ELSIF v_legacy_vat_default IN (9, 11) THEN
+                v_tax := jsonb_set(v_tax, '{default_vat_group}', '"B"');
+            ELSIF v_legacy_vat_default = 5 THEN
+                v_tax := jsonb_set(v_tax, '{default_vat_group}', '"C"');
+            ELSIF v_legacy_vat_default = 0 THEN
+                v_tax := jsonb_set(v_tax, '{default_vat_group}', '"E"');
+            END IF;
         END IF;
     END IF;
     
+    -- If default_vat_group is not one of A, B, C, D, E, fallback to A
+    IF v_tax ->> 'default_vat_group' NOT IN ('A', 'B', 'C', 'D', 'E') THEN
+        v_tax := jsonb_set(v_tax, '{default_vat_group}', '"A"');
+    END IF;
+
     -- Enforce vat_payer alignment
     v_vat_payer := (v_tax ->> 'vat_payer')::boolean;
     IF v_vat_payer = false THEN
@@ -464,6 +502,7 @@ RETURNS text
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_settings jsonb;
@@ -503,6 +542,7 @@ RETURNS numeric
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_settings jsonb;
@@ -554,6 +594,7 @@ RETURNS boolean
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
     v_settings jsonb;
