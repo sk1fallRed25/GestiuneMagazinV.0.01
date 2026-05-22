@@ -19,6 +19,7 @@ import IstoricVanzari from '../IstoricVanzari';
 import AiConsultant from '../AiConsultant';
 import FastAdd from '../FastAdd';
 import { OwnerConsolePage } from '../features/owner-console';
+import { ReportsPage } from '../features/reports/ReportsPage';
 
 const DefaultLandingRoute: React.FC = () => {
     const { role, currentStoreId } = useAuth();
@@ -129,6 +130,11 @@ const AppRoutes = () => {
                             <Route path="/owner" element={
                                 <ProtectedRoute allowedRoles={['platform_owner']}>
                                     <OwnerConsolePage />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/rapoarte" element={
+                                <ProtectedRoute allowedRoles={['admin', 'platform_owner', 'manager']}>
+                                    <ReportsPage />
                                 </ProtectedRoute>
                             } />
                             <Route path="*" element={<Navigate to="/" replace />} />

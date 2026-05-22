@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { 
     LayoutDashboard, Package, CalendarClock, AlertOctagon, PackagePlus, 
     ArrowRightLeft, BrainCircuit, 
-    ShoppingCart, FileText, Settings, LogOut, Search, Bell, AlertTriangle, History, ShieldAlert 
+    ShoppingCart, FileText, Settings, LogOut, Search, Bell, AlertTriangle, History, ShieldAlert, BarChart3 
 } from 'lucide-react';
 import { supabase } from '../shared/supabase/supabaseClient';
 import { isAdminLike, isManagerLike, isStockOperator, isCashierLike } from '../features/auth/permissions';
@@ -147,6 +147,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                         <>
                             <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
                             <NavLink to="/istoric-pierderi" label="Audit Pierderi" icon={<History size={18} />} />
+                            <NavLink to="/rapoarte" label="Rapoarte Comerciale" icon={<BarChart3 size={18} />} />
                             <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
                         </>
                     )}

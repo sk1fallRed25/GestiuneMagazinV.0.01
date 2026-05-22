@@ -2,7 +2,7 @@ import React from 'react';
 import { 
     LayoutDashboard, Package, CalendarClock, AlertOctagon, 
     History, BrainCircuit, ShoppingCart, 
-    FileText, Settings 
+    FileText, Settings, BarChart3
 } from 'lucide-react';
 import { UserRole } from '../features/auth/types';
 
@@ -25,6 +25,7 @@ export const navigationConfig: NavItem[] = [
     { to: '/transfer', label: 'Transfer Marfă', icon: <Settings size={18} />, category: 'Operațiuni', roles: ['admin', 'platform_owner', 'gestionar'] },
     
     { to: '/istoric-pierderi', label: 'Audit Pierderi', icon: <History size={18} />, category: 'Administrare', roles: ['admin', 'platform_owner', 'manager'] },
+    { to: '/rapoarte', label: 'Rapoarte Comerciale', icon: <BarChart3 size={18} />, category: 'Administrare', roles: ['admin', 'platform_owner', 'manager'] },
     { to: '/ai-consultant', label: 'AI Consultant', icon: <BrainCircuit size={18} />, category: 'Administrare', roles: ['admin', 'platform_owner', 'manager'] },
     
     { to: '/vanzare', label: 'Deschide POS', icon: <ShoppingCart size={18} />, category: 'Vânzare', roles: ['admin', 'platform_owner', 'casier'] },

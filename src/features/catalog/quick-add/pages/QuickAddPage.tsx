@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react'
 
 
-import { supabase } from '@core/supabase/client'
+import { supabase } from '../../../../shared/supabase/supabaseClient'
 import { Link } from 'react-router-dom'
 import { ScanBarcode, ArrowLeft, Package, CheckCircle, AlertTriangle, Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
