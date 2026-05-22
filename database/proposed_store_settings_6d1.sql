@@ -1,5 +1,5 @@
 -- ============================================================================
--- SQL Blueprint: Gestiune Magazin v2 Store Settings (Etapa 6D.1)
+-- SQL Blueprint: Gestiune Magazin v2 Store Settings (Etapa 6D.1.1)
 -- Description: Database-level blueprint for store operations & fiscal settings.
 -- DO NOT APPLY TO THE LIVE DATABASE. This is a reference blueprint for review.
 -- ============================================================================
@@ -13,6 +13,7 @@ AS $$
 DECLARE
     v_key text;
     v_val jsonb;
+    v_elem jsonb;
 BEGIN
     -- Allow empty settings if default is set
     IF p_settings IS NULL OR p_settings = '{}'::jsonb THEN
@@ -50,37 +51,39 @@ BEGIN
         END IF;
     END IF;
 
-    -- Validate "tax" section if present
+    -- Validate "tax" section if present (Updated for Romania Tax Groups)
     IF p_settings ? 'tax' THEN
         IF jsonb_typeof(p_settings -> 'tax') != 'object' THEN
             RETURN false;
         END IF;
         FOR v_key, v_val IN SELECT * FROM jsonb_each(p_settings -> 'tax')
         LOOP
-            IF v_key NOT IN ('vat_default', 'vat_rates', 'price_tax_policy') THEN
+            IF v_key NOT IN ('vat_default_group', 'price_tax_policy', 'tax_groups') THEN
                 RETURN false;
             END IF;
         END LOOP;
 
-        -- vat_default validation
-        IF (p_settings -> 'tax' ? 'vat_default') AND 
-           (jsonb_typeof(p_settings -> 'tax' -> 'vat_default') != 'number' OR
-            (p_settings -> 'tax' ->> 'vat_default')::numeric < 0) THEN
+        -- vat_default_group validation (must be A, B, C, D, or E)
+        IF (p_settings -> 'tax' ? 'vat_default_group') AND 
+           (p_settings -> 'tax' ->> 'vat_default_group' NOT IN ('A', 'B', 'C', 'D', 'E')) THEN
             RETURN false;
         END IF;
 
-        -- vat_rates validation (must be array of numbers)
-        IF (p_settings -> 'tax' ? 'vat_rates') THEN
-            IF jsonb_typeof(p_settings -> 'tax' -> 'vat_rates') != 'array' THEN
+        -- tax_groups validation
+        IF (p_settings -> 'tax' ? 'tax_groups') THEN
+            IF jsonb_typeof(p_settings -> 'tax' -> 'tax_groups') != 'array' THEN
                 RETURN false;
             END IF;
-            -- Check that every element is a positive number
-            IF EXISTS (
-                SELECT 1 FROM jsonb_array_elements(p_settings -> 'tax' -> 'vat_rates') elem
-                WHERE jsonb_typeof(elem) != 'number' OR (elem::text)::numeric < 0
-            ) THEN
-                RETURN false;
-            END IF;
+            -- Check each element in array has group, percent, label
+            FOR v_elem IN SELECT * FROM jsonb_array_elements(p_settings -> 'tax' -> 'tax_groups')
+            LOOP
+                IF jsonb_typeof(v_elem) != 'object'
+                   OR NOT (v_elem ? 'group') OR (v_elem ->> 'group' NOT IN ('A', 'B', 'C', 'D', 'E'))
+                   OR NOT (v_elem ? 'percent') OR (jsonb_typeof(v_elem -> 'percent') != 'number' OR (v_elem ->> 'percent')::numeric < 0)
+                   OR NOT (v_elem ? 'label') OR (jsonb_typeof(v_elem -> 'label') != 'string') THEN
+                    RETURN false;
+                END IF;
+            END LOOP;
         END IF;
 
         -- price_tax_policy validation
@@ -229,7 +232,7 @@ END;
 $$;
 
 
--- 4. Utility Function: Safe Getter for Numeric Settings
+-- 4. Utility Function: Safe Getter for Numeric Settings (Updated for Tax Groups)
 CREATE OR REPLACE FUNCTION public.get_store_setting_numeric(
     p_store_id uuid,
     p_path text[],
@@ -243,6 +246,7 @@ AS $$
 DECLARE
     v_settings jsonb;
     v_val jsonb;
+    v_def_group text;
 BEGIN
     SELECT settings INTO v_settings FROM public.stores WHERE id = p_store_id;
     
@@ -250,7 +254,18 @@ BEGIN
         RETURN p_default;
     END IF;
     
-    v_val := v_settings #> p_path;
+    -- Special fallback for vat_default -> resolve from tax_groups via vat_default_group
+    IF p_path = ARRAY['tax', 'vat_default'] THEN
+        v_def_group := v_settings #>> ARRAY['tax', 'vat_default_group'];
+        IF v_def_group IS NOT NULL AND v_settings -> 'tax' ? 'tax_groups' THEN
+            SELECT elem -> 'percent' INTO v_val
+            FROM jsonb_array_elements(v_settings -> 'tax' -> 'tax_groups') elem
+            WHERE elem ->> 'group' = v_def_group
+            LIMIT 1;
+        END IF;
+    ELSE
+        v_val := v_settings #> p_path;
+    END IF;
     
     -- Fallback for legacy keys if path is simple
     IF v_val IS NULL AND array_length(p_path, 1) = 2 THEN
@@ -300,7 +315,7 @@ END;
 $$;
 
 
--- 6. Legacy to Nested Settings Migrator (Idempotent Blueprint)
+-- 6. Legacy to Nested Settings Migrator (Updated for Romania Tax Groups)
 CREATE OR REPLACE FUNCTION public.migrate_stores_legacy_settings()
 RETURNS void
 LANGUAGE plpgsql
@@ -326,15 +341,21 @@ BEGIN
         -- Extract legacy data with defaults
         v_fiscal := jsonb_build_object(
             'workpoint_number', COALESCE(v_row.settings -> 'workpointNumber', '1'::jsonb),
-            'display_code', COALESCE(v_row.settings -> 'displayCode', jsonb_build_value(COALESCE(v_row.fiscal_code, 'FARA_CUI') || ' / 1')),
+            'display_code', to_jsonb(COALESCE(v_row.settings ->> 'displayCode', COALESCE(v_row.fiscal_code, 'FARA_CUI') || ' / 1')),
             'company_name', COALESCE(v_row.settings -> 'companyName', 'SC COMPANIE SRL'::jsonb),
             'notes', COALESCE(v_row.settings -> 'notes', 'Migrat automat'::jsonb)
         );
 
         v_tax := jsonb_build_object(
-            'vat_default', 19,
-            'vat_rates', '[19, 9, 5, 0]'::jsonb,
-            'price_tax_policy', 'inclusive'
+            'vat_default_group', 'A',
+            'price_tax_policy', 'inclusive',
+            'tax_groups', jsonb_build_array(
+                jsonb_build_object('group', 'A', 'percent', 21, 'label', 'TVA 21% (Cota Standard)'),
+                jsonb_build_object('group', 'B', 'percent', 11, 'label', 'TVA 11% (Cota Redusa)'),
+                jsonb_build_object('group', 'C', 'percent', 11, 'label', 'TVA 11% (Servicii/Horeca)'),
+                jsonb_build_object('group', 'D', 'percent', 0, 'label', 'TVA 0% (Scutit cu deducere)'),
+                jsonb_build_object('group', 'E', 'percent', 0, 'label', 'Scutit fara deducere / Neplatitor')
+            )
         );
 
         v_stock := jsonb_build_object(
@@ -386,5 +407,205 @@ BEGIN
         SET settings = v_new_settings
         WHERE id = v_row.id;
     END LOOP;
+END;
+$$;
+
+
+-- 7. RPC: Get Store Settings
+CREATE OR REPLACE FUNCTION public.get_store_settings(p_store_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_settings jsonb;
+    v_fiscal jsonb;
+    v_tax jsonb;
+    v_stock jsonb;
+    v_pos jsonb;
+    v_documents jsonb;
+    v_reports jsonb;
+    v_alerts jsonb;
+    v_store_name text;
+    v_fiscal_code text;
+BEGIN
+    -- Authorization: must be a store member or platform owner
+    IF NOT (public.has_store_role(p_store_id, ARRAY['admin', 'manager', 'gestionar', 'casier']) OR public.is_platform_owner()) THEN
+        RAISE EXCEPTION 'Acces interzis. Nu sunteti membru al acestui magazin.';
+    END IF;
+
+    SELECT settings, name, fiscal_code INTO v_settings, v_store_name, v_fiscal_code 
+    FROM public.stores 
+    WHERE id = p_store_id;
+
+    IF v_settings IS NULL OR v_settings = '{}'::jsonb OR NOT (v_settings ? 'fiscal') THEN
+        -- Build defaults if empty or legacy (migrate structure on the fly)
+        v_fiscal := jsonb_build_object(
+            'workpoint_number', COALESCE((v_settings ->> 'workpointNumber')::integer, 1),
+            'display_code', COALESCE(v_settings ->> 'displayCode', COALESCE(v_fiscal_code, 'FARA_CUI') || ' / 1'),
+            'company_name', COALESCE(v_settings ->> 'companyName', COALESCE(v_store_name, 'SC COMPANIE SRL')),
+            'notes', COALESCE(v_settings ->> 'notes', 'Initializat automat')
+        );
+
+        v_tax := jsonb_build_object(
+            'vat_default_group', 'A',
+            'price_tax_policy', 'inclusive',
+            'tax_groups', jsonb_build_array(
+                jsonb_build_object('group', 'A', 'percent', 21, 'label', 'TVA 21% (Cota Standard)'),
+                jsonb_build_object('group', 'B', 'percent', 11, 'label', 'TVA 11% (Cota Redusa)'),
+                jsonb_build_object('group', 'C', 'percent', 11, 'label', 'TVA 11% (Servicii/Horeca)'),
+                jsonb_build_object('group', 'D', 'percent', 0, 'label', 'TVA 0% (Scutit cu deducere)'),
+                jsonb_build_object('group', 'E', 'percent', 0, 'label', 'Scutit fara deducere / Neplatitor')
+            )
+        );
+
+        v_stock := jsonb_build_object(
+            'stock_min_default', 5,
+            'allow_negative_stock', false,
+            'expiry_warning_days', 30
+        );
+
+        v_pos := jsonb_build_object(
+            'default_payment_method', 'cash',
+            'allow_mixed_payment', true,
+            'require_active_shift', true,
+            'require_manager_for_void', true,
+            'require_manager_for_return', true
+        );
+
+        v_documents := jsonb_build_object(
+            'pos_receipt_prefix', 'BF',
+            'return_prefix', 'RET',
+            'reception_prefix', 'NIR',
+            'waste_prefix', 'PIE',
+            'transfer_prefix', 'TRF'
+        );
+
+        v_reports := jsonb_build_object(
+            'business_day_start_hour', 6,
+            'timezone', 'Europe/Bucharest'
+        );
+
+        v_alerts := jsonb_build_object(
+            'alert_low_stock_enabled', true,
+            'alert_expiry_enabled', true,
+            'alert_cash_difference_limit', 50
+        );
+
+        v_settings := jsonb_build_object(
+            'fiscal', v_fiscal,
+            'tax', v_tax,
+            'stock', v_stock,
+            'pos', v_pos,
+            'documents', v_documents,
+            'reports', v_reports,
+            'alerts', v_alerts
+        );
+    END IF;
+
+    RETURN v_settings;
+END;
+$$;
+
+
+-- 8. RPC: Update Store Settings
+CREATE OR REPLACE FUNCTION public.update_store_settings(
+    p_store_id uuid,
+    p_settings jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_old_settings jsonb;
+BEGIN
+    -- Authorization: must be admin, manager or platform owner
+    IF NOT (public.has_store_role(p_store_id, ARRAY['admin', 'manager']) OR public.is_platform_owner()) THEN
+        RAISE EXCEPTION 'Acces interzis. Doar managerii sau administratorii pot modifica setarile magazinului.';
+    END IF;
+
+    -- Schema validation
+    IF NOT public.validate_store_settings_schema(p_settings) THEN
+        RAISE EXCEPTION 'Schema de setari transmisa este invalida.';
+    END IF;
+
+    SELECT settings INTO v_old_settings FROM public.stores WHERE id = p_store_id;
+
+    -- Update settings column
+    UPDATE public.stores
+    SET settings = p_settings,
+        updated_at = NOW()
+    WHERE id = p_store_id;
+
+    -- Log transaction in audit_logs
+    INSERT INTO public.audit_logs (
+        store_id,
+        profile_id,
+        action,
+        entity_type,
+        entity_id,
+        old_data,
+        new_data
+    )
+    VALUES (
+        p_store_id,
+        auth.uid(),
+        'store.settings_update',
+        'store',
+        p_store_id,
+        COALESCE(v_old_settings, '{}'::jsonb),
+        p_settings
+    );
+END;
+$$;
+
+
+-- 9. RPC: Get Store Operational Config
+CREATE OR REPLACE FUNCTION public.get_store_operational_config(p_store_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_settings jsonb;
+    v_fiscal jsonb;
+    v_tax jsonb;
+    v_stock jsonb;
+    v_pos jsonb;
+    v_documents jsonb;
+BEGIN
+    -- Authorization: any store member or platform owner
+    IF NOT (public.has_store_role(p_store_id, ARRAY['admin', 'manager', 'gestionar', 'casier']) OR public.is_platform_owner()) THEN
+        RAISE EXCEPTION 'Acces interzis.';
+    END IF;
+
+    -- Retrieve settings (using helper get_store_settings to guarantee schema completeness)
+    v_settings := public.get_store_settings(p_store_id);
+    
+    v_fiscal := v_settings -> 'fiscal';
+    v_tax := v_settings -> 'tax';
+    v_stock := v_settings -> 'stock';
+    v_pos := v_settings -> 'pos';
+    v_documents := v_settings -> 'documents';
+
+    -- Build flat operational schema for clients
+    RETURN jsonb_build_object(
+        'companyName', v_fiscal ->> 'company_name',
+        'workpointNumber', (v_fiscal ->> 'workpoint_number')::integer,
+        'displayCode', v_fiscal ->> 'display_code',
+        'priceTaxPolicy', v_tax ->> 'price_tax_policy',
+        'vatDefaultGroup', v_tax ->> 'vat_default_group',
+        'taxGroups', v_tax -> 'tax_groups',
+        'allowNegativeStock', (v_stock ->> 'allow_negative_stock')::boolean,
+        'requireActiveShift', (v_pos ->> 'require_active_shift')::boolean,
+        'requireManagerForVoid', (v_pos ->> 'require_manager_for_void')::boolean,
+        'requireManagerForReturn', (v_pos ->> 'require_manager_for_return')::boolean,
+        'posReceiptPrefix', v_documents ->> 'pos_receipt_prefix',
+        'returnPrefix', v_documents ->> 'return_prefix'
+    );
 END;
 $$;
