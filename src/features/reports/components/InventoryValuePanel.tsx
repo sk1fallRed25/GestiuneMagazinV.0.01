@@ -1,6 +1,7 @@
 import React from 'react';
 import { InventoryValueReport } from '../types';
 import { Layers, Database, ShieldAlert, Award, FileWarning, Eye } from 'lucide-react';
+import { ReportKpiCard } from './ReportKpiCard';
 
 interface Props {
   data: InventoryValueReport;
@@ -25,53 +26,37 @@ export const InventoryValuePanel: React.FC<Props> = ({ data }) => {
     <div className="space-y-8">
       {/* Stock Valuations KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-start gap-4">
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-            <Layers size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Valoare Achiziție Est.</p>
-            <h3 className="text-2xl font-black text-gray-900 mt-1">{formatCurrency(data.estimatedPurchaseValue)}</h3>
-            <p className="text-xs text-gray-400 mt-1 font-medium">Cost total de achiziție al stocului</p>
-          </div>
-        </div>
+        <ReportKpiCard
+          title="Valoare Achiziție Est."
+          value={formatCurrency(data.estimatedPurchaseValue)}
+          icon={<Layers size={24} className="text-indigo-600" />}
+          bgColor="bg-indigo-50"
+          description="Cost total de achiziție al stocului"
+        />
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-start gap-4">
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-            <Award size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Valoare Vânzare Est.</p>
-            <h3 className="text-2xl font-black text-gray-900 mt-1">{formatCurrency(data.estimatedSaleValue)}</h3>
-            <p className="text-xs text-gray-400 mt-1 font-medium">Valoare dacă se vinde tot la preț raft</p>
-          </div>
-        </div>
+        <ReportKpiCard
+          title="Valoare Vânzare Est."
+          value={formatCurrency(data.estimatedSaleValue)}
+          icon={<Award size={24} className="text-emerald-600" />}
+          bgColor="bg-emerald-50"
+          description="Valoare dacă se vinde tot la preț raft"
+        />
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-start gap-4">
-          <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
-            <Layers size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Marjă Potențială</p>
-            <h3 className="text-2xl font-black text-gray-900 mt-1">{formatNumber(expectedMarginPercent)}%</h3>
-            <p className="text-xs text-gray-400 mt-1 font-medium">Marja estimată: {formatCurrency(expectedProfit)}</p>
-          </div>
-        </div>
+        <ReportKpiCard
+          title="Marjă Potențială"
+          value={`${formatNumber(expectedMarginPercent)}%`}
+          icon={<Layers size={24} className="text-teal-600" />}
+          bgColor="bg-teal-50"
+          description={`Marja estimată: ${formatCurrency(expectedProfit)}`}
+        />
 
-        <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-start gap-4">
-          <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
-            <ShieldAlert size={24} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Alerte Critice Stoc</p>
-            <h3 className="text-2xl font-black text-gray-900 mt-1">
-              {data.lowStockCount + data.negativeStockCount}
-            </h3>
-            <p className="text-xs text-rose-500 mt-1 font-bold">
-              {data.lowStockCount} stoc critic / {data.negativeStockCount} stoc negativ
-            </p>
-          </div>
-        </div>
+        <ReportKpiCard
+          title="Alerte Critice Stoc"
+          value={data.lowStockCount + data.negativeStockCount}
+          icon={<ShieldAlert size={24} className="text-rose-600" />}
+          bgColor="bg-rose-50"
+          description={`${data.lowStockCount} stoc critic / ${data.negativeStockCount} stoc negativ`}
+        />
       </div>
 
       {/* Stock Divisions (Warehouse vs Store) */}

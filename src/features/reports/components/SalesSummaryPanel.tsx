@@ -1,6 +1,7 @@
 import React from 'react';
 import { SalesSummaryReport } from '../types';
 import { TrendingUp, ShoppingBag, AlertCircle, RotateCcw, DollarSign, CreditCard, Ticket, Activity } from 'lucide-react';
+import { ReportKpiCard } from './ReportKpiCard';
 
 interface Props {
   data: SalesSummaryReport;
@@ -47,16 +48,14 @@ export const SalesSummaryPanel: React.FC<Props> = ({ data }) => {
       {/* Primary KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
-          <div key={idx} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex items-start gap-4">
-            <div className={`p-3 rounded-xl ${stat.bgColor}`}>
-              {stat.icon}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{stat.title}</p>
-              <h3 className="text-2xl font-black text-gray-900 mt-1">{stat.value}</h3>
-              <p className="text-xs text-gray-400 mt-1 font-medium">{stat.description}</p>
-            </div>
-          </div>
+          <ReportKpiCard
+            key={idx}
+            title={stat.title}
+            value={stat.value}
+            icon={stat.icon}
+            bgColor={stat.bgColor}
+            description={stat.description}
+          />
         ))}
       </div>
 
