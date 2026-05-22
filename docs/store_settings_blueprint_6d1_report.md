@@ -1,6 +1,6 @@
-# Store Settings Blueprint Report (Etapa 6D.1.1)
+# Store Settings Blueprint Report (Etapa 6D.1.2)
 
-This report details the architectural audit and proposed design for operational settings in **Gestiune Magazin v2**, aligned with Romanian fiscal Tax Groups and complete database-level RPC APIs.
+This report details the architectural audit, normalized properties, and proposed design for operational settings in **Gestiune Magazin v2**, aligned with Romanian fiscal Tax Groups, complete database-level RPC APIs, and strict access controls.
 
 ---
 
@@ -66,35 +66,41 @@ To avoid database bloat and maintain flexibility, a nested JSONB structure insid
     "notes": "Magazin pilot"
   },
   "tax": {
-    "vat_default_group": "A",
+    "default_vat_group": "A",
+    "vat_payer": true,
     "price_tax_policy": "inclusive",
-    "tax_groups": [
-      {
-        "group": "A",
-        "percent": 21,
-        "label": "TVA 21% (Cota Standard)"
+    "vat_groups": {
+      "A": {
+        "rate": 21,
+        "label": "TVA standard",
+        "fiscal_code": "A",
+        "active": true
       },
-      {
-        "group": "B",
-        "percent": 11,
-        "label": "TVA 11% (Cota Redusa)"
+      "B": {
+        "rate": 11,
+        "label": "TVA redus",
+        "fiscal_code": "B",
+        "active": true
       },
-      {
-        "group": "C",
-        "percent": 11,
-        "label": "TVA 11% (Servicii/Horeca)"
+      "C": {
+        "rate": 11,
+        "label": "TVA redus",
+        "fiscal_code": "C",
+        "active": true
       },
-      {
-        "group": "D",
-        "percent": 0,
-        "label": "TVA 0% (Scutit cu deducere)"
+      "D": {
+        "rate": 0,
+        "label": "TVA zero",
+        "fiscal_code": "D",
+        "active": true
       },
-      {
-        "group": "E",
-        "percent": 0,
-        "label": "Scutit fara deducere / Neplatitor"
+      "E": {
+        "rate": 0,
+        "label": "Neplătitor TVA",
+        "fiscal_code": "E",
+        "active": true
       }
-    ]
+    }
   },
   "stock": {
     "stock_min_default": 5.0,
@@ -132,37 +138,50 @@ To avoid database bloat and maintain flexibility, a nested JSONB structure insid
 ## 3. Database Layer Architecture (SQL Blueprint)
 
 The SQL blueprint in `database/proposed_store_settings_6d1.sql` provides:
-1. **Schema Validation Function (`validate_store_settings_schema`)**: Evaluates new or updated JSONB payloads against typing and structure rules. Supports validation of the `tax_groups` array structure.
+1. **Schema Validation Function (`validate_store_settings_schema`)**: Evaluates new or updated JSONB payloads against typing and structure rules. Supports validation of the `vat_groups` object keys and nested properties.
 2. **Access Helpers**:
    * `get_store_setting_text(store_id, path, default_value)`
-   * `get_store_setting_numeric(store_id, path, default_value)` — Enhanced to dynamically resolve default VAT percentage from `tax_groups` when querying for `['tax', 'vat_default']`.
+   * `get_store_setting_numeric(store_id, path, default_value)` — Dynamically resolves default VAT percentage from `vat_groups` using `default_vat_group` when querying for `['tax', 'vat_default']`.
    * `get_store_setting_boolean(store_id, path, default_value)`
    They fallback to old flat legacy keys if the new sections do not exist yet.
 3. **Idempotent Migrator (`migrate_stores_legacy_settings`)**: Safely updates existing records, shifting `workpointNumber`, `companyName`, and `displayCode` to the new nested `fiscal` structure, appending default pilot parameters for the other categories.
 
 ### 4. Planned RPC APIs
+* **`get_default_store_settings() RETURNS jsonb`**:
+  * Single source of truth returning the complete default configuration with Romanian tax groups A-E.
+* **`merge_store_settings_with_defaults(p_settings jsonb) RETURNS jsonb`**:
+  * Merges given settings with defaults, translating legacy properties to the new nested namespaces.
 * **`get_store_settings(p_store_id uuid) RETURNS jsonb`**:
-  * Retrieves the store's settings.
-  * If settings do not exist or are in legacy format, returns on-the-fly initialized default settings (including aligned Romanian VAT groups).
-  * *Access Control*: Restricted to store members (`admin`, `manager`, `gestionar`, `casier`) or `platform_owner`.
-* **`update_store_settings(p_store_id uuid, p_settings jsonb) RETURNS void`**:
-  * Validates the schema using `validate_store_settings_schema`.
-  * Saves the setting changes and logs a corresponding audit row in `public.audit_logs`.
-  * *Access Control*: Restricted to store `admin`, `manager` or `platform_owner`.
+  * Retrieves the store's settings. Returns a structured JSON wrapper `{ storeId, storeName, fiscalCode, active, settings }` where settings are merged with defaults.
+  * *Access Control*: Restricted to store `admin`, `manager` or `platform_owner`. Cashiers and Gestionars are excluded from this view.
+* **`update_store_settings(p_store_id uuid, p_settings jsonb) RETURNS jsonb`**:
+  * Validates the schema using `validate_store_settings_schema`, merges it with default structures, writes to `stores.settings`, and registers audit trail in `public.audit_logs`.
+  * Returns `{ storeId, settings }`.
+  * *Access Control*: Restricted strictly to store `admin` or `platform_owner`. Managers are blocked from updating settings in MVP.
 * **`get_store_operational_config(p_store_id uuid) RETURNS jsonb`**:
-  * Extracts a flattened operational settings object containing core properties needed at checkout, receptions, or stock actions.
-  * Extracted fields: `companyName`, `workpointNumber`, `displayCode`, `priceTaxPolicy`, `vatDefaultGroup`, `taxGroups` array, `allowNegativeStock`, `requireActiveShift`, `requireManagerForVoid`, `requireManagerForReturn`, `posReceiptPrefix`, `returnPrefix`.
-  * *Access Control*: Restricted to store members or `platform_owner`.
+  * Extracts a camelCase operational settings object containing core properties needed at checkout, receptions, or stock actions.
+  * *Access Control*: Restricted to all store members (admin, manager, gestionar, casier) or `platform_owner`.
 
 ---
 
-## 5. Next Implementation Steps (Phase 6D.2)
+## 5. Corecție 6D.1.2 — Normalizare Tax Groups
+
+During Etapa 6D.1.2:
+* Standardized properties: replaced `vat_default_group` with `default_vat_group` and `tax_groups` (array) with `vat_groups` (object).
+* Standardized VAT rates to Romanian Tax Groups A=21%, B=11%, C=11%, D=0%, E=0% (Neplătitor TVA). Replaced older fallback rates.
+* Refactored `update_store_settings` to return a `jsonb` object instead of `void`.
+* Restricted `update_store_settings` execution rights to exclude `manager` store roles, allowing only `platform_owner` and store `admin`.
+* Declared `get_default_store_settings` and `merge_store_settings_with_defaults` as database-level functions to handle fallback mappings dynamically.
+
+---
+
+## 6. Next Implementation Steps (Phase 6D.2)
 
 1. **Apply database migrator & helper functions**: Execute the blueprint script in the Supabase SQL Editor.
 2. **Attach settings schema validation constraint**: Enable database-level safety checks on `stores.settings`.
 3. **Replace Hardcoded Frontend Hooks**:
-   * Map `useReception.ts` VAT selection options to `store.settings.tax.tax_groups`.
-   * Map `useFastAdd.ts` VAT selection options to `store.settings.tax.tax_groups`.
+   * Map `useReception.ts` VAT selection options to `store.settings.tax.vat_groups`.
+   * Map `useFastAdd.ts` VAT selection options to `store.settings.tax.vat_groups`.
    * Fetch `price_tax_policy` and use it to determine UI pricing displays.
 4. **Enforce POS Stock Rules**:
    * Integrate the `allow_negative_stock` flag inside `usePos.ts` cart verification routines.
