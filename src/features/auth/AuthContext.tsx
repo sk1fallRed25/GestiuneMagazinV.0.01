@@ -48,8 +48,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 2. Încarcă Magazinele la care are acces
-      const memberships = await authService.getUserStoreMemberships(userId);
-      
+      let memberships = await authService.getUserStoreMemberships(userId);
+
+      if (profile.role === 'platform_owner') {
+        const { data: allStores, error: storesError } = await supabase
+          .from('stores')
+          .select('*')
+          .eq('active', true);
+
+        if (!storesError && allStores) {
+          memberships = allStores.map(store => {
+            const settings = (store.settings as Record<string, any>) || {};
+            const fiscalCode = store.fiscal_code || '';
+            const workpointNumber = settings.workpointNumber !== undefined && settings.workpointNumber !== null ? Number(settings.workpointNumber) : 1;
+            const displayCode = String(settings.displayCode || `${fiscalCode} / ${workpointNumber}`);
+
+            return {
+              store_id: store.id,
+              profile_id: userId,
+              role: 'admin',
+              active: true,
+              store: store as any,
+              storeName: store.name,
+              fiscalCode,
+              workpointNumber,
+              displayCode
+            };
+          });
+        }
+      }
+
       // 3. Verifică accesul (non-platform_owner trebuie să aibă cel puțin un magazin)
       if (profile.role !== 'platform_owner' && memberships.length === 0) {
         setState(prev => ({ 
@@ -64,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // 4. Selectează Magazinul Curent (primul disponibil sau cel salvat anterior)
       const savedStoreId = localStorage.getItem('selected_store_id');
-      const currentMembership = memberships.find(m => m.store_id === savedStoreId) || memberships[0] || null;
+      const currentMembership = memberships.find(m => m.store_id === savedStoreId) || (profile.role === 'platform_owner' ? null : memberships[0]) || null;
       if (currentMembership) {
         localStorage.setItem('selected_store_id', currentMembership.store_id);
       }
@@ -130,6 +158,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, [loadProfileAndStores]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).authState = state;
+    }
+  }, [state]);
+
   const login = async (email: string, pass: string): Promise<{ error: Error | null }> => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     try {
@@ -178,6 +212,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const selectStore = async (storeId: string) => {
+    if (!storeId) {
+      localStorage.removeItem('selected_store_id');
+      setState(prev => ({
+        ...prev,
+        currentStoreId: null,
+        currentStore: null,
+        currentStoreName: null,
+        storeRole: null,
+        currentStoreRole: null
+      }));
+      return;
+    }
     const membership = state.availableStores.find(m => m.store_id === storeId);
     if (membership) {
       localStorage.setItem('selected_store_id', membership.store_id);
