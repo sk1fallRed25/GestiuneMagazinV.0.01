@@ -171,7 +171,7 @@ def run_test():
         page3.locator("input[type='password']").fill("admin123")
         page3.locator("button[type='submit']").click()
         
-        page3.locator("span:has-text('Platform Administration')").wait_for(state="visible", timeout=15000)
+        page3.locator("span:has-text('Platform Administration')").first.wait_for(state="visible", timeout=15000)
         print("[PASS] platform_owner vede corect badge-ul 'Platform Administration' si navigheaza normal in sistem.")
         context3.close()
         

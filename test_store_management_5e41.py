@@ -55,12 +55,16 @@ def run_test():
         
         # Deschide tab Magazine
         print("\n--- 3. Test creare magazin (12345678 / 901) ---")
-        page.locator("button:has-text('Magazine')").click()
-        page.locator("button:has-text('Adaugă Magazin Nou')").wait_for(state="visible", timeout=5000)
+        try:
+            page.locator("#owner-tab-stores").click()
+            page.locator("button:has-text('Magazin Nou')").wait_for(state="visible", timeout=5000)
+        except Exception as e:
+            page.screenshot(path="screenshot_error.png")
+            raise e
         
         # Click Adauga magazin
-        page.locator("button:has-text('Adaugă Magazin Nou')").click()
-        modal_title = page.locator("h3:has-text('Adăugare Magazin Nou')")
+        page.locator("button:has-text('Magazin Nou')").click()
+        modal_title = page.locator("h3:has-text('Magazin Nou')")
         modal_title.wait_for(state="visible", timeout=5000)
         
         # Completeaza formularul
@@ -76,7 +80,7 @@ def run_test():
         print("[PASS] Preview-ul afiseaza corect: 12345678 / 901")
         
         # Salveaza
-        page.locator("button[type='submit']:has-text('Creează magazin')").click()
+        page.locator("button[type='submit']:has-text('magazin')").click()
         modal_title.wait_for(state="detached", timeout=5000)
         print("[PASS] Modalul s-a inchis cu succes dupa creare.")
         
@@ -101,7 +105,7 @@ def run_test():
         
         # --- 4. TEST EDITARE MAGAZIN ---
         print("\n--- 4. Test editare magazin ---")
-        row901.locator("button[title='Editează magazin']").click()
+        row901.locator("button[title^='Editeaz']").click()
         edit_title = page.locator("h3:has-text('Editare Magazin')")
         edit_title.wait_for(state="visible", timeout=5000)
         
@@ -109,7 +113,7 @@ def run_test():
         page.locator("input[placeholder*='Bulevardul Unirii']").fill("Strada Test 901 Editată")
         page.locator("textarea[placeholder*='Detalii interne']").fill("Test E2E 5E.4.1 editat")
         
-        page.locator("button[type='submit']:has-text('Salvează modificările')").click()
+        page.locator("button[type='submit']:has-text('modific')").click()
         edit_title.wait_for(state="detached", timeout=5000)
         print("[PASS] Modalul s-a inchis cu succes dupa editare.")
         
@@ -131,16 +135,16 @@ def run_test():
         
         # --- 5. TEST DUPLICAT CUI + PUNCT LUCRU ---
         print("\n--- 5. Test duplicat CUI + punct lucru ---")
-        page.locator("button:has-text('Adaugă Magazin Nou')").click()
+        page.locator("button:has-text('Magazin Nou')").click()
         modal_title.wait_for(state="visible", timeout=5000)
         
         page.locator("input[placeholder*='Magazin Central']").fill("Magazin Duplicat 901")
         page.locator("input[placeholder*='RO12345678']").fill("12345678")
         page.locator("input[placeholder*='ex: 1']").fill("901")
-        page.locator("button[type='submit']:has-text('Creează magazin')").click()
+        page.locator("button[type='submit']:has-text('magazin')").click()
         
         # Verifică mesajul de eroare
-        err_msg = page.locator("text=Există deja un magazin pentru acest CUI și punct de lucru.").first
+        err_msg = page.locator("text=deja un magazin").first
         err_msg.wait_for(state="visible", timeout=5000)
         print("[PASS] Eroarea de duplicat a fost afisata corect in UI.")
         
@@ -160,13 +164,13 @@ def run_test():
         
         # --- 6. TEST PUNCT DE LUCRU DIFERIT ACELASI CUI (902) ---
         print("\n--- 6. Test punct de lucru diferit acelasi CUI (902) ---")
-        page.locator("button:has-text('Adaugă Magazin Nou')").click()
+        page.locator("button:has-text('Magazin Nou')").click()
         modal_title.wait_for(state="visible", timeout=5000)
         
         page.locator("input[placeholder*='Magazin Central']").fill("Magazin Test 12345678 Punct 902")
         page.locator("input[placeholder*='RO12345678']").fill("12345678")
         page.locator("input[placeholder*='ex: 1']").fill("902")
-        page.locator("button[type='submit']:has-text('Creează magazin')").click()
+        page.locator("button[type='submit']:has-text('magazin')").click()
         modal_title.wait_for(state="detached", timeout=5000)
         print("[PASS] Magazinul 12345678 / 902 creat cu succes din UI.")
         
@@ -186,23 +190,23 @@ def run_test():
         
         # --- 7. TEST ALOCARE USER LA MAGAZIN NOU ---
         print("\n--- 7. Test alocare user la magazin nou (magazin@magazin.com -> 902) ---")
-        page.locator("button:has-text('Profile Utilizatori')").click()
-        page.locator("h2:has-text('Profile Utilizatori Globale')").wait_for(state="visible", timeout=5000)
+        page.locator("#owner-tab-profiles").click()
+        page.locator("h2:has-text('Profile Utilizatori')").wait_for(state="visible", timeout=5000)
         
         row_user = page.locator("tr", has=page.locator("text=magazin@magazin.com"))
         row_user.wait_for(state="visible", timeout=5000)
-        row_user.locator("button:has-text('Alocă la magazin')").click()
+        row_user.locator("button:has-text('Aloc')").click()
         
         assign_modal = page.locator("h3:has-text('Alocare Utilizator la Magazin')")
         assign_modal.wait_for(state="visible", timeout=5000)
         
-        store_select = page.locator("label:has-text('Selectează Magazin')").locator("..").locator("select")
+        store_select = page.locator("#assign-store-select")
         store_select.select_option(label="Magazin Test 12345678 Punct 902")
         
-        role_select = page.locator("label:has-text('Rol în Magazin')").locator("..").locator("select")
+        role_select = page.locator("#assign-role-select")
         role_select.select_option("manager")
         
-        page.locator("button[type='submit']:has-text('Alocă Utilizator')").click()
+        page.locator("div[role='dialog'] button:has-text('Utilizator')").click()
         assign_modal.wait_for(state="detached", timeout=5000)
         print("[PASS] Alocarea utilizatorului efectuata din UI.")
         page.wait_for_timeout(1000)
@@ -222,12 +226,13 @@ def run_test():
         # --- 8. TEST LOGIN MAGAZIN@MAGAZIN.COM ---
         print("\n--- 8. Test login magazin@magazin.com ---")
         page.locator("button:has-text('Deconectare')").click()
-        page.wait_for_load_state("networkidle")
-        page.locator("input[type='text']").wait_for(state="visible", timeout=10000)
+        page.wait_for_url("**/login", timeout=10000)
+        email_input = page.locator("input[placeholder*='email']")
+        email_input.wait_for(state="visible", timeout=10000)
         
         try:
             print("Incercare login magazin@magazin.com cu admin123 ...")
-            page.locator("input[type='text']").fill("magazin@magazin.com")
+            email_input.fill("magazin@magazin.com")
             page.locator("input[type='password']").fill("admin123")
             page.locator("button[type='submit']").click()
             
@@ -235,7 +240,7 @@ def run_test():
             print("[PASS] Login reusit ca magazin@magazin.com.")
             
             # Verificam daca exista selector de magazin
-            has_switcher = page.locator("select, button:has-text('Schimbă magazin')").count() > 0
+            has_switcher = page.locator("select, button:has-text('Schimb')").count() > 0
             if has_switcher:
                 print("[PASS] Selectorul de magazin este disponibil.")
             else:

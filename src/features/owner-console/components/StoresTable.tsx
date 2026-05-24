@@ -58,7 +58,7 @@ export const StoresTable: React.FC<StoresTableProps> = ({
                 className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               >
                 <Plus className="w-4 h-4" aria-hidden="true" />
-                <span>Adaugă Magazin</span>
+                <span>Adaugă Magazin Nou</span>
               </button>
             )}
           </div>

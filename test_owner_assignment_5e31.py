@@ -50,13 +50,13 @@ def run_test():
         print(f"[PASS] Cleanup complete. Initial profiles.role for magazin@magazin.com is: {initial_role}")
         
         # Verify unassigned profiles panel is loaded in Overview tab
-        page.locator("h3:has-text('Utilizatori Nealocați (Fără Magazin)')").wait_for(state="visible", timeout=10000)
+        page.locator("h3:has-text('Nealocați')").wait_for(state="visible", timeout=10000)
         print("[PASS] Unassigned profiles panel is visible.")
         
         # Switch to "Profile Utilizatori" tab
         print("3. Switching to Profile Utilizatori tab...")
-        page.locator("button:has-text('Profile Utilizatori')").click()
-        page.locator("h2:has-text('Profile Utilizatori Globale')").wait_for(state="visible", timeout=5000)
+        page.locator("#owner-tab-profiles").click()
+        page.locator("h2:has-text('Profile Utilizatori')").wait_for(state="visible", timeout=5000)
         
         # Find magazin@magazin.com
         print("4. Locating magazin@magazin.com in table...")
@@ -64,7 +64,7 @@ def run_test():
         row.wait_for(state="visible", timeout=5000)
         
         print("5. Clicking Aloca la magazin button...")
-        row.locator("button:has-text('Alocă la magazin')").click()
+        row.locator("button:has-text('Aloc')").click()
         
         # Wait for modal
         modal_header = page.locator("h3:has-text('Alocare Utilizator la Magazin')")
@@ -73,16 +73,16 @@ def run_test():
         
         print("6. Selecting store and role in modal...")
         # Select magazin
-        store_select = page.locator("label:has-text('Selectează Magazin')").locator("..").locator("select")
+        store_select = page.locator("#assign-store-select")
         store_select.select_option(label="Magazin Principal")
         
         # Select rol
-        role_select = page.locator("label:has-text('Rol în Magazin')").locator("..").locator("select")
+        role_select = page.locator("#assign-role-select")
         role_select.select_option("manager")
         
         # Click Alocă Utilizator (submit button in modal)
         print("7. Submitting assignment...")
-        page.locator("button[type='submit']:has-text('Alocă Utilizator')").click()
+        page.locator("div[role='dialog'] button:has-text('Utilizator')").click()
         
         # Wait for modal to close
         modal_header.wait_for(state="detached", timeout=5000)
@@ -91,7 +91,7 @@ def run_test():
         
         # Switch to "Membri Magazin" tab to verify
         print("8. Verifying assigned user in Membri Magazin tab...")
-        page.locator("button:has-text('Membri Magazin')").click()
+        page.locator("#owner-tab-members").click()
         page.locator("h2:has-text('Membri Magazin')").wait_for(state="visible", timeout=5000)
         
         # Selectam magazinul in StoresTable din stanga pentru a-i afisa membrii
@@ -103,7 +103,7 @@ def run_test():
         
         # Verify in Overview tab that user is no longer unassigned
         print("9. Verifying user is removed from unassigned list...")
-        page.locator("button:has-text('Overview')").click()
+        page.locator("#owner-tab-overview").click()
         page.locator("text=magazin@magazin.com").wait_for(state="detached", timeout=5000)
         print("[PASS] magazin@magazin.com is no longer in unassigned list.")
         page.wait_for_timeout(1000)

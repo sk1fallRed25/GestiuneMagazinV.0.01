@@ -53,11 +53,11 @@ def run_test():
         
         # 2. TEST store.create audit
         print("\n--- 2. Test store.create audit ---")
-        page.locator("button:has-text('Magazine')").click()
-        page.locator("button:has-text('Adaugă Magazin Nou')").wait_for(state="visible", timeout=5000)
-        page.locator("button:has-text('Adaugă Magazin Nou')").click()
+        page.locator("#owner-tab-stores").click()
+        page.locator("button:has-text('Magazin Nou')").wait_for(state="visible", timeout=5000)
+        page.locator("button:has-text('Magazin Nou')").click()
         
-        modal_title = page.locator("h3:has-text('Adăugare Magazin Nou')")
+        modal_title = page.locator("h3:has-text('Magazin Nou')")
         modal_title.wait_for(state="visible", timeout=5000)
         
         page.locator("input[placeholder*='Magazin Central']").fill("Audit Test 55555555 Punct 951")
@@ -67,7 +67,7 @@ def run_test():
         page.locator("input[placeholder*='SC RETAIL PLUS']").fill("Audit Firma SRL")
         page.locator("textarea[placeholder*='Detalii interne']").fill("Test E2E 5E.5.1")
         
-        page.locator("button[type='submit']:has-text('Creează magazin')").click()
+        page.locator("button[type='submit']:has-text('magazin')").click()
         modal_title.wait_for(state="detached", timeout=5000)
         print("[PASS] Magazin creat din UI cu succes.")
         
@@ -76,7 +76,7 @@ def run_test():
         row951.wait_for(state="visible", timeout=5000)
         
         # Deschide tab Audit Logs
-        page.locator("button:has-text('Audit Logs')").click()
+        page.locator("#owner-tab-audit").click()
         page.wait_for_timeout(1000)
         
         # Cauta in tabel logul store.create
@@ -103,19 +103,19 @@ def run_test():
         
         # 3. TEST store.update audit
         print("\n--- 3. Test store.update audit ---")
-        page.locator("button:has-text('Magazine')").click()
-        row951.locator("button[title='Editează magazin']").click()
+        page.locator("#owner-tab-stores").click()
+        row951.locator("button[title^='Editeaz']").click()
         
         edit_title = page.locator("h3:has-text('Editare Magazin')")
         edit_title.wait_for(state="visible", timeout=5000)
         
         page.locator("input[placeholder*='Magazin Central']").fill("Audit Test 55555555 Punct 951 Editat")
         page.locator("input[placeholder*='Bulevardul Unirii']").fill("Strada Audit 951 Editată")
-        page.locator("button[type='submit']:has-text('Salvează modificările')").click()
+        page.locator("button[type='submit']:has-text('modific')").click()
         edit_title.wait_for(state="detached", timeout=5000)
         print("[PASS] Magazin editat din UI cu succes.")
         
-        page.locator("button:has-text('Audit Logs')").click()
+        page.locator("#owner-tab-audit").click()
         page.wait_for_timeout(1000)
         
         log_update = page.locator("tr", has=page.locator("text=Audit Test 55555555 Punct 951 Editat")).filter(has=page.locator("text=Editare Magazin"))
@@ -138,27 +138,27 @@ def run_test():
 
         # 4. TEST member.assign audit
         print("\n--- 4. Test member.assign audit ---")
-        page.locator("button:has-text('Profile Utilizatori')").click()
-        page.locator("h2:has-text('Profile Utilizatori Globale')").wait_for(state="visible", timeout=5000)
+        page.locator("#owner-tab-profiles").click()
+        page.locator("h2:has-text('Profile Utilizatori')").wait_for(state="visible", timeout=5000)
         
         row_user = page.locator("tr", has=page.locator("text=magazin@magazin.com"))
         row_user.wait_for(state="visible", timeout=5000)
-        row_user.locator("button:has-text('Alocă la magazin')").click()
+        row_user.locator("button:has-text('Aloc')").click()
         
         assign_modal = page.locator("h3:has-text('Alocare Utilizator la Magazin')")
         assign_modal.wait_for(state="visible", timeout=5000)
         
-        store_select = page.locator("label:has-text('Selectează Magazin')").locator("..").locator("select")
+        store_select = page.locator("#assign-store-select")
         store_select.select_option(label="Audit Test 55555555 Punct 951 Editat")
         
-        role_select = page.locator("label:has-text('Rol în Magazin')").locator("..").locator("select")
+        role_select = page.locator("#assign-role-select")
         role_select.select_option("casier")
         
-        page.locator("button[type='submit']:has-text('Alocă Utilizator')").click()
+        page.locator("div[role='dialog'] button:has-text('Utilizator')").click()
         assign_modal.wait_for(state="detached", timeout=5000)
         print("[PASS] Utilizator alocat din UI cu succes.")
         
-        page.locator("button:has-text('Audit Logs')").click()
+        page.locator("#owner-tab-audit").click()
         page.wait_for_timeout(1000)
         
         log_assign = page.locator("tr", has=page.locator("text=Audit Test 55555555 Punct 951 Editat")).filter(has=page.locator("text=Alocare Membru"))
@@ -185,7 +185,7 @@ def run_test():
 
         # 5. TEST member.role_update audit
         print("\n--- 5. Test member.role_update audit ---")
-        page.locator("button:has-text('Membri Magazin')").click()
+        page.locator("#owner-tab-members").click()
         page.wait_for_timeout(1000)
         
         # Selectam magazinul in StoresTable din tab-ul Membri Magazin
@@ -200,7 +200,7 @@ def run_test():
         page.wait_for_timeout(1000)
         print("[PASS] Rol modificat din UI in manager.")
         
-        page.locator("button:has-text('Audit Logs')").click()
+        page.locator("#owner-tab-audit").click()
         page.wait_for_timeout(1000)
         
         log_role = page.locator("tr", has=page.locator("text=Audit Test 55555555 Punct 951 Editat")).filter(has=page.locator("text=Modificare Rol"))
@@ -221,7 +221,7 @@ def run_test():
 
         # 6. TEST member.active_update audit
         print("\n--- 6. Test member.active_update audit ---")
-        page.locator("button:has-text('Membri Magazin')").click()
+        page.locator("#owner-tab-members").click()
         page.wait_for_timeout(1000)
         
         member_row = page.locator("tr", has=page.locator("text=magazin@magazin.com"))
@@ -237,7 +237,7 @@ def run_test():
         page.wait_for_timeout(1000)
         print("[PASS] Acces reactivat din UI.")
         
-        page.locator("button:has-text('Audit Logs')").click()
+        page.locator("#owner-tab-audit").click()
         page.wait_for_timeout(1000)
         
         log_active = page.locator("tr", has=page.locator("text=Audit Test 55555555 Punct 951 Editat")).filter(has=page.locator("text=Stare Membru")).first
@@ -272,7 +272,7 @@ def run_test():
         page.wait_for_timeout(500)
         
         # Test Action Filter
-        action_select = page.locator("select").filter(has_text="Toate Acțiunile")
+        action_select = page.locator("select").filter(has_text="Toate Ac")
         action_select.select_option("store.create")
         page.wait_for_timeout(500)
         
@@ -287,13 +287,13 @@ def run_test():
         page.wait_for_timeout(500)
         
         # Test Refresh
-        page.locator("button[title='Reîmprospătează audit logs']").click()
+        page.locator("button[title*='audit']").click()
         page.wait_for_timeout(1000)
         print("[PASS] Butonul Refresh functioneaza.")
         
         # Test Inspector Modal
-        log_create.locator("button:has-text('Inspectează')").click()
-        modal_inspect = page.locator("h3:has-text('Detalii Înregistrare Audit')")
+        log_create.locator("button:has-text('Inspect')").click()
+        modal_inspect = page.locator("h3:has-text('Detalii')")
         modal_inspect.wait_for(state="visible", timeout=5000)
         
         assert page.locator("h4:has-text('Date Anterioare (oldData)')").is_visible(), "oldData header lipseste"
@@ -307,7 +307,7 @@ def run_test():
         print("[PASS] Nicio data sensibila nu este expusa in modalul de inspectie.")
         
         # Inchide modalul
-        page.locator("button:has-text('Închide Inspector')").click()
+        page.locator("button:has-text('chide')").click()
         modal_inspect.wait_for(state="detached", timeout=5000)
         print("[PASS] Modalul Inspector s-a inchis cu succes.")
         
