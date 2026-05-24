@@ -156,7 +156,13 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 6F.1.3.1 (Module Entitlements Pre-Apply Safety Hotfix)**: **Realizat** — PASS.
   - Blueprint-ul SQL a fost corectat înainte de aplicare: modulele planned nu pot fi activate (acestea fiind destinate exclusiv roadmap-ului de produse, nu entitlements active comerciale), parametrul `p_enabled` este validat explicit ca non-null, `module_key` este normalizat și validat pe baza structurii regex, iar bulk payload-ul acceptă doar boolean JSON real.
   - SQL-ul nu a fost aplicat încă.
+- **Etapa 6F.1.4 (Module Entitlements SQL Apply Verification)**: **Realizat** — PASS.
+  - Blueprint-ul SQL întărit (`proposed_store_module_entitlements_6f12.sql`) a fost aplicat manual în editorul SQL Supabase.
+  - S-a verificat schema tabelelor (`platform_modules`, `store_module_access`) și constrângerile de validare (regex pe chei, categorii, statusuri planned/beta/active, structuri JSONB).
+  - Politicile RLS și revocările de privilegii DML directe au fost verificate pentru asigurarea accesului exclusiv prin RPC-uri securizate.
+  - S-au testat funcțiile RPC (`get_platform_modules`, `get_store_module_access`, `set_store_module_access`, `bulk_set_store_modules`, `user_can_access_store_module`) prin simulări de identitate, validând corectitudinea RBAC, blocarea activării planned/disabled, constrângerile de dependențe și jurnalizarea automată în `audit_logs`.
+  - Raport complet: `docs/store_module_entitlements_sql_apply_verification_6f14_report.md`.
 
 Următorul pas recomandat:
-- **Etapa 6F.1.4 (Module Entitlements SQL Apply Verification)**: Aplicarea manuală a blueprint-ului întărit în Supabase SQL Editor și verificarea structurii, politicilor RLS și a helper-ilor în mediu read-only.
+- **Etapa 6F.1.5 (Module Entitlements Frontend Integration)**: Integrarea interfeței de management al modulelor în Owner Console și utilizarea funcției de validare a accesului pentru rutare și vizibilitate sidebar în React.
 
