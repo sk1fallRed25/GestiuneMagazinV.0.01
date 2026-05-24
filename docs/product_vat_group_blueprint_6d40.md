@@ -38,7 +38,16 @@ Fișier generat: `database/proposed_product_vat_group_6d40.sql`
 - **Constraint**: `CHECK (vat_group IN ('A', 'B', 'C', 'D', 'E'))` pentru a respecta strict categoriile ANAF (România).
 - **Index**: `CREATE INDEX idx_product_prices_store_vat_group ON product_prices (store_id, vat_group);` (Pentru viitoare rapoarte fiscale aggregate pe grupe).
 - **RPC Helper**: `get_product_vat_config(p_store_id uuid)` — Returnează configurația din `stores.settings` (`vatPayer`, `defaultVatGroup`, `vatGroups`, `priceTaxPolicy`) pentru a oferi frontend-ului informația de care are nevoie fără un apel extra către Settings RPC (utilizat în paginile de formulare).
-- **Backfill Logic**: Un bloc PL/pgSQL documentat pentru a itera prin magazine și a pre-insera valoarea corectă ('E' pentru neplătitori, default din magazin pentru plătitori).
+- **Backfill Logic**: Un bloc PL/pgSQL documentat pentru a itera prin magazine și a pre-insera valoarea corectă ('E' pentru neplătitori, default din magazin pentru plătitori). Acest backfill este controlat și manual (nu se rulează automat la aplicarea schemei).
+
+## 5.1 Corecție 6D.4.0.1 — Security & Defaults Hardening
+
+În cadrul etapei 6D.4.0.1, s-au aplicat următoarele măsuri de întărire pentru blueprint:
+- **Validare explicită de acces**: `get_product_vat_config` verifică acum dacă utilizatorul apelant are rolul de `admin`, `manager`, `gestionar` sau `casier` pe magazinul respectiv sau este `platform_owner`. Altfel, se aruncă o eroare explicită de acces.
+- ** defaults robuste**: Pentru a evita obținerea de valori nule sau invalide dacă setările magazinului sunt incomplete, se folosește funcția `public.merge_store_settings_with_defaults` și un fallback către `public.get_default_store_settings() -> 'tax'`.
+- **Revocare explicită anon/PUBLIC**: S-au adăugat instrucțiuni explicite în script pentru revocarea execuției către utilizatorii neautentificați (`anon`) și public.
+- **Mecanismul de Backfill**: Este documentat clar și lăsat exclusiv ca opțiune manuală. Aplicarea schemei din 6D.4.1 nu va rula automat acest script, evitând riscul de a altera date de producție fără validare directă.
+- **Compatibilitate `vat_percent`**: Coloana existentă `vat_percent` nu este eliminată din structură, ci este menținută pentru compatibilitatea cu codul existent. Frontend-ul (în 6D.4.2) va scrie în `vat_group`, iar valoarea procentuală va fi derivată corespunzător.
 
 ## 6. Reguli Funcționale
 - **Plătitor TVA**: Grupa se poate alege (A/B/C/D/E), cu fallback la `store.settings.tax.default_vat_group`.
@@ -51,9 +60,9 @@ Fișier generat: `database/proposed_product_vat_group_6d40.sql`
 - Modificarea tabelului de produse pentru a afișa Grupa TVA curentă per magazin în loc de `vat_percent`.
 
 ## 8. Securitate
-- Funcția helper RPC citește `stores` direct, așa că executantul (utilizator autentificat) trebuie să aibă RLS pe `stores`. Există deja politica de select per membership.
-- RLS pe `product_prices` continuă să aplice restricții conform magazinelor unde utilizatorul are acces.
-- Nu expunem funcții de migrare perisabile.
+- Funcția helper RPC `get_product_vat_config` este definită cu `SECURITY DEFINER` și execută acțiunile cu privilegiile creatorului (pentru a putea accesa tabela `stores` independent de politicile RLS directe în anumite contexte controlate), însă **accesul este validat explicit în corpul funcției** apelând `has_store_role` și `is_platform_owner`.
+- Politicile RLS de pe `product_prices` continuă să asigure că utilizatorii pot vedea/edita prețurile doar pentru magazinele permise.
+- Rolurile neautentificate (`anon`) nu pot apela sub nicio formă această metodă (revocare explicită).
 
 ## 9. Riscuri și Limitări
 - Funcționarea rapoartelor curente: Ele se bazează pe sume nete/brute. Odată introduse rapoarte fiscale stricte pe `vat_group` (Z, X), rapoartele comerciale vor trebui aliniate cu grupa din momentul vânzării (`sale_items`).
@@ -66,3 +75,4 @@ Fișier generat: `database/proposed_product_vat_group_6d40.sql`
 
 ## 11. Decizie
 **Ready for 6D.4.1 SQL Apply Verification**
+
