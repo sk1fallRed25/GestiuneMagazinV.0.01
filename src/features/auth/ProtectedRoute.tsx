@@ -9,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { user, role: currentRole, loading } = useAuth();
+  const { user, role: currentRole, loading, currentStoreId } = useAuth();
   const location = useLocation();
 
   const isAuthenticated = !!user;
@@ -29,6 +29,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   if (!isAuthenticated) {
     // Dacă nu este logat deloc, trimitem la login
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (currentRole === 'platform_owner' && !currentStoreId && location.pathname !== '/owner') {
+    return <Navigate to="/owner" replace />;
   }
 
   if (allowedRoles && currentRole && !allowedRoles.includes(currentRole)) {

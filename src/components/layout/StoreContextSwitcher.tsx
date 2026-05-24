@@ -17,7 +17,6 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  console.log("StoreContextSwitcher render:", { availableStoresCount: availableStores.length, currentStoreId, isOwner });
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -35,7 +34,11 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
       return;
     }
     
-    const confirmed = window.confirm("Schimbi magazinul activ? Datele afișate vor fi filtrate pentru noul punct de lucru.");
+    const confirmed = window.confirm(
+      isOwner 
+        ? "Schimbi în contextul operațional al magazinului selectat?" 
+        : "Schimbi magazinul activ? Datele afișate vor fi filtrate pentru noul punct de lucru."
+    );
     if (confirmed) {
       await onSelectStore(storeId);
       setIsOpen(false);
@@ -84,7 +87,7 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2.5 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 group"
-        aria-label="Selectează magazinul activ"
+        aria-label="Alege context operațional"
       >
         <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 group-hover:bg-indigo-100 transition-colors shrink-0">
           {currentMembership ? <Store size={15} /> : <Building2 size={15} className="text-indigo-600" />}
@@ -93,7 +96,7 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
           {currentMembership ? (
             <>
               <p className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[160px]">
-                {currentMembership.storeName || currentMembership.store?.name || 'Magazin'}
+                {isOwner ? `Context activ: ${currentMembership.storeName || currentMembership.store?.name}` : (currentMembership.storeName || currentMembership.store?.name || 'Magazin')}
               </p>
               <p className="text-[10px] text-slate-500 font-mono mt-0.5 flex items-center gap-1">
                 <span>{currentMembership.displayCode}</span>
@@ -107,7 +110,7 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
                 Platform Administration
               </span>
               <span className="text-[10px] text-indigo-500 font-medium font-sans">
-                Selecteaza Magazin
+                Fără magazin selectat
               </span>
             </div>
           )}
@@ -126,9 +129,16 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
           <div className="max-h-64 overflow-y-auto divide-y divide-slate-50 custom-scrollbar">
             {isOwner && (
               <button
-                onClick={() => {
-                  onSelectStore('');
-                  setIsOpen(false);
+                onClick={async () => {
+                  if (!currentStoreId) {
+                    setIsOpen(false);
+                    return;
+                  }
+                  const confirmed = window.confirm("Revii la administrarea globală a platformei?");
+                  if (confirmed) {
+                    await onSelectStore('');
+                    setIsOpen(false);
+                  }
                 }}
                 className={`w-full text-left p-3 flex items-center justify-between transition-colors ${
                   !currentStoreId ? 'bg-indigo-50/50 hover:bg-indigo-50/80' : 'hover:bg-slate-50'

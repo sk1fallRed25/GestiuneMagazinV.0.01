@@ -91,10 +91,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 4. Selectează Magazinul Curent (primul disponibil sau cel salvat anterior)
-      const savedStoreId = localStorage.getItem('selected_store_id');
-      const currentMembership = memberships.find(m => m.store_id === savedStoreId) || (profile.role === 'platform_owner' ? null : memberships[0]) || null;
-      if (currentMembership) {
-        localStorage.setItem('selected_store_id', currentMembership.store_id);
+      let currentMembership = null;
+      if (profile.role === 'platform_owner') {
+        localStorage.removeItem('selected_store_id');
+      } else {
+        const savedStoreId = localStorage.getItem('selected_store_id');
+        currentMembership = memberships.find(m => m.store_id === savedStoreId) || memberships[0] || null;
+        if (currentMembership) {
+          localStorage.setItem('selected_store_id', currentMembership.store_id);
+        }
       }
 
       setState(prev => ({

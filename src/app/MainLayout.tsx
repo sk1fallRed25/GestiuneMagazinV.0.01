@@ -122,59 +122,91 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                 <div className="px-6 py-4"><div className="h-[1px] bg-slate-800 w-full"></div></div>
 
                 <nav className="flex-1 px-2 space-y-1 overflow-y-auto custom-scrollbar pb-4">
-                    <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">General</div>
-                    {isManagerLike(role) && <NavLink to="/" label="Dashboard" icon={<LayoutDashboard size={18} />} />}
-
-                    <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Stocuri</div>
-                    {isStockOperator(role) && (
+                    {role === 'platform_owner' ? (
                         <>
-                            <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
-                            <NavLink to="/expirari" label="Produse Expirate" icon={<CalendarClock size={18} />} />
+                            <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Platformă</div>
+                            <NavLink to="/owner" label="Consolă Proprietar" icon={<ShieldAlert size={18} />} />
+
+                            <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
+                            {currentStoreId ? (
+                                <>
+                                    <div className="px-4 py-1.5 mx-2 mb-2 text-[10px] font-bold text-indigo-400 bg-indigo-950/40 border border-indigo-900/50 rounded-lg truncate">
+                                        Context: {currentStore?.name || 'Magazin Selectat'}
+                                    </div>
+                                    <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
+                                    <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
+                                    <NavLink to="/rapoarte" label="Rapoarte Comerciale" icon={<BarChart3 size={18} />} />
+                                </>
+                            ) : (
+                                <div className="space-y-1.5">
+                                    <div className="px-4 py-2 text-xs text-slate-500 italic">
+                                        Selectează un magazin pentru a accesa opțiunile sale operaționale.
+                                    </div>
+                                    <div className="flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-slate-600 cursor-not-allowed text-sm font-medium" title="Selectează un magazin pentru a edita setările lui.">
+                                        <Settings size={18} className="text-slate-700 opacity-50" />
+                                        <span className="opacity-50">Setări Magazin</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-slate-600 cursor-not-allowed text-sm font-medium" title="Selectează un magazin pentru rapoarte operaționale.">
+                                        <BarChart3 size={18} className="text-slate-700 opacity-50" />
+                                        <span className="opacity-50">Rapoarte Comerciale</span>
+                                    </div>
+                                </div>
+                            )}
                         </>
-                    )}
-                    {(isAdminLike(role) || role === 'gestionar') && (
-                        <NavLink to="/pierderi" label="Raportare Pierderi" icon={<AlertOctagon size={18} />} />
-                    )}
-
-                    {(isAdminLike(role) || role === 'gestionar') && (
+                    ) : (
                         <>
-                            <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Operațiuni</div>
-                            <LinkuriOperatiuni />
-                        </>
-                    )}
+                            <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">General</div>
+                            {isManagerLike(role) && <NavLink to="/" label="Dashboard" icon={<LayoutDashboard size={18} />} />}
 
-                    {isManagerLike(role) && (
-                        <>
-                            <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
-                            <NavLink to="/istoric-pierderi" label="Audit Pierderi" icon={<History size={18} />} />
-                            <NavLink to="/rapoarte" label="Rapoarte Comerciale" icon={<BarChart3 size={18} />} />
+                            <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Stocuri</div>
+                            {isStockOperator(role) && (
+                                <>
+                                    <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
+                                    <NavLink to="/expirari" label="Produse Expirate" icon={<CalendarClock size={18} />} />
+                                </>
+                            )}
+                            {(isAdminLike(role) || role === 'gestionar') && (
+                                <NavLink to="/pierderi" label="Raportare Pierderi" icon={<AlertOctagon size={18} />} />
+                            )}
+
+                            {(isAdminLike(role) || role === 'gestionar') && (
+                                <>
+                                    <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Operațiuni</div>
+                                    <LinkuriOperatiuni />
+                                </>
+                            )}
+
+                            {isManagerLike(role) && (
+                                <>
+                                    <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
+                                    <NavLink to="/istoric-pierderi" label="Audit Pierderi" icon={<History size={18} />} />
+                                    <NavLink to="/rapoarte" label="Rapoarte Comerciale" icon={<BarChart3 size={18} />} />
+                                    {isAdminLike(role) && (
+                                        <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
+                                    )}
+                                    {role === 'manager' && (
+                                        <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
+                                    )}
+                                    <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
+                                </>
+                            )}
+
+                            {isCashierLike(role) && (
+                                <>
+                                    <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Vânzare</div>
+                                    <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
+                                </>
+                            )}
+                            
+                            {isManagerLike(role) && (
+                                <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
+                            )}
+
                             {isAdminLike(role) && (
-                                <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
-                            )}
-                            {role === 'manager' && (
-                                <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
-                            )}
-                            <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
-                        </>
-                    )}
-
-                    {isCashierLike(role) && (
-                        <>
-                            <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Vânzare</div>
-                            <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
-                        </>
-                    )}
-                    
-                    {isManagerLike(role) && (
-                        <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
-                    )}
-
-                    {isAdminLike(role) && (
-                        <>
-                            <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Sistem</div>
-                            <NavLink to="/fast-add" label="Adăugare Rapidă" icon={<Settings size={18} />} />
-                            {role === 'platform_owner' && (
-                                <NavLink to="/owner" label="Consolă Proprietar" icon={<ShieldAlert size={18} />} />
+                                <>
+                                    <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Sistem</div>
+                                    <NavLink to="/fast-add" label="Adăugare Rapidă" icon={<Settings size={18} />} />
+                                </>
                             )}
                         </>
                     )}
@@ -188,7 +220,11 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                 <header className={`h-20 flex items-center justify-between px-8 z-20 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur-md border-b border-gray-200' : 'bg-transparent'}`}>
                     <div className="flex items-center bg-white border border-gray-200 rounded-full px-4 py-2 w-96 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
                         <Search size={18} className="text-gray-400" />
-                        <input type="text" placeholder="Caută produse, stocuri..." className="ml-3 bg-transparent outline-none text-sm text-gray-600 w-full placeholder-gray-400" />
+                        <input 
+                            type="text" 
+                            placeholder={role === 'platform_owner' ? "Caută magazine, utilizatori, audit..." : "Caută produse, stocuri..."} 
+                            className="ml-3 bg-transparent outline-none text-sm text-gray-600 w-full placeholder-gray-400" 
+                        />
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -223,11 +259,18 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                         />
                         <div className="flex items-center gap-3 pl-2">
                             <div className="text-right hidden md:block">
-                                <p className="text-sm font-bold text-gray-700">{profile?.full_name || 'Utilizator'}</p>
-                                <p className="text-xs text-indigo-600 font-semibold">{role || 'rol necunoscut'}</p>
+                                <p className="text-sm font-bold text-gray-700">{profile?.full_name || 'Platform Owner'}</p>
+                                <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                    {role === 'platform_owner' && !currentStoreId && (
+                                        <span className="text-[9px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100">
+                                            Platform Administration
+                                        </span>
+                                    )}
+                                    <span className="text-xs text-indigo-600 font-semibold">{role || 'rol necunoscut'}</span>
+                                </div>
                             </div>
                             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center border-2 border-white shadow-sm text-indigo-600 font-bold">
-                                {(profile?.full_name || 'U').charAt(0).toUpperCase()}
+                                {(profile?.full_name || 'Platform Owner').charAt(0).toUpperCase()}
                             </div>
                         </div>
                     </div>
