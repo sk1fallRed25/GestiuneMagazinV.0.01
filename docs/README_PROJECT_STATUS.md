@@ -134,5 +134,14 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Documentație completă: `docs/sales_history_vat_display_blueprint_6d53.md`, `docs/sales_history_vat_snapshot_6d53_report.md`.
   - Sales History TVA UI **nu este** încă implementat. Fiscal Bridge **nu este** modificat. `finalize_sale` real **nu a** fost modificat.
 
+- **Etapa 6D.5.3.1 (Sales VAT Snapshot SQL Pre-Apply Hardening)**: **Realizat** — PASS.
+  - Blueprint-ul `database/proposed_sales_history_vat_snapshot_6d53.sql` a fost întărit înainte de aplicare, prin comparare cu funcția live confirmată la 2026-05-24.
+  - `get_vat_rate_for_group`: input normalizat `upper(trim())`, validare NULL/gol explicit, `SET search_path = public`, `REVOKE FROM PUBLIC/anon/authenticated`.
+  - `calculate_vat_breakdown`: validare `p_total < 0` și `IS NULL`, normalizare flag `NULL → true`, rounding explicit, `SET search_path`, `REVOKE FROM PUBLIC/anon/authenticated`.
+  - Bug fix `price_without_vat` în patch: branching corect `inclusive → unit_price/(1+rată)` / `exclusive → unit_price` (era mereu inclusive).
+  - SQL structurat clar pe 3 faze: (1) schema+helperi safe apply, (2) patch `finalize_sale`, (3) backfill comentat/neexecutat automat.
+  - Raport: `docs/sales_history_vat_snapshot_preapply_hardening_6d531_report.md`.
+  - DB **nu a** fost modificată. Frontend **nu a** fost modificat. `finalize_sale` live **nu a** fost modificat.
+
 Următorul pas:
-- **Etapa 6D.5.4 (Sales VAT Snapshot SQL Apply Verification)**: Aplicarea manuală a blueprint-ului `database/proposed_sales_history_vat_snapshot_6d53.sql` în Supabase SQL Editor și verificarea prin interogări read-only a structurii coloanelor noi, a constrângerilor, a indexurilor și a funcțiilor helper.
+- **Etapa 6D.5.4 (Sales VAT Snapshot SQL Apply Verification)**: Aplicarea manuală a Fazei 1 din `database/proposed_sales_history_vat_snapshot_6d53.sql` în Supabase SQL Editor (ALTER TABLE + helperi) și verificarea read-only a structurii coloanelor noi, constrângerilor, indexurilor și funcțiilor helper. Patch `finalize_sale` (Faza 2) se aplică separat după verificarea Fazei 1.

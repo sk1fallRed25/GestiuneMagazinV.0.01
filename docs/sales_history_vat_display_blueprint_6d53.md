@@ -170,3 +170,37 @@ export interface SaleItemDetails {
 
 ## 12. Decizie
 **Ready for 6D.5.4 SQL Apply Verification**
+
+---
+
+## 13. Corecție 6D.5.3.1 — Pre-Apply Hardening
+
+Înainte de aplicarea manuală a SQL-ului, blueprint-ul a fost întărit prin:
+
+### Helper `get_vat_rate_for_group`
+- Input normalizat cu `upper(trim(p_vat_group))` — tolerant la spații/minuscule
+- Input `NULL` sau gol ridică `RAISE EXCEPTION` explicit (nu cade în ELSE ambiguu)
+- `SET search_path = public` adăugat (securizare)
+- `REVOKE EXECUTE FROM PUBLIC/anon/authenticated` — helper intern, neexpus frontend
+
+### Helper `calculate_vat_breakdown`
+- Validare `p_total IS NULL` → `RAISE EXCEPTION`
+- Validare `p_total < 0` → `RAISE EXCEPTION`
+- Normalizare `p_price_includes_vat IS NULL → true`
+- `vat_amount` rotunjit explicit: `ROUND(p_total - v_base, 2)` (evită double-rounding)
+- `SET search_path = public` adăugat
+- `REVOKE EXECUTE FROM PUBLIC/anon/authenticated`
+
+### Corecție `price_without_vat` în patch `finalize_sale`
+- **Bug fix:** calculul era mereu `unit_price / (1 + rată)` chiar și pentru `exclusive`
+- **Fix:** branching explicit pe `v_price_policy`:
+  - `inclusive` → `ROUND(unit_price / (1 + rată/100), 4)`
+  - `exclusive` → `ROUND(unit_price, 4)` (unit_price este deja baza netă)
+
+### Structurare pe faze de aplicare
+- **Faza 1 (safe):** ALTER TABLE + helperi — aplicabil în 6D.5.4 fără risc
+- **Faza 2:** PATCH `finalize_sale` — după verificarea Fazei 1
+- **Faza 3:** BACKFILL comentat — opțional, cu backup obligatoriu
+
+### Notă `price_tax_policy = exclusive`
+POS-ul actual trimite prețuri inclusive (prețuri de raft). Politica `exclusive` este suportată în calcul dar **neactivată în POS**. Impactul asupra totalului bonului necesită decizie separată de business. Totalul bonului nu a fost modificat în această etapă.
