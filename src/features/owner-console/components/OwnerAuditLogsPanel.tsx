@@ -42,6 +42,10 @@ export const OwnerAuditLogsPanel: React.FC<OwnerAuditLogsPanelProps> = ({
         return { label: 'Creare Magazin', className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20' };
       case 'store.update':
         return { label: 'Editare Magazin', className: 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20' };
+      case 'store.module_enable':
+        return { label: 'Activare Modul', className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20' };
+      case 'store.module_disable':
+        return { label: 'Dezactivare Modul', className: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20' };
       case 'member.assign':
         return { label: 'Alocare Membru', className: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20' };
       case 'member.role_update':
@@ -98,6 +102,8 @@ export const OwnerAuditLogsPanel: React.FC<OwnerAuditLogsPanelProps> = ({
               <option value="all">Toate Acțiunile</option>
               <option value="store.create">Creare Magazin</option>
               <option value="store.update">Editare Magazin</option>
+              <option value="store.module_enable">Activare Modul</option>
+              <option value="store.module_disable">Dezactivare Modul</option>
               <option value="member.assign">Alocare Membru</option>
               <option value="member.role_update">Modificare Rol</option>
               <option value="member.active_update">Stare Membru</option>

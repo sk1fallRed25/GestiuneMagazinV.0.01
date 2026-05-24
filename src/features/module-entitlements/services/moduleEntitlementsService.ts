@@ -73,5 +73,100 @@ export const moduleEntitlementsService = {
       console.error(`user_can_access_store_module service error for store ${storeId}, module ${moduleKey}:`, err);
       return false;
     }
+  },
+
+  /**
+   * Set dynamic module access overrides for a specific store.
+   */
+  async setStoreModuleAccess(payload: {
+    storeId: string;
+    moduleKey: string;
+    enabled: boolean;
+    reason?: string | null;
+  }): Promise<{
+    ok: boolean;
+    storeId: string;
+    moduleKey: string;
+    enabled: boolean;
+    changed: boolean;
+    effectiveEnabled: boolean;
+    reason?: string | null;
+  }> {
+    try {
+      const { data, error } = await supabase.rpc('set_store_module_access', {
+        p_store_id: payload.storeId,
+        p_module_key: payload.moduleKey,
+        p_enabled: payload.enabled,
+        p_reason: payload.reason || null
+      });
+
+      if (error) {
+        console.error('setStoreModuleAccess RPC error:', error);
+        throw new Error(error.message || 'Eroare la modificarea accesului la modul.');
+      }
+
+      const res = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
+      return {
+        ok: !!res.ok,
+        storeId: String(res.storeId || payload.storeId),
+        moduleKey: String(res.moduleKey || payload.moduleKey),
+        enabled: typeof res.enabled === 'boolean' ? res.enabled : payload.enabled,
+        changed: typeof res.changed === 'boolean' ? res.changed : false,
+        effectiveEnabled: typeof res.effectiveEnabled === 'boolean' ? res.effectiveEnabled : payload.enabled,
+        reason: typeof res.reason === 'string' ? res.reason : (payload.reason || null)
+      };
+    } catch (err: unknown) {
+      console.error('setStoreModuleAccess service error:', err);
+      const msg = err instanceof Error ? err.message : 'Eroare necunoscută la modificarea accesului la modul.';
+      throw new Error(msg);
+    }
+  },
+
+  /**
+   * Set multiple module access overrides at once (bulk preset application) for a store.
+   */
+  async bulkSetStoreModules(payload: {
+    storeId: string;
+    modules: Array<{
+      moduleKey: string;
+      enabled: boolean;
+      reason?: string | null;
+    }>;
+  }): Promise<{
+    updatedCount: number;
+    enabledModules: string[];
+    disabledModules: string[];
+    skippedModules: string[];
+  }> {
+    try {
+      // Map to snake_case module_key as expected by bulk_set_store_modules parameter constraints
+      const mappedModules = payload.modules.map(m => ({
+        module_key: m.moduleKey,
+        enabled: m.enabled,
+        reason: m.reason || null
+      }));
+
+      const { data, error } = await supabase.rpc('bulk_set_store_modules', {
+        p_store_id: payload.storeId,
+        p_modules: mappedModules
+      });
+
+      if (error) {
+        console.error('bulkSetStoreModules RPC error:', error);
+        throw new Error(error.message || 'Eroare la modificarea în masă a modulelor.');
+      }
+
+      const res = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>;
+      return {
+        updatedCount: typeof res.updatedCount === 'number' ? res.updatedCount : 0,
+        enabledModules: Array.isArray(res.enabledModules) ? res.enabledModules.map(String) : [],
+        disabledModules: Array.isArray(res.disabledModules) ? res.disabledModules.map(String) : [],
+        skippedModules: Array.isArray(res.skippedModules) ? res.skippedModules.map(String) : []
+      };
+    } catch (err: unknown) {
+      console.error('bulkSetStoreModules service error:', err);
+      const msg = err instanceof Error ? err.message : 'Eroare necunoscută la modificarea în masă a modulelor.';
+      throw new Error(msg);
+    }
   }
 };

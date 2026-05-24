@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Store, Users, UserCheck, History } from 'lucide-react';
+import { LayoutDashboard, Store, Users, UserCheck, History, Layers } from 'lucide-react';
 import { OwnerConsoleTab } from '../hooks/useOwnerConsole';
 
 interface OwnerTabsProps {
@@ -30,6 +30,7 @@ export const OwnerTabs: React.FC<OwnerTabsProps> = ({
   const tabs: TabItem[] = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Dashboard platformă' },
     { id: 'stores', label: 'Magazine', icon: Store, count: storesCount, description: 'Puncte de lucru' },
+    { id: 'modules', label: 'Module Magazin', icon: Layers, description: 'Configurare module' },
     { id: 'profiles', label: 'Profile Utilizatori', icon: Users, count: profilesCount, description: 'Conturi sistem' },
     { id: 'members', label: 'Membri Magazin', icon: UserCheck, count: membersCount, description: 'Acces per magazin' },
     { id: 'audit', label: 'Audit Logs', icon: History, count: auditCount > 0 ? auditCount : undefined, description: 'Trasabilitate' },

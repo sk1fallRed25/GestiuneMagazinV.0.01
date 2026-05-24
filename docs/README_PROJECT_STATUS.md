@@ -166,6 +166,12 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 6F.1.5 (Module Entitlements Frontend Integration)**: Realizat. S-a integrat sistemul de entitlements în frontend, folosind contextul, hook-ul și serviciile RPC de interogare. Rutele sunt securizate dinamic (`ProtectedRoute.tsx`), sidebar-ul filtrează opțiunile nepermise (`MainLayout.tsx`), iar modulele dezactivate/planificate sunt redirecționate către ecranul dedicat de blocare (`DisabledModulePage.tsx`). Build-ul complete trece cu succes.
 - **Etapa 6F.1.5.1 (Module Entitlements Frontend Security & Artifact Alignment)**: Realizat. S-a aplicat hotfix-ul de securitate (`REVOKE DML` pe tabele pentru rolul `authenticated`), s-a refăcut testul E2E Playwright pentru a elimina complet DML-ul direct și a folosi doar RPC-urile securizate, s-a creat documentația dedicată și raportul oficial de integrare. Testele E2E Playwright trec cu succes (Exit code: 0).
 
-Următorul pas recomandat:
-- **Etapa 6F.1.6 (Owner Console Module Management UI)**: Implementarea interfeței UI de management module în Owner Console, permițând activarea/dezactivarea modulelor pentru fiecare magazin utilizând RPC-urile securizate deja pregătite.
+- **Etapa 6F.1.6 (Owner Console Module Management UI)**: **Realizat** — PASS.
+  - S-a implementat componenta de management module `OwnerStoreModulesPanel.tsx` sub tab-ul "Module Magazin" din Owner Console.
+  - S-a adăugat posibilitatea de aplicare a pachetelor comerciale (Basic, Standard, Premium, Enterprise) cu avertisment și modal de confirmare.
+  - Activarea sau dezactivarea individuală a modulelor forțează utilizatorul să introducă un motiv de audit, trimis direct prin parametrii RPC-urilor securizate (`set_store_module_access` / `bulk_set_store_modules`).
+  - Toggles sunt dezactivate/blocate vizual pentru modulele cu status `planned` sau `disabled` la nivel global.
+  - S-a extins componenta de vizualizare audit logs din consolă (`OwnerAuditLogsPanel.tsx`) pentru acțiunile de `store.module_enable` și `store.module_disable`.
+  - Testarea E2E Playwright (`test_owner_module_management_6f16.py`) și build-ul de producție (`npm run build`) au fost rulate și au trecut cu succes.
+
 

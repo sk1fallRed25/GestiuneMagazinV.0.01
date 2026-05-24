@@ -156,11 +156,13 @@ export interface OwnerConsoleData {
 export type OwnerAuditAction =
   | 'store.create'
   | 'store.update'
+  | 'store.module_enable'
+  | 'store.module_disable'
   | 'member.assign'
   | 'member.role_update'
   | 'member.active_update';
 
-export type OwnerAuditEntityType = 'store' | 'store_member';
+export type OwnerAuditEntityType = 'store' | 'store_member' | 'store_module';
 
 export interface OwnerAuditLog {
   id: string;

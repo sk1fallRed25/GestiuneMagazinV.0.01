@@ -12,6 +12,7 @@ import { StoreMembersTable } from './components/StoreMembersTable';
 import { AssignMemberModal } from './components/AssignMemberModal';
 import { StoreFormModal } from './components/StoreFormModal';
 import { OwnerAuditLogsPanel } from './components/OwnerAuditLogsPanel';
+import { OwnerStoreModulesPanel } from './components/OwnerStoreModulesPanel';
 import { OwnerStore, CreateStorePayload, UpdateStorePayload } from './types';
 
 export const OwnerConsolePage: React.FC = () => {
@@ -155,6 +156,24 @@ export const OwnerConsolePage: React.FC = () => {
             onToggleActive={toggleMemberActive}
             onChangeRole={changeMemberRole}
             loading={loading}
+          />
+        </div>
+      )}
+
+      {/* Secțiunea Module Magazin */}
+      {selectedTab === 'modules' && (
+        <div className="space-y-8 animate-fade-in">
+          <StoresTable
+            stores={stores}
+            selectedStoreId={selectedStoreId}
+            onSelectStore={selectStore}
+            onCreateStore={handleCreateStoreClick}
+            onEditStore={handleEditStoreClick}
+            loading={loading}
+          />
+          <OwnerStoreModulesPanel
+            selectedStoreId={selectedStoreId}
+            selectedStore={selectedStore}
           />
         </div>
       )}
