@@ -153,6 +153,10 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Aliniat auditarea la schema live a tabelei `audit_logs` (coloanele `old_data`, `new_data`).
   - Raport: `docs/store_module_entitlements_preapply_hardening_6f13_report.md`.
   - DB **nu a** fost modificată. Frontend **nu a** fost modificat.
+- **Etapa 6F.1.3.1 (Module Entitlements Pre-Apply Safety Hotfix)**: **Realizat** — PASS.
+  - Blueprint-ul SQL a fost corectat înainte de aplicare: modulele planned nu pot fi activate (acestea fiind destinate exclusiv roadmap-ului de produse, nu entitlements active comerciale), parametrul `p_enabled` este validat explicit ca non-null, `module_key` este normalizat și validat pe baza structurii regex, iar bulk payload-ul acceptă doar boolean JSON real.
+  - SQL-ul nu a fost aplicat încă.
 
 Următorul pas recomandat:
 - **Etapa 6F.1.4 (Module Entitlements SQL Apply Verification)**: Aplicarea manuală a blueprint-ului întărit în Supabase SQL Editor și verificarea structurii, politicilor RLS și a helper-ilor în mediu read-only.
+

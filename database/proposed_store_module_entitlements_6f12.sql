@@ -228,7 +228,10 @@ AS $$
 BEGIN
     -- Validare drepturi acces
     IF p_store_id IS NULL THEN
-        -- Platform Owner poate cere lista globală cu stările implicite ale modulelor
+        -- Platform Owner poate cere lista globală cu stările implicite ale modulelor.
+        -- OBSERVAȚIE DE SIGURANȚĂ: p_store_id NULL este permis exclusiv pentru platform_owner.
+        -- Returnează starea implicită globală a platformei (nu cea specifică unui magazin).
+        -- Pentru modulele cu requires_store_context = true, effective_enabled reflectă default_enabled global, nu entitlement-ul de client.
         IF NOT public.is_platform_owner() THEN
             RAISE EXCEPTION 'Acces interzis. Trebuie specificat un ID de magazin valid.';
         END IF;
@@ -293,10 +296,22 @@ DECLARE
     v_dependent_key TEXT;
     v_reason TEXT;
     v_changed BOOLEAN;
+    v_module_key TEXT;
 BEGIN
     -- 1. Securizare: Doar platform_owner poate modifica entitlements
     IF NOT public.is_platform_owner() THEN
         RAISE EXCEPTION 'Acces interzis. Doar Platform Owner poate activa sau dezactiva module.';
+    END IF;
+
+    -- Validare explicită p_enabled pentru a evita payload-uri incomplete și comportamente nule
+    IF p_enabled IS NULL THEN
+        RAISE EXCEPTION 'Parametrul p_enabled este obligatoriu și trebuie să fie boolean.';
+    END IF;
+
+    -- Normalizare și validare module_key
+    v_module_key := lower(trim(p_module_key));
+    IF v_module_key IS NULL OR v_module_key = '' OR v_module_key !~ '^[a-z0-9_]+$' THEN
+        RAISE EXCEPTION 'module_key invalid.';
     END IF;
 
     -- 2. Validări de bază
@@ -307,15 +322,15 @@ BEGIN
     SELECT status, owner_only, dependencies
     INTO v_module_status, v_owner_only, v_dependencies
     FROM public.platform_modules 
-    WHERE module_key = p_module_key;
+    WHERE module_key = v_module_key;
 
     IF v_module_status IS NULL THEN
-        RAISE EXCEPTION 'Modulul specificat (%) nu există în registry.', p_module_key;
+        RAISE EXCEPTION 'Modulul specificat (%) nu există în registry.', v_module_key;
     END IF;
 
-    -- Prevenire activare module dezactivate global
-    IF p_enabled AND v_module_status = 'disabled' THEN
-        RAISE EXCEPTION 'Modulul % este dezactivat global pe platformă și nu poate fi activat.', p_module_key;
+    -- Prevenire activare module dezactivate global sau planned (roadmap)
+    IF p_enabled AND v_module_status IN ('disabled', 'planned') THEN
+        RAISE EXCEPTION 'Modulul % are status % și nu poate fi activat pentru magazine.', v_module_key, v_module_status;
     END IF;
 
     -- Prevenire activare module exclusive Platform Owner
@@ -337,7 +352,7 @@ BEGIN
             WHERE pm.module_key = v_dep;
 
             IF v_dep_enabled IS NULL OR NOT v_dep_enabled THEN
-                RAISE EXCEPTION 'Nu se poate activa modulul %. Este necesară activarea prealabilă a modulului: %', p_module_key, v_dep;
+                RAISE EXCEPTION 'Nu se poate activa modulul %. Este necesară activarea prealabilă a modulului: %', v_module_key, v_dep;
             END IF;
         END LOOP;
     END IF;
@@ -347,7 +362,7 @@ BEGIN
         FOR v_dependent_key IN 
             SELECT pm.module_key 
             FROM public.platform_modules pm
-            WHERE p_module_key = ANY(pm.dependencies)
+            WHERE v_module_key = ANY(pm.dependencies)
         LOOP
             SELECT CASE 
                 WHEN pm.status = 'disabled' THEN false
@@ -360,7 +375,7 @@ BEGIN
             WHERE pm.module_key = v_dependent_key;
 
             IF v_dep_enabled = true THEN
-                RAISE EXCEPTION 'Nu se poate dezactiva modulul % deoarece modulul activ % depinde de el.', p_module_key, v_dependent_key;
+                RAISE EXCEPTION 'Nu se poate dezactiva modulul % deoarece modulul activ % depinde de el.', v_module_key, v_dependent_key;
             END IF;
         END LOOP;
     END IF;
@@ -373,7 +388,7 @@ BEGIN
     -- Preluăm valoarea curentă pentru a detecta schimbarea reală
     SELECT enabled INTO v_old_enabled 
     FROM public.store_module_access 
-    WHERE store_id = p_store_id AND module_key = p_module_key;
+    WHERE store_id = p_store_id AND module_key = v_module_key;
 
     v_changed := (v_old_enabled IS NULL OR v_old_enabled != p_enabled);
 
@@ -391,7 +406,7 @@ BEGIN
         )
         VALUES (
             p_store_id,
-            p_module_key,
+            v_module_key,
             p_enabled,
             v_user_id,
             CASE WHEN p_enabled THEN now() ELSE NULL END,
@@ -427,14 +442,14 @@ BEGIN
             'store_module',
             NULL,
             CASE WHEN v_old_enabled IS NOT NULL THEN jsonb_build_object('enabled', v_old_enabled) ELSE NULL END,
-            jsonb_build_object('enabled', p_enabled, 'reason', v_reason, 'module_key', p_module_key)
+            jsonb_build_object('enabled', p_enabled, 'reason', v_reason, 'module_key', v_module_key)
         );
     END IF;
 
     RETURN jsonb_build_object(
         'ok', true,
         'storeId', p_store_id,
-        'moduleKey', p_module_key,
+        'moduleKey', v_module_key,
         'enabled', p_enabled,
         'reason', v_reason,
         'changed', v_changed,
@@ -476,12 +491,23 @@ BEGIN
 
     -- 3. Iterare și apel atomic. Întreaga funcție rulează într-o singură tranzacție.
     FOR v_module IN SELECT * FROM jsonb_array_elements(p_modules) LOOP
-        v_module_key := v_module->>'module_key';
+        -- Verificare existență chei necesare
+        IF NOT (v_module ? 'module_key') OR NOT (v_module ? 'enabled') THEN
+            RAISE EXCEPTION 'Fiecare element din p_modules trebuie să conțină module_key și enabled.';
+        END IF;
+
+        -- Validare tip JSON pentru enabled
+        IF jsonb_typeof(v_module->'enabled') <> 'boolean' THEN
+            RAISE EXCEPTION 'Câmpul enabled pentru modulul % trebuie să fie boolean JSON.', v_module->>'module_key';
+        END IF;
+
+        v_module_key := lower(trim(v_module->>'module_key'));
         v_enabled := (v_module->>'enabled')::boolean;
         v_reason := v_module->>'reason';
 
-        IF v_module_key IS NULL OR v_enabled IS NULL THEN
-            RAISE EXCEPTION 'Fiecare element din p_modules trebuie să conțină module_key și enabled.';
+        -- Validare format cheie
+        IF v_module_key IS NULL OR v_module_key = '' OR v_module_key !~ '^[a-z0-9_]+$' THEN
+            RAISE EXCEPTION 'module_key invalid în payload bulk.';
         END IF;
 
         -- Apelul setării individuale care se ocupă de validări, logică și audit individual

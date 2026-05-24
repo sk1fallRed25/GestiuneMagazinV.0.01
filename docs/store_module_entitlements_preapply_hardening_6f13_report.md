@@ -1,7 +1,7 @@
 # Store Module Entitlements SQL Pre-Apply Hardening — Etapa 6F.1.3
 
 ## 1. Rezumat
-- **Status**: Ready for manual SQL apply / Needs review
+- **Status**: Ready for manual SQL apply
 - **Bază de date modificată**: Nu (Doar fișierul SQL blueprint a fost modificat și securizat)
 - **Frontend modificat**: Nu (Planificat și izolat)
 
@@ -127,8 +127,20 @@ Am implementat un sistem robust de validare a dependențelor direct în baza de 
 
 ---
 
-## 10. Decizie
+## 10. Corecție 6F.1.3.1 — Safety Hotfix
+
+În cadrul sub-etapei 6F.1.3.1, blueprint-ul a primit corecții de siguranță critice înainte de aplicare:
+- **Prevenire Activare planned**: Funcția `set_store_module_access` a fost corectată pentru a bloca explicit activarea modulelor cu status-ul `'planned'` (roadmap) sau `'disabled'`. Modulele `'planned'` sunt pur orientative, fără entitlements active.
+- **Validare Parametru `p_enabled`**: S-a adăugat o verificare explicită `p_enabled IS NULL` la începutul funcției `set_store_module_access` pentru a împiedica apelurile incomplete și a asigura integritatea auditării.
+- **Normalizare & Validare `module_key`**: S-a adăugat normalizarea cheii cu `lower(trim(p_module_key))` salvată în variabila locală `v_module_key`, împreună cu validarea structurii regex (`^[a-z0-9_]+$`).
+- **Verificare Tip JSON în Bulk**: Funcția `bulk_set_store_modules` a fost consolidată pentru a asigura că fiecare obiect conține cheile necesare și că tipul JSON al câmpului `enabled` este boolean JSON nativ (`jsonb_typeof(...) = 'boolean'`), prevenind coercițiile nesigure.
+- **Documentare get_store_module_access**: S-a documentat clar că `p_store_id` NULL este permis exclusiv pentru Platform Owner pentru a interoga valorile implicite globale ale platformei.
+
+---
+
+## 11. Decizie
 
 > [!TIP]
-> **Ready for 6F.1.4 Module Entitlements SQL Apply Verification**  
-> Blueprint-ul SQL este complet întărit, auditat în raport cu schema live și pregătit pentru testarea read-only în sandbox/editorul SQL.
+> **Ready for manual SQL apply.**  
+> Blueprint-ul SQL este complet securizat, validat împotriva oricărui input malformat sau stare neautorizată și este 100% pregătit pentru testare sandbox sau aplicare manuală.
+
