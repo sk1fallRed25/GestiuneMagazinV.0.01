@@ -124,4 +124,4 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
     - payload-ul cash/card este compatibil cu schema existentă (`mixed` lowercase, plăți separate `cash` și `card`).
 
 Următorul pas:
-- **Etapa 6D.5.3 (Sales History VAT Display Audit & Snapshot Blueprint)**
+- **Etapa 6D.5.3 (Sales History VAT Display Audit & Snapshot Blueprint)**: Realizat (`docs/sales_history_vat_snapshot_6d53_report.md`, `database/proposed_sales_history_vat_snapshot_6d53.sql`). S-au completat auditurile detaliate pentru schema bazei de date (tabelul `sale_items`), RPC-ul `finalize_sale` și structurile de date/componentele frontend. S-a elaborat decizia de arhitectură privind stocarea snapshot-ului la nivel de rând de tranzacție, plus strategii de fallback pentru înregistrări legacy, și s-a creat blueprint-ul SQL complet pentru migrare.
