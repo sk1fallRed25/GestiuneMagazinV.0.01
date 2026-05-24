@@ -1,6 +1,8 @@
 import sys
 from playwright.sync_api import sync_playwright
 
+APP_URL = "http://localhost:5175"
+
 def run_test():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -21,7 +23,7 @@ def run_test():
                 
         page1.on("console", handle_console_setup)
         
-        page1.goto("http://localhost:5173/#/login")
+        page1.goto(f"{APP_URL}/#/login")
         page1.wait_for_load_state("networkidle")
         
         print("Logging in as admin@owner.com...")
@@ -74,7 +76,7 @@ def run_test():
                 
         page2.on("console", handle_console_user)
         
-        page2.goto("http://localhost:5173/#/login")
+        page2.goto(f"{APP_URL}/#/login")
         page2.wait_for_load_state("networkidle")
         
         print("Logging in as admin@admin.com...")
@@ -93,7 +95,7 @@ def run_test():
         
         # Try to access it directly via URL and verify DisabledModulePage loads
         print("Incercam accesarea directa a /ai-consultant...")
-        page2.goto("http://localhost:5173/#/ai-consultant")
+        page2.goto(f"{APP_URL}/#/ai-consultant")
         page2.wait_for_load_state("networkidle")
         
         disabled_title = page2.locator("#disabled-module-title")
@@ -125,7 +127,7 @@ def run_test():
         
         # Reload user page and check if link is visible and page loads
         print("Reincarcare pagina utilizator si verificare...")
-        page2.goto("http://localhost:5173/#/produse") # Go to products first to let layouts re-mount
+        page2.goto(f"{APP_URL}/#/produse") # Go to products first to let layouts re-mount
         page2.wait_for_load_state("networkidle")
         page2.reload()
         page2.wait_for_load_state("networkidle")

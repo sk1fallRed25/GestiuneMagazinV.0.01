@@ -107,7 +107,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
             {isModuleEnabled('reception') && (
                 <NavLink to="/receptie" label="Recepție Marfă" icon={<PackagePlus size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
             )}
-            {isModuleEnabled('transfers') && (
+            {isModuleEnabled('transfer') && (
                 <NavLink to="/transfer" label="Transfer Marfă" icon={<ArrowRightLeft size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
             )}
         </>
