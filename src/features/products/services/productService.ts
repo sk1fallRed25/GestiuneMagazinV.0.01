@@ -147,22 +147,43 @@ export const productService = {
 
         const productIds = productsData.map(p => p.id);
 
-        // 2. Luăm prețurile (cele mai recente per produs)
-        const { data: pricesData, error: prError } = await supabase
-            .from('product_prices')
-            .select('*')
-            .in('product_id', productIds);
+        // 2. Luăm prețurile (cele mai recente per produs) în chunks pentru a evita limita URL
+        const chunkSize = 100;
+        const pricePromises = [];
+        for (let i = 0; i < productIds.length; i += chunkSize) {
+            const chunk = productIds.slice(i, i + chunkSize);
+            pricePromises.push(
+                supabase
+                    .from('product_prices')
+                    .select('*')
+                    .in('product_id', chunk)
+            );
+        }
+        const priceResults = await Promise.all(pricePromises);
+        const pricesData: any[] = [];
+        for (const res of priceResults) {
+            if (res.error) throw res.error;
+            if (res.data) pricesData.push(...res.data);
+        }
 
-        if (prError) throw prError;
-
-        // 3. Luăm loturile de stoc - filtrat per magazin
-        const { data: stocksData, error: sError } = await supabase
-            .from('stock_batches')
-            .select('*')
-            .eq('store_id', storeId)
-            .in('product_id', productIds);
-
-        if (sError) throw sError;
+        // 3. Luăm loturile de stoc - filtrat per magazin în chunks pentru a evita limita URL
+        const stockPromises = [];
+        for (let i = 0; i < productIds.length; i += chunkSize) {
+            const chunk = productIds.slice(i, i + chunkSize);
+            stockPromises.push(
+                supabase
+                    .from('stock_batches')
+                    .select('*')
+                    .eq('store_id', storeId)
+                    .in('product_id', chunk)
+            );
+        }
+        const stockResults = await Promise.all(stockPromises);
+        const stocksData: any[] = [];
+        for (const res of stockResults) {
+            if (res.error) throw res.error;
+            if (res.data) stocksData.push(...res.data);
+        }
 
         // 4. Mapăm totul către interfața legacy Product
         return productsData.map((p: ProductDbRow) => {
@@ -275,6 +296,12 @@ export const productService = {
             .eq('product_id', productId)
             .eq('zone', zone);
         
+        const currentQty = allBatches?.reduce((acc, curr) => acc + (Number(curr.quantity) || 0), 0) || 0;
+        const diff = targetQty - currentQty;
+        console.log('[DEBUG adjustStock]', { zone, targetQty, currentQty, diff });
+
+        if (Math.abs(diff) < 0.0001) return;
+        
         const otherBatches = allBatches?.filter(b => b.batch_number !== 'compat-default') || [];
         
         if (otherBatches.length > 0) {
@@ -282,10 +309,6 @@ export const productService = {
         }
 
         const compatBatch = allBatches?.find(b => b.batch_number === 'compat-default');
-        const currentQty = compatBatch ? (Number(compatBatch.quantity) || 0) : 0;
-        const diff = targetQty - currentQty;
-
-        if (diff === 0) return;
 
         if (compatBatch) {
             // Actualizăm lotul existent

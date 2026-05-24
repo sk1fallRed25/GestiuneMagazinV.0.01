@@ -36,6 +36,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: Pro
 
     useEffect(() => {
         if (product) {
+            console.log('[DEBUG ProductEditModal product]', product);
             setLocalState({
                 nume: product.nume || '',
                 cod_bare: product.cod_bare || '',
