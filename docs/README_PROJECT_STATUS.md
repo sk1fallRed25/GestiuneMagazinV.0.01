@@ -114,6 +114,14 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 6D.5 (Product VAT Integration E2E Test)**: Realizat (`test_store_settings_product_vat_6d5.py`) — **PASS**. S-a implementat și validat suita completă de testare E2E Playwright, acoperind setările fiscale de plătitor/neplătitor TVA, comportamentul modalului de editare, Fast Add și tabelul de produse în ambele tipuri de puncte de lucru.
 - **Etapa 6D.5.1 (Product Edit VAT Save Hotfix for Batch-Managed Products)**: Realizat (`docs/product_vat_edit_stock_lock_hotfix_6d51_report.md`). S-a reparat modalul de editare a produsului (`ProductEditModal.tsx`) pentru a permite modificarea cotei TVA și a metadatelor produselor gestionate pe loturi reale, prin dezactivarea câmpurilor de stoc și excluderea lor din payload-ul de actualizare dacă nu au fost modificate, blocând strict modificarea directă a stocului și prevenind excepția SQL. Testele E2E Playwright au fost extinse și trec cu succes.
 - **Etapa 6D.5.1.1 (Product VAT Hotfix Cleanup & Documentation Alignment)**: Realizat. S-au eliminat logurile temporare de debug din interfață și serviciul de produse. S-a creat raportul general E2E `docs/store_settings_product_vat_e2e_6d5_report.md` care include scenariile de loturi reale (blocare stoc, salvare TVA, resetare la cleanup). Producția build trece cu succes.
-- **Etapa 6D.5.2 (POS Mixed Payment Auto-Balance UX Hotfix)**: Realizat (`docs/pos_mixed_payment_autobalance_6d52_report.md`, `test_pos_mixed_payment_autobalance_6d52.py`) — **PASS**. S-a implementat logica de calcul bidirecțională automată pentru plățile mixte (Cash/Card) în ecranul de vânzare POS. Stările au fost convertite în string-uri pentru o tastare intuitivă, sumele sunt formatate la 2 zecimale pe blur cu respectarea preferinței utilizatorului pentru ultimul câmp editat în cazul actualizărilor de total de coș, iar validările tranzacționale pe backend sunt asigurate la finalizarea vânzării. Testarea E2E Playwright validează cu succes scenariile și corectitudinea datelor salvate în baza de date. Producția build trece cu succes.
+- **Etapa 6D.5.2 (POS Mixed Payment Auto-Balance UX Hotfix)**: Realizat — PASS.
+  - La plata mixtă:
+    - completarea sumei cash calculează automat suma card;
+    - completarea sumei card calculează automat suma cash;
+    - valorile peste total sunt limitate;
+    - schimbarea totalului recalculează suma opusă în funcție de ultimul câmp editat;
+    - `finalize_sale` nu a fost modificat;
+    - payload-ul cash/card este compatibil cu schema existentă (`mixed` lowercase, plăți separate `cash` și `card`).
 
-Următorul pas: **6D.5.3 (Sales History VAT Display Audit & Snapshot Blueprint)**.
+Următorul pas:
+- **Etapa 6D.5.3 (Sales History VAT Display Audit & Snapshot Blueprint)**

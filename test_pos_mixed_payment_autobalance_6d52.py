@@ -173,6 +173,27 @@ def run_test():
         assert current_cash == expected_cash, f"CASH value should be '{expected_cash}', got '{current_cash}'"
         safe_print("[PASS] Test 2: Modifying CARD auto-balances CASH.")
 
+        # TEST 2B: Filling CASH over total limits it and makes CARD 0
+        safe_print(f"\nTEST 2B: Filling CASH with '{total_val + 1.00:.2f}' (over total)...")
+        cash_input.fill(f"{total_val + 1.00:.2f}")
+        page.wait_for_timeout(300)
+        cash_input.blur()
+        page.wait_for_timeout(500)
+        
+        current_cash = cash_input.input_value()
+        current_card = card_input.input_value()
+        safe_print(f"After CASH over total edit -> CASH: '{current_cash}', CARD: '{current_card}'")
+        assert current_cash == f"{total_val:.2f}", f"CASH value should be capped at total '{total_val:.2f}', got '{current_cash}'"
+        assert current_card == "0.00", f"CARD value should balance to '0.00', got '{current_card}'"
+        safe_print("[PASS] Test 2B: Over total input limits the value and balances the other field to 0.")
+
+        # Re-establish card preference to 2.00 to keep the rest of the test identical
+        safe_print("\nRe-establishing CARD to 2.00 for Test 3...")
+        card_input.fill("2.00")
+        page.wait_for_timeout(300)
+        card_input.blur()
+        page.wait_for_timeout(500)
+
         # TEST 3: Cart total changes (adding another item) retains last-edited preference (which was CARD)
         safe_print("\nTEST 3: Adding 21st OTET 1L to cart...")
         plus_btn.click()
