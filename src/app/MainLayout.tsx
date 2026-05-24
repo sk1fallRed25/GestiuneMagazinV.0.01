@@ -10,6 +10,8 @@ import { supabase } from '../shared/supabase/supabaseClient';
 import { isAdminLike, isManagerLike, isStockOperator, isCashierLike } from '../features/auth/permissions';
 import { useAuth } from '../features/auth/useAuth';
 import { StoreContextSwitcher } from '../components/layout/StoreContextSwitcher';
+import { useModuleEntitlementsContext } from '../features/module-entitlements/ModuleEntitlementsContext';
+
 
 interface Notification {
     id: number;
@@ -21,6 +23,7 @@ interface Notification {
 
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
     const { role, profile, currentStore, currentStoreId, availableStores, selectStore, logout } = useAuth();
+    const { isModuleEnabled } = useModuleEntitlementsContext();
     const location = useLocation();
     const [scrolled, setScrolled] = useState(false);
 
@@ -101,10 +104,15 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
     const LinkuriOperatiuni = ({ isSubmenu = false }: LinkuriOperatiuniProps) => (
         <>
-            <NavLink to="/receptie" label="Recepție Marfă" icon={<PackagePlus size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
-            <NavLink to="/transfer" label="Transfer Marfă" icon={<ArrowRightLeft size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
+            {isModuleEnabled('reception') && (
+                <NavLink to="/receptie" label="Recepție Marfă" icon={<PackagePlus size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
+            )}
+            {isModuleEnabled('transfers') && (
+                <NavLink to="/transfer" label="Transfer Marfă" icon={<ArrowRightLeft size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
+            )}
         </>
     );
+
 
     return (
         <div className="flex h-screen bg-slate-50 font-sans overflow-hidden text-slate-800">
@@ -133,9 +141,15 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                                     <div className="px-4 py-1.5 mx-2 mb-2 text-[10px] font-bold text-indigo-400 bg-indigo-950/40 border border-indigo-900/50 rounded-lg truncate">
                                         Context: {currentStore?.name || 'Magazin Selectat'}
                                     </div>
-                                    <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
-                                    <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
-                                    <NavLink to="/rapoarte" label="Rapoarte Comerciale" icon={<BarChart3 size={18} />} />
+                                    {isModuleEnabled('products') && (
+                                        <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
+                                    )}
+                                    {isModuleEnabled('store_settings') && (
+                                        <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
+                                    )}
+                                    {isModuleEnabled('commercial_reports') && (
+                                        <NavLink to="/rapoarte" label="Rapoarte Comerciale" icon={<BarChart3 size={18} />} />
+                                    )}
                                 </>
                             ) : (
                                 <div className="space-y-1.5">
@@ -156,49 +170,59 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                     ) : (
                         <>
                             <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">General</div>
-                            {isManagerLike(role) && <NavLink to="/" label="Dashboard" icon={<LayoutDashboard size={18} />} />}
+                            {isManagerLike(role) && isModuleEnabled('dashboard') && (
+                                <NavLink to="/" label="Dashboard" icon={<LayoutDashboard size={18} />} />
+                            )}
 
-                            <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Stocuri</div>
-                            {isStockOperator(role) && (
+                            {isStockOperator(role) && (isModuleEnabled('products') || isModuleEnabled('expiration_tracking')) && (
                                 <>
-                                    <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
-                                    <NavLink to="/expirari" label="Produse Expirate" icon={<CalendarClock size={18} />} />
+                                    <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Stocuri</div>
+                                    {isModuleEnabled('products') && (
+                                        <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
+                                    )}
+                                    {isModuleEnabled('expiration_tracking') && (
+                                        <NavLink to="/expirari" label="Produse Expirate" icon={<CalendarClock size={18} />} />
+                                    )}
                                 </>
                             )}
-                            {(isAdminLike(role) || role === 'gestionar') && (
+
+                            {(isAdminLike(role) || role === 'gestionar') && isModuleEnabled('loss_reporting') && (
                                 <NavLink to="/pierderi" label="Raportare Pierderi" icon={<AlertOctagon size={18} />} />
                             )}
 
-                            {(isAdminLike(role) || role === 'gestionar') && (
+                            {(isAdminLike(role) || role === 'gestionar') && (isModuleEnabled('reception') || isModuleEnabled('transfer')) && (
                                 <>
                                     <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Operațiuni</div>
                                     <LinkuriOperatiuni />
                                 </>
                             )}
 
-                            {isManagerLike(role) && (
+                            {isManagerLike(role) && (isModuleEnabled('waste_audit') || isModuleEnabled('commercial_reports') || isModuleEnabled('store_settings') || isModuleEnabled('ai_consultant')) && (
                                 <>
                                     <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
-                                    <NavLink to="/istoric-pierderi" label="Audit Pierderi" icon={<History size={18} />} />
-                                    <NavLink to="/rapoarte" label="Rapoarte Comerciale" icon={<BarChart3 size={18} />} />
-                                    {isAdminLike(role) && (
+                                    {isModuleEnabled('waste_audit') && (
+                                        <NavLink to="/istoric-pierderi" label="Audit Pierderi" icon={<History size={18} />} />
+                                    )}
+                                    {isModuleEnabled('commercial_reports') && (
+                                        <NavLink to="/rapoarte" label="Rapoarte Comerciale" icon={<BarChart3 size={18} />} />
+                                    )}
+                                    {isModuleEnabled('store_settings') && (
                                         <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
                                     )}
-                                    {role === 'manager' && (
-                                        <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
+                                    {isModuleEnabled('ai_consultant') && (
+                                        <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
                                     )}
-                                    <NavLink to="/ai-consultant" label="AI Consultant" icon={<BrainCircuit size={18} />} />
                                 </>
                             )}
 
-                            {isCashierLike(role) && (
+                            {isCashierLike(role) && isModuleEnabled('pos') && (
                                 <>
                                     <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Vânzare</div>
                                     <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
                                 </>
                             )}
                             
-                            {isManagerLike(role) && (
+                            {isManagerLike(role) && isModuleEnabled('sales_history') && (
                                 <NavLink to="/istoric-vanzari" label="Istoric Vânzări" icon={<FileText size={18} />} />
                             )}
 

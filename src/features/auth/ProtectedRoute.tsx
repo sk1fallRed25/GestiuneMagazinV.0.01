@@ -2,6 +2,9 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './useAuth';
 import { UserRole } from './types';
+import { routeConfigs } from './permissions';
+import { useModuleEntitlementsContext } from '../module-entitlements/ModuleEntitlementsContext';
+import { DisabledModulePage } from '../module-entitlements/components/DisabledModulePage';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,11 +12,19 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
-  const { user, role: currentRole, loading, currentStoreId } = useAuth();
+  const { user, role: currentRole, loading: authLoading, currentStoreId } = useAuth();
+  const { isModuleEnabled, loading: modulesLoading } = useModuleEntitlementsContext();
   const location = useLocation();
 
   const isAuthenticated = !!user;
 
+  // Let's resolve route config based on path
+  const matchPath = Object.keys(routeConfigs).find(
+    p => location.pathname === p || (p !== '/' && location.pathname.startsWith(p))
+  );
+  const routeConfig = matchPath ? routeConfigs[matchPath] : undefined;
+
+  const loading = authLoading || (isAuthenticated && modulesLoading);
 
   if (loading) {
     return (
@@ -31,11 +42,26 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (currentRole === 'platform_owner' && !currentStoreId && location.pathname !== '/owner') {
-    return <Navigate to="/owner" replace />;
+  // 1. Store Context Guard
+  const requiresStore = routeConfig?.requiresStoreContext ?? true;
+  if (requiresStore && !currentStoreId) {
+    if (currentRole === 'platform_owner') {
+      return <Navigate to="/owner" replace />;
+    }
+    // Non-owner without a store context: block access
+    return (
+      <div className="flex items-center justify-center h-screen bg-red-50 p-6 text-slate-800">
+        <div className="max-w-md w-full bg-white p-8 rounded-3xl shadow-xl border border-red-100 text-center">
+          <h2 className="text-2xl font-black mb-2 uppercase tracking-tight text-red-600">Context Magazin Lipsă</h2>
+          <p className="text-slate-500 mb-6 font-medium">Nu aveți selectat un magazin activ pentru a efectua operațiuni.</p>
+        </div>
+      </div>
+    );
   }
 
-  if (allowedRoles && currentRole && !allowedRoles.includes(currentRole)) {
+  // 2. Role check (RBAC)
+  const roles = allowedRoles || routeConfig?.allowedRoles;
+  if (roles && currentRole && !roles.includes(currentRole)) {
     // Dacă rolul nu este permis
     return (
       <div className="flex items-center justify-center h-screen bg-red-50 p-6 text-slate-800">
@@ -58,7 +84,16 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     );
   }
 
+  // 3. Module Entitlement Check
+  if (routeConfig?.moduleKey) {
+    const enabled = isModuleEnabled(routeConfig.moduleKey);
+    if (!enabled) {
+      return <DisabledModulePage moduleKey={routeConfig.moduleKey} />;
+    }
+  }
+
   return <>{children}</>;
 };
 
 export default ProtectedRoute;
+
