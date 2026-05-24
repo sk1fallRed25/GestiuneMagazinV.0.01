@@ -347,6 +347,25 @@ export const productService = {
     },
 
     /**
+     * Verifică dacă un produs are loturi reale (diferite de compat-default).
+     */
+    async hasRealBatches(storeId: string, productId: string): Promise<boolean> {
+        if (!storeId || !productId) return false;
+        const { data, error } = await supabase
+            .from('stock_batches')
+            .select('id')
+            .eq('store_id', storeId)
+            .eq('product_id', productId)
+            .neq('batch_number', 'compat-default')
+            .limit(1);
+        if (error) {
+            console.error("Eroare hasRealBatches check:", error);
+            return false;
+        }
+        return !!(data && data.length > 0);
+    },
+
+    /**
      * Arhivează un produs (soft delete).
      */
     async archiveProduct(storeId: string, productId: string): Promise<void> {

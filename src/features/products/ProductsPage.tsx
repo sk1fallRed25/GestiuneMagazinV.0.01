@@ -91,6 +91,7 @@ const ProductsPage = () => {
                 onClose={() => setIsEditModalOpen(false)}
                 onSubmit={updateProduct}
                 vatConfig={vatConfig}
+                storeId={currentStoreId}
             />
         </div>
     );

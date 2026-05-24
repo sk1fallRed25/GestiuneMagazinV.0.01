@@ -107,6 +107,21 @@ def run_test():
             select_el = page.locator("form select")
             select_el.wait_for(state="visible", timeout=5000)
             
+            # Verify batch notice warning text
+            safe_print("Verifying warning text for batch-managed product is visible...")
+            notice = page.locator("text=Stocul este calculat din loturi și se modifică doar prin Recepție / Transfer.")
+            notice.wait_for(state="visible", timeout=5000)
+
+            # Verify stock fields are disabled due to batch management
+            safe_print("Verifying stock input fields are disabled for batch-managed product...")
+            stoc_depozit_input = page.locator("label:has-text('Stoc Depozit') + input")
+            stoc_magazin_input = page.locator("label:has-text('Stoc Magazin') + input")
+            stoc_depozit_input.wait_for(state="visible", timeout=5000)
+            stoc_magazin_input.wait_for(state="visible", timeout=5000)
+            
+            assert stoc_depozit_input.is_disabled(), "Stoc Depozit input should be disabled for real-batch product!"
+            assert stoc_magazin_input.is_disabled(), "Stoc Magazin input should be disabled for real-batch product!"
+            
             # Select group B
             safe_print("Updating VAT Group to B (11%)...")
             select_el.select_option("B")

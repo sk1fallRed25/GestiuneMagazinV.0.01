@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, X } from 'lucide-react';
 import { Product, ProductUpdateInput, ProductVatConfig, VatGroupKey } from '../types';
 import { ProductVatGroupSelector } from './ProductVatGroupSelector';
-import { normalizeVatGroupForStore } from '../services/productService';
+import { normalizeVatGroupForStore, productService } from '../services/productService';
 import toast from 'react-hot-toast';
 
 interface ProductEditModalProps {
@@ -11,9 +11,10 @@ interface ProductEditModalProps {
     onClose: () => void;
     onSubmit: (productId: string, data: ProductUpdateInput) => Promise<void>;
     vatConfig: ProductVatConfig | null;
+    storeId?: string | null;
 }
 
-const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: ProductEditModalProps) => {
+const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, storeId }: ProductEditModalProps) => {
     const [localState, setLocalState] = useState<{
         nume: string;
         cod_bare: string;
@@ -33,6 +34,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: Pro
         stoc_magazin: '0',
         vatGroup: 'A'
     });
+    const [hasRealBatches, setHasRealBatches] = useState(false);
 
     useEffect(() => {
         if (product) {
@@ -47,8 +49,18 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: Pro
                 stoc_magazin: (product.stoc_magazin || 0).toString(),
                 vatGroup: normalizeVatGroupForStore(product.vatGroup, vatConfig)
             });
+            if (storeId) {
+                productService.hasRealBatches(storeId, product.id)
+                    .then(res => setHasRealBatches(res))
+                    .catch(err => {
+                        console.error("Error checking batches:", err);
+                        setHasRealBatches(false);
+                    });
+            } else {
+                setHasRealBatches(false);
+            }
         }
-    }, [product, vatConfig]);
+    }, [product, vatConfig, storeId]);
 
     if (!isOpen || !product) return null;
 
@@ -70,8 +82,15 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: Pro
         const stoc_depozit = parseFloat(localState.stoc_depozit) || 0;
         const stoc_magazin = parseFloat(localState.stoc_magazin) || 0;
 
-        if (pret_vanzare < 0 || pret_achizitie < 0 || stoc_depozit < 0 || stoc_magazin < 0) {
-            toast.error("Prețurile și stocurile nu pot fi negative.");
+        const initialStocDepozit = product.stoc_depozit || 0;
+        const initialStocMagazin = product.stoc_magazin || 0;
+
+        const stockWasChanged = 
+            Math.abs(stoc_depozit - initialStocDepozit) > 0.0001 ||
+            Math.abs(stoc_magazin - initialStocMagazin) > 0.0001;
+
+        if (stockWasChanged && hasRealBatches) {
+            toast.error("Stocul acestui produs este gestionat pe loturi reale. Modifică stocul prin Recepție/Transfer, nu direct din Produse.");
             return;
         }
 
@@ -85,10 +104,13 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: Pro
             pret_vanzare,
             pret_achizitie,
             um: localState.um,
-            stoc_depozit,
-            stoc_magazin,
             vatGroup: finalVatGroup
         };
+
+        if (stockWasChanged) {
+            updateData.stoc_depozit = stoc_depozit;
+            updateData.stoc_magazin = stoc_magazin;
+        }
 
         try {
             await onSubmit(product.id, updateData);
@@ -172,27 +194,36 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: Pro
                         />
                     </div>
 
-                    <div className="bg-slate-50 p-6 rounded-3xl grid grid-cols-2 gap-6 border border-slate-100">
-                        <div>
-                            <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Stoc Depozit</label>
-                            <input
-                                type="text"
-                                className="w-full border border-indigo-100 p-4 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 font-bold text-indigo-600 shadow-sm"
-                                value={localState.stoc_depozit}
-                                onChange={e => handleNumberChange('stoc_depozit', e.target.value)}
-                                required
-                            />
+                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
+                        <div className="grid grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Stoc Depozit</label>
+                                <input
+                                    type="text"
+                                    className={`w-full border border-indigo-100 p-4 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 font-bold text-indigo-600 shadow-sm ${hasRealBatches ? 'bg-slate-100 cursor-not-allowed opacity-75' : ''}`}
+                                    value={localState.stoc_depozit}
+                                    onChange={e => handleNumberChange('stoc_depozit', e.target.value)}
+                                    required
+                                    disabled={hasRealBatches}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2">Stoc Magazin</label>
+                                <input
+                                    type="text"
+                                    className={`w-full border border-purple-100 p-4 rounded-xl outline-none focus:ring-4 focus:ring-purple-500/10 font-bold text-purple-600 shadow-sm ${hasRealBatches ? 'bg-slate-100 cursor-not-allowed opacity-75' : ''}`}
+                                    value={localState.stoc_magazin}
+                                    onChange={e => handleNumberChange('stoc_magazin', e.target.value)}
+                                    required
+                                    disabled={hasRealBatches}
+                                />
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2">Stoc Magazin</label>
-                            <input
-                                type="text"
-                                className="w-full border border-purple-100 p-4 rounded-xl outline-none focus:ring-4 focus:ring-purple-500/10 font-bold text-purple-600 shadow-sm"
-                                value={localState.stoc_magazin}
-                                onChange={e => handleNumberChange('stoc_magazin', e.target.value)}
-                                required
-                            />
-                        </div>
+                        {hasRealBatches && (
+                            <p className="text-amber-600 text-[11px] font-bold text-center mt-1">
+                                Stocul este calculat din loturi și se modifică doar prin Recepție / Transfer.
+                            </p>
+                        )}
                     </div>
 
                     <button type="submit" className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl mt-4 hover:bg-indigo-700 transition shadow-xl shadow-indigo-100 flex justify-center items-center gap-3 text-sm uppercase tracking-widest">
