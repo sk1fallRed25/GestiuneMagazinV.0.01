@@ -143,3 +143,33 @@ Interfața de gestionare a modulelor din Consola Proprietarului va conține:
 | **Enterprise** | *Premium* + `ai_consultant`, `advanced_returns`, `vat_reports` + opțional `offline_sync`, `fiscal_bridge` | Clienți mari care doresc predicții AI, retururi complexe, rapoarte TVA și fiscalizare avansată. |
 
 - La selectarea unui plan, interfața va apela RPC-ul `bulk_set_store_modules`, configurând toate modulele corespunzător planului într-o singură tranzacție atomică.
+
+---
+
+## 7. Corecție 6F.1.3 — Pre-Apply Hardening
+
+În cadrul Etapei 6F.1.3, blueprint-ul a fost securizat și întărit suplimentar pentru a asigura stabilitatea la runtime și prevenirea breșelor de securitate:
+
+### A. Securitate RLS și Grants Restrânse (RPC-only DML)
+- **RLS cu WITH CHECK explicit**: Atât pe `platform_modules` cât și pe `store_module_access`, politicile de DML folosesc `WITH CHECK (public.is_platform_owner())` pentru a bloca orice mutație neautorizată la scriere.
+- **DML Blocate direct**: S-au revocat drepturile `INSERT`, `UPDATE` și `DELETE` pe tabele de la utilizatorul `authenticated`. Toate operațiunile de scriere se efectuează obligatoriu prin RPC-urile securizate (`set_store_module_access` și `bulk_set_store_modules`).
+
+### B. Effective Access în `get_store_module_access`
+- Funcția a fost refăcută pentru a returna registrul complet al modulelor platformei prin `LEFT JOIN` cu override-urile din `store_module_access`.
+- Se calculează starea `effective_enabled` direct în baza de date ca fallback la `default_enabled` (și forțare `false` dacă modulul are status-ul `disabled` sau `planned`). Acest lucru scutește frontend-ul de logică de fallback vulnerabilă și simplifică randarea în Owner Console.
+
+### C. Gestiunea Corectă a Contextului Platform Owner
+- În funcția `user_can_access_store_module`, dacă utilizatorul este `platform_owner` și încearcă să acceseze un modul de magazin (unde `requires_store_context = true`), funcția returnează `false` dacă `p_store_id` este null.
+- În cazul în care ownerul are un magazin selectat, accesul lui respectă valoarea `effective_enabled` a magazinului respectiv. Astfel, ownerul poate testa aplicația exact în condițiile de licențiere ale clientului respectiv, fără a simula un acces bypass nefiresc în route guard-ul de operare.
+
+### D. Verificarea Dependențelor (Dependency Validation)
+- La **activarea** unui modul, RPC-ul verifică recursiv dacă toate dependențele lui (ex: `products` pentru `expiration_tracking`) sunt deja active. În caz contrar, activarea este blocată cu eroare specifică.
+- La **dezactivare**, RPC-ul scanează dacă există alte module active pe magazin care depind de modulul curent și blochează dezactivarea pentru a evita stări inconsistente în UI.
+
+### E. Structură Audit Logs & Output JSONB
+- Salvarea în `audit_logs` a fost mapată pe coloanele reale din baza de date live: `old_data` și `new_data` (JSONB) pentru a păstra istoricul schimbărilor.
+- RPC-urile de scriere returnează răspunsuri structurate JSONB cu proprietățile `ok`, `changed`, `effectiveEnabled`, etc.
+
+### F. Seeding Idempotent și Fără Backfill în Masă
+- Datele de seed folosesc `ON CONFLICT (module_key) DO UPDATE` pentru a permite actualizări sigure, iar modulul comercial `ai_consultant` a fost setat implicit pe `default_enabled = false`.
+- Nu se efectuează backfill automat în tabele la migrare; sistemul folosește `default_enabled` dynamic, economisind spațiu și permițând funcționarea instantanee a magazinelor existente.

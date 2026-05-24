@@ -144,7 +144,15 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - DB **nu a** fost modificată. Frontend **nu a** fost modificat. `finalize_sale` live **nu a** fost modificat.
 
 - **Etapa 6D.5.4 (Sales VAT Snapshot SQL Apply Verification)**: Aplicarea manuală a Fazei 1 din `database/proposed_sales_history_vat_snapshot_6d53.sql` în Supabase SQL Editor (ALTER TABLE + helperi) și verificarea read-only a structurii coloanelor noi, constrângerilor, indexurilor și funcțiilor helper. Patch `finalize_sale` (Faza 2) se aplică separat după verificarea Fazei 1.
-- **Etapa 6F.1.2 (Store Module Entitlements Blueprint)**: Realizat (`docs/store_module_entitlements_blueprint_6f12.md`, `database/proposed_store_store_module_entitlements_6f12.sql`). S-a definit registry-ul oficial al celor 18 module platformă, s-a proiectat schema de stocare bazată pe tabele dedicate, s-au redactat RPC-urile securizate cu `SECURITY DEFINER` și s-a planificat integrarea în frontend (Route Guard, Sidebar, Cache) împreună cu planurile comerciale (Basic, Standard, Premium, Enterprise). DB activă și codul live nu au fost modificate.
+- **Etapa 6F.1.2 (Store Module Entitlements Blueprint)**: Realizat (`docs/store_module_entitlements_blueprint_6f12.md`, `database/proposed_store_module_entitlements_6f12.sql`). S-a definit registry-ul oficial al celor 18 module platformă, s-au redactat RPC-urile securizate cu `SECURITY DEFINER` și s-a planificat integrarea în frontend. DB activă și codul live nu au fost modificate.
+- **Etapa 6F.1.3 (Module Entitlements SQL Pre-Apply Hardening)**: **Realizat** — PASS.
+  - S-a întărit blueprint-ul `database/proposed_store_module_entitlements_6f12.sql` prin adăugarea constrângerilor stricte pe `module_key`, `category`, `status` și structura JSONB.
+  - S-au revocat drepturile DML directe pentru userii `authenticated`, impunând scrierea exclusiv prin RPC-uri securizate.
+  - S-a adăugat validarea recursivă a dependențelor de module (atât la activare cât și la dezactivare) direct în tranzacție.
+  - Refăcut `get_store_module_access` pentru a returna Effective Access calculat dinamic (fallback la `default_enabled` și forțare `false` pentru modulele indisponibile global).
+  - Aliniat auditarea la schema live a tabelei `audit_logs` (coloanele `old_data`, `new_data`).
+  - Raport: `docs/store_module_entitlements_preapply_hardening_6f13_report.md`.
+  - DB **nu a** fost modificată. Frontend **nu a** fost modificat.
 
 Următorul pas recomandat:
-- **Etapa 6F.1.3 (Module Entitlements SQL Pre-Apply Hardening)**: Securizarea și verificarea exhaustivă a blueprint-ului SQL `proposed_store_module_entitlements_6f12.sql` (verificare reguli shadowing, validare intrări, normalizări) înainte de aplicarea în baza de date.
+- **Etapa 6F.1.4 (Module Entitlements SQL Apply Verification)**: Aplicarea manuală a blueprint-ului întărit în Supabase SQL Editor și verificarea structurii, politicilor RLS și a helper-ilor în mediu read-only.

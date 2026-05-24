@@ -70,3 +70,6 @@ Acest blueprint construiește pe baza logică din etapa anterioară (6F.1.1), as
 - **[NEW] Ghid Blueprint Arhitectural**: [store_module_entitlements_blueprint_6f12.md](file:///c:/Users/Stefan/WebstormProjects/GestiuneMagazinV.0.01-1/docs/store_module_entitlements_blueprint_6f12.md)
 - **[NEW] Raport Tehnic**: [store_module_entitlements_6f12_report.md](file:///c:/Users/Stefan/WebstormProjects/GestiuneMagazinV.0.01-1/docs/store_module_entitlements_6f12_report.md)
 - **[MODIFY] Raport Istoric Context Hotfix**: [platform_owner_context_hotfix_6f11_report.md](file:///c:/Users/Stefan/WebstormProjects/GestiuneMagazinV.0.01-1/docs/platform_owner_context_hotfix_6f11_report.md)
+
+> [!NOTE]
+> Blueprint-ul SQL din acest raport a fost revizuit, securizat și întărit suplimentar (SQL Pre-Apply Hardening) în Etapa 6F.1.3. Modificările aduse în 6F.1.3 au inclus: validări automate ale dependențelor între module la activare/dezactivare în RPC, înlocuirea selectării oarbe cu Effective Access (LEFT JOIN în DB), definirea explicită a politicilor RLS (WITH CHECK) și restricționarea tuturor scrierilor exclusiv prin interfața RPC (fără granturi directe de INSERT/UPDATE/DELETE pe tabele).
