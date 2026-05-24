@@ -163,6 +163,9 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au testat funcțiile RPC (`get_platform_modules`, `get_store_module_access`, `set_store_module_access`, `bulk_set_store_modules`, `user_can_access_store_module`) prin simulări de identitate, validând corectitudinea RBAC, blocarea activării planned/disabled, constrângerile de dependențe și jurnalizarea automată în `audit_logs`.
   - Raport complet: `docs/store_module_entitlements_sql_apply_verification_6f14_report.md`.
 
+- **Etapa 6F.1.5 (Module Entitlements Frontend Integration)**: Realizat. S-a integrat sistemul de entitlements în frontend, folosind contextul, hook-ul și serviciile RPC de interogare. Rutele sunt securizate dinamic (`ProtectedRoute.tsx`), sidebar-ul filtrează opțiunile nepermise (`MainLayout.tsx`), iar modulele dezactivate/planificate sunt redirecționate către ecranul dedicat de blocare (`DisabledModulePage.tsx`). Build-ul complete trece cu succes.
+- **Etapa 6F.1.5.1 (Module Entitlements Frontend Security & Artifact Alignment)**: Realizat. S-a aplicat hotfix-ul de securitate (`REVOKE DML` pe tabele pentru rolul `authenticated`), s-a refăcut testul E2E Playwright pentru a elimina complet DML-ul direct și a folosi doar RPC-urile securizate, s-a creat documentația dedicată și raportul oficial de integrare. Testele E2E Playwright trec cu succes (Exit code: 0).
+
 Următorul pas recomandat:
-- **Etapa 6F.1.5 (Module Entitlements Frontend Integration)**: Integrarea interfeței de management al modulelor în Owner Console și utilizarea funcției de validare a accesului pentru rutare și vizibilitate sidebar în React.
+- **Etapa 6F.1.6 (Owner Console Module Management UI)**: Implementarea interfeței UI de management module în Owner Console, permițând activarea/dezactivarea modulelor pentru fiecare magazin utilizând RPC-urile securizate deja pregătite.
 
