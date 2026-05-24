@@ -123,5 +123,16 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
     - `finalize_sale` nu a fost modificat;
     - payload-ul cash/card este compatibil cu schema existentă (`mixed` lowercase, plăți separate `cash` și `card`).
 
+- **Etapa 6D.5.3 (Sales History VAT Display Audit & Snapshot Blueprint)**: **Realizat** — PASS.
+  - S-a confirmat prin audit live DB că `sale_items` nu conține nicio coloană TVA (`vat_group`, `vat_rate`, `vat_amount`, `price_without_vat`, `total_without_vat`, `price_includes_vat` — toate lipsesc).
+  - `product_prices` conține `vat_group` (A/B/C/D/E, DEFAULT 'A') și `vat_percent` — disponibile, dar dinamice (nu pot fi folosite pentru bonuri vechi).
+  - `finalize_sale` nu inserează niciun câmp TVA în `sale_items`.
+  - Sales History UI (`SaleDetailsModal.tsx`, `types.ts`, `salesHistoryService.ts`) nu afișează și nu citește TVA.
+  - **Decizie arhitecturală:** Snapshot TVA în coloane directe ale `sale_items` (nu fallback la produs curent pentru bonuri noi).
+  - **Fallback pentru bonuri vechi:** UI va citi `product_prices.vat_group` curent și va marca `vatIsFallback = true` cu badge discret.
+  - Blueprint SQL creat (`database/proposed_sales_history_vat_snapshot_6d53.sql`): 6 coloane noi, constraint idempotent, index reporting, helper `get_vat_rate_for_group()` (IMMUTABLE), helper `calculate_vat_breakdown()` (STABLE), patch `finalize_sale` (neaplicat), backfill comentat/opțional.
+  - Documentație completă: `docs/sales_history_vat_display_blueprint_6d53.md`, `docs/sales_history_vat_snapshot_6d53_report.md`.
+  - Sales History TVA UI **nu este** încă implementat. Fiscal Bridge **nu este** modificat. `finalize_sale` real **nu a** fost modificat.
+
 Următorul pas:
-- **Etapa 6D.5.3 (Sales History VAT Display Audit & Snapshot Blueprint)**: Realizat (`docs/sales_history_vat_snapshot_6d53_report.md`, `database/proposed_sales_history_vat_snapshot_6d53.sql`). S-au completat auditurile detaliate pentru schema bazei de date (tabelul `sale_items`), RPC-ul `finalize_sale` și structurile de date/componentele frontend. S-a elaborat decizia de arhitectură privind stocarea snapshot-ului la nivel de rând de tranzacție, plus strategii de fallback pentru înregistrări legacy, și s-a creat blueprint-ul SQL complet pentru migrare.
+- **Etapa 6D.5.4 (Sales VAT Snapshot SQL Apply Verification)**: Aplicarea manuală a blueprint-ului `database/proposed_sales_history_vat_snapshot_6d53.sql` în Supabase SQL Editor și verificarea prin interogări read-only a structurii coloanelor noi, a constrângerilor, a indexurilor și a funcțiilor helper.

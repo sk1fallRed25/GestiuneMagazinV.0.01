@@ -42,7 +42,60 @@ ON public.sale_items (store_id, sale_id, vat_group);
 
 
 -- ----------------------------------------------------------------------------
--- B. ATOMIC TRANSACTIONAL RPC: finalize_sale (PROPOSED VERSION)
+-- B. HELPER FUNCTIONS
+-- ----------------------------------------------------------------------------
+
+-- 1. Helper function to get VAT rate for a group
+CREATE OR REPLACE FUNCTION public.get_vat_rate_for_group(p_vat_group text) 
+RETURNS numeric AS $$
+BEGIN
+    CASE p_vat_group
+        WHEN 'A' THEN RETURN 21.00;
+        WHEN 'B' THEN RETURN 11.00;
+        WHEN 'C' THEN RETURN 11.00;
+        WHEN 'D' THEN RETURN 0.00;
+        WHEN 'E' THEN RETURN 0.00;
+        ELSE 
+            RAISE EXCEPTION 'Grupă TVA invalidă: %. Valorile permise sunt A, B, C, D, E.', p_vat_group;
+    END CASE;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- 2. Helper function to calculate VAT breakdown
+CREATE OR REPLACE FUNCTION public.calculate_vat_breakdown(
+    p_total numeric, 
+    p_vat_group text, 
+    p_price_includes_vat boolean DEFAULT true
+) RETURNS jsonb AS $$
+DECLARE
+    v_rate numeric;
+    v_base numeric;
+    v_vat numeric;
+BEGIN
+    v_rate := public.get_vat_rate_for_group(p_vat_group);
+    
+    IF p_price_includes_vat THEN
+        v_base := ROUND(p_total / (1.0 + v_rate / 100.0), 2);
+        v_vat := p_total - v_base;
+    ELSE
+        v_base := ROUND(p_total, 2);
+        v_vat := ROUND(p_total * v_rate / 100.0, 2);
+    END IF;
+    
+    RETURN jsonb_build_object(
+        'vatGroup', p_vat_group,
+        'vatRate', v_rate,
+        'baseAmount', v_base,
+        'vatAmount', v_vat,
+        'grossAmount', ROUND(CASE WHEN p_price_includes_vat THEN p_total ELSE p_total + v_vat END, 2),
+        'priceIncludesVat', p_price_includes_vat
+    );
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+
+-- ----------------------------------------------------------------------------
+-- C. ATOMIC TRANSACTIONAL RPC: finalize_sale (PATCHED BLUEPRINT)
 -- ----------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION public.finalize_sale(
@@ -72,7 +125,6 @@ DECLARE
     v_req_qty DECIMAL(12,3);
     v_unit_price DECIMAL(12,2);
     v_prod_vat_group TEXT;
-    v_prod_vat_rate DECIMAL(5,2);
     
     -- Loop variables
     v_batch RECORD;
@@ -80,10 +132,12 @@ DECLARE
     v_rem_qty DECIMAL(12,3);
     v_has_role BOOLEAN;
     
-    -- Snapshot variables
+    -- Breakdown variables
+    v_breakdown JSONB;
     v_item_total_gross DECIMAL(12,2);
     v_item_total_net DECIMAL(12,2);
     v_item_vat_amount DECIMAL(12,2);
+    v_item_vat_rate DECIMAL(5,2);
     v_item_price_net DECIMAL(12,4);
 BEGIN
     -- 1. Authorization Check (admin, casier, platform_owner)
@@ -191,26 +245,13 @@ BEGIN
         v_rem_qty := (v_item->>'quantity')::DECIMAL;
         
         -- Retrieve sale price and VAT group from product_prices
-        SELECT price_sale, COALESCE(vat_group, 'A') INTO v_unit_price, v_prod_vat_group 
+        SELECT price_sale, COALESCE(NULLIF(vat_group, ''), v_default_vat_group) INTO v_unit_price, v_prod_vat_group 
         FROM public.product_prices 
         WHERE store_id = p_store_id AND product_id = v_product_id;
 
-        -- Resolve VAT group rate
+        -- Enforce non-payer policy
         IF NOT v_vat_payer THEN
             v_prod_vat_group := 'E';
-            v_prod_vat_rate := 0.00;
-        ELSE
-            -- Attempt to read rate from store settings vat_groups, fallback to Romania standards
-            v_prod_vat_rate := COALESCE(
-                (v_tax_settings -> 'vat_groups' -> v_prod_vat_group ->> 'rate')::NUMERIC,
-                CASE v_prod_vat_group
-                    WHEN 'A' THEN 21.00
-                    WHEN 'B' THEN 11.00
-                    WHEN 'C' THEN 11.00
-                    WHEN 'D' THEN 0.00
-                    ELSE 0.00
-                END
-            );
         END IF;
 
         FOR v_batch IN 
@@ -234,11 +275,20 @@ BEGIN
             SET quantity = quantity - v_qty_to_take
             WHERE id = v_batch.id;
 
-            -- Calculate fiscal snapshot figures (VAT-inclusive policy assumed)
+            -- Calculate fiscal snapshot figures (support both inclusive/exclusive policies)
             v_item_total_gross := v_qty_to_take * v_unit_price;
-            v_item_total_net := ROUND(v_item_total_gross / (1.0 + v_prod_vat_rate / 100.0), 2);
-            v_item_vat_amount := v_item_total_gross - v_item_total_net;
-            v_item_price_net := ROUND(v_unit_price / (1.0 + v_prod_vat_rate / 100.0), 4);
+            
+            -- Call helper calculation function
+            v_breakdown := public.calculate_vat_breakdown(
+                v_item_total_gross, 
+                v_prod_vat_group, 
+                (v_price_policy = 'inclusive')
+            );
+            
+            v_item_vat_rate := (v_breakdown->>'vatRate')::numeric;
+            v_item_vat_amount := (v_breakdown->>'vatAmount')::numeric;
+            v_item_total_net := (v_breakdown->>'baseAmount')::numeric;
+            v_item_price_net := ROUND(v_unit_price / (1.0 + v_item_vat_rate / 100.0), 4);
 
             -- Insert item with snapshot fields
             INSERT INTO public.sale_items (
@@ -247,7 +297,7 @@ BEGIN
             )
             VALUES (
                 p_store_id, v_sale_id, v_product_id, v_batch.id, v_qty_to_take, v_unit_price, v_item_total_gross,
-                v_prod_vat_group, v_prod_vat_rate, v_item_vat_amount, v_item_price_net, v_item_total_net, true
+                v_prod_vat_group, v_item_vat_rate, v_item_vat_amount, v_item_price_net, v_item_total_net, (v_price_policy = 'inclusive')
             );
 
             -- Record stock movement
@@ -270,3 +320,65 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 REVOKE EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB, UUID) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB, UUID) FROM anon;
 GRANT EXECUTE ON FUNCTION public.finalize_sale(UUID, UUID, JSONB, JSONB, UUID) TO authenticated;
+
+
+-- ----------------------------------------------------------------------------
+-- D. OPTIONAL/COMMENTED BACKFILL SCRIPT FOR LEGACY SALE ITEMS
+-- ----------------------------------------------------------------------------
+/*
+-- WARNING: Perform a database snapshot / backup before running this script.
+-- This script backfills historical sale_items where snapshot columns are NULL.
+-- It attempts to look up dynamic product_prices as a best-effort approximation.
+
+DO $$
+DECLARE
+    r_item RECORD;
+    v_vat_payer BOOLEAN;
+    v_prod_vat_group TEXT;
+    v_vat_rate DECIMAL(5,2);
+    v_breakdown JSONB;
+BEGIN
+    FOR r_item IN 
+        SELECT si.id, si.store_id, si.product_id, si.total_item
+        FROM public.sale_items si
+        WHERE si.vat_group IS NULL
+    LOOP
+        -- Check store payer settings
+        SELECT COALESCE((settings->'tax'->>'vat_payer')::boolean, true) INTO v_vat_payer
+        FROM public.stores 
+        WHERE id = r_item.store_id;
+
+        IF NOT v_vat_payer THEN
+            v_prod_vat_group := 'E';
+        ELSE
+            -- Get product's current VAT group fallback
+            SELECT COALESCE(NULLIF(vat_group, ''), 'A') INTO v_prod_vat_group
+            FROM public.product_prices
+            WHERE store_id = r_item.store_id AND product_id = r_item.product_id;
+        END IF;
+
+        -- Resolve VAT rate
+        BEGIN
+            v_vat_rate := public.get_vat_rate_for_group(v_prod_vat_group);
+        EXCEPTION WHEN OTHERS THEN
+            v_prod_vat_group := 'A';
+            v_vat_rate := 21.00;
+        END;
+
+        -- Calculate breakdown assuming VAT-inclusive prices
+        v_breakdown := public.calculate_vat_breakdown(r_item.total_item, v_prod_vat_group, true);
+
+        -- Update the legacy row
+        UPDATE public.sale_items
+        SET 
+            vat_group = v_prod_vat_group,
+            vat_rate = v_vat_rate,
+            vat_amount = (v_breakdown->>'vatAmount')::numeric,
+            total_without_vat = (v_breakdown->>'baseAmount')::numeric,
+            price_without_vat = ROUND(unit_price / (1.0 + v_vat_rate / 100.0), 4),
+            price_includes_vat = true
+        WHERE id = r_item.id;
+    END LOOP;
+END;
+$$;
+*/
