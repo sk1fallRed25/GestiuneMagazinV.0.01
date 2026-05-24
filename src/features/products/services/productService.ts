@@ -298,7 +298,6 @@ export const productService = {
         
         const currentQty = allBatches?.reduce((acc, curr) => acc + (Number(curr.quantity) || 0), 0) || 0;
         const diff = targetQty - currentQty;
-        console.log('[DEBUG adjustStock]', { zone, targetQty, currentQty, diff });
 
         if (Math.abs(diff) < 0.0001) return;
         

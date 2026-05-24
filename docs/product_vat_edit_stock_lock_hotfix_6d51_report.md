@@ -1,6 +1,6 @@
-# Raport Hotfix Salvare TVA în Editare Produs cu Loturi (Etapa 6D.5.1)
+# Raport Hotfix Salvare TVA în Editare Produs cu Loturi (Etapa 6D.5.1 / 6D.5.1.1)
 
-Acest document descrie detaliile tehnice ale remedierii rapide (hotfix) realizate în etapa 6D.5.1 pentru a permite modificarea cotei TVA și a metadatelor produselor gestionate pe loturi reale, blocând în același timp strict orice încercare de modificare a stocului direct din Produse.
+Acest document descrie detaliile tehnice ale remedierii rapide (hotfix) realizate în etapele 6D.5.1 și 6D.5.1.1 pentru a permite modificarea cotei TVA și a metadatelor produselor gestionate pe loturi reale, blocând în același timp strict orice încercare de modificare a stocului direct din Produse.
 
 ---
 
@@ -66,3 +66,18 @@ Am extins testul automat `test_store_settings_product_vat_6d5.py` pentru a valid
 Toate testele E2E rulează și trec cu succes:
 * **Execuție**: `python test_store_settings_product_vat_6d5.py`
 * **Rezultat**: `[SUCCESS] Store Settings + Product VAT E2E Test 6D.5 passed!`
+
+---
+
+## 5. Curățare Logging și Verificare Build (Etapa 6D.5.1.1)
+
+În cadrul fazei de curățare finală (Etapa 6D.5.1.1):
+1. **Eliminare Debug Logs**:
+   * S-au eliminat complet logurile temporare de diagnostic (`console.log('[DEBUG ProductEditModal product]', ...)`) din `ProductEditModal.tsx`.
+   * S-au eliminat complet logurile temporare de ajustare stoc (`console.log('[DEBUG adjustStock]', ...)`) din `productService.ts`.
+   * Căutările în sub-directoarele `src/features/products` și `src/features/fast-add` confirmă lipsa oricăror altor loguri temporare (`[DEBUG` sau `console.log` de troubleshooting).
+2. **Verificare Build**:
+   * Am rulat `npm run build` pentru a valida corectitudinea statică a compilării TypeScript și a bundler-ului Vite.
+   * Compilarea a trecut cu succes (PASS) fără nicio regresie pe paginile sau serviciile adiacente.
+3. **Verificare E2E finală**:
+   * Suita completă de testare Playwright continuă să treacă (PASS) după eliminarea logging-ului temporar.
