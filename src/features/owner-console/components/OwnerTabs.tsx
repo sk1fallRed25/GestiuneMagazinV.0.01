@@ -16,6 +16,7 @@ interface TabItem {
   label: string;
   icon: React.ElementType;
   count?: number;
+  description?: string;
 }
 
 export const OwnerTabs: React.FC<OwnerTabsProps> = ({
@@ -27,43 +28,73 @@ export const OwnerTabs: React.FC<OwnerTabsProps> = ({
   auditCount
 }) => {
   const tabs: TabItem[] = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { id: 'stores', label: 'Magazine', icon: Store, count: storesCount },
-    { id: 'profiles', label: 'Profile Utilizatori', icon: Users, count: profilesCount },
-    { id: 'members', label: 'Membri Magazin', icon: UserCheck, count: membersCount },
-    { id: 'audit', label: 'Audit Logs', icon: History, count: auditCount },
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Dashboard platformă' },
+    { id: 'stores', label: 'Magazine', icon: Store, count: storesCount, description: 'Puncte de lucru' },
+    { id: 'profiles', label: 'Profile Utilizatori', icon: Users, count: profilesCount, description: 'Conturi sistem' },
+    { id: 'members', label: 'Membri Magazin', icon: UserCheck, count: membersCount, description: 'Acces per magazin' },
+    { id: 'audit', label: 'Audit Logs', icon: History, count: auditCount > 0 ? auditCount : undefined, description: 'Trasabilitate' },
   ];
 
   return (
-    <div className="flex items-center gap-2 mb-8 border-b border-gray-200 dark:border-gray-700/60 pb-4 overflow-x-auto animate-fade-in">
-      {tabs.map(tab => {
-        const Icon = tab.icon;
-        const isSelected = selectedTab === tab.id;
+    <nav
+      className="mb-8 animate-fade-in"
+      aria-label="Navigare Owner Console"
+    >
+      {/* Tab strip */}
+      <div className="flex items-end gap-1.5 border-b border-gray-200 dark:border-gray-700/60 overflow-x-auto pb-0 scrollbar-none">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isSelected = selectedTab === tab.id;
 
-        return (
-          <button
-            key={tab.id}
-            onClick={() => onSelectTab(tab.id as OwnerConsoleTab)}
-            className={`flex items-center gap-2.5 px-5 py-3 rounded-2xl font-bold text-sm transition-all whitespace-nowrap ${
-              isSelected
-                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 scale-[1.02]'
-                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 border border-gray-100 dark:border-gray-700/60 shadow-sm'
-            }`}
-          >
-            <Icon className={`w-4 h-4 ${isSelected ? 'text-white' : 'text-gray-400 dark:text-gray-500'}`} />
-            <span>{tab.label}</span>
-            {tab.count !== undefined && (
-              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                isSelected
-                  ? 'bg-white/20 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-              }`}>
-                {tab.count}
-              </span>
-            )}
-          </button>
-        );
-      })}
-    </div>
+          return (
+            <button
+              key={tab.id}
+              id={`owner-tab-${tab.id}`}
+              role="tab"
+              aria-selected={isSelected}
+              aria-controls={`owner-tabpanel-${tab.id}`}
+              onClick={() => onSelectTab(tab.id as OwnerConsoleTab)}
+              className={`
+                group relative flex items-center gap-2 px-4 py-3 text-sm font-semibold
+                whitespace-nowrap transition-all duration-200 focus:outline-none
+                focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2
+                rounded-t-xl border-b-2 -mb-px
+                ${isSelected
+                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-500/5'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50/50 dark:hover:bg-gray-700/20'
+                }
+              `}
+            >
+              <Icon
+                className={`w-4 h-4 transition-colors ${
+                  isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300'
+                }`}
+                aria-hidden="true"
+              />
+              <span>{tab.label}</span>
+
+              {/* Count badge */}
+              {tab.count !== undefined && (
+                <span
+                  className={`ml-0.5 min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center transition-colors ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 group-hover:bg-gray-200 dark:group-hover:bg-gray-600'
+                  }`}
+                  aria-label={`${tab.count} ${tab.label.toLowerCase()}`}
+                >
+                  {tab.count}
+                </span>
+              )}
+
+              {/* Active indicator dot */}
+              {isSelected && (
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400" aria-hidden="true" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 };

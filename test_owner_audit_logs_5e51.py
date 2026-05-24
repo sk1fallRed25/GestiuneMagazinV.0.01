@@ -275,7 +275,13 @@ def run_test():
         action_select = page.locator("select").filter(has_text="Toate Acțiunile")
         action_select.select_option("store.create")
         page.wait_for_timeout(500)
-        assert page.locator("tbody tr").count() == 1, f"Filtrarea pe store.create ar trebui sa returneze 1 rezultat, got {page.locator('tbody tr').count()}"
+        
+        count = page.locator("tbody tr").count()
+        assert count >= 1, f"Filtrarea pe store.create ar trebui sa returneze cel putin 1 rezultat, got {count}"
+        for i in range(count):
+            row_text = page.locator("tbody tr").nth(i).text_content()
+            assert "Creare Magazin" in row_text, f"Randul {i} nu are actiunea corecta: {row_text}"
+        
         print("[PASS] Filtrarea dupa actiune functioneaza.")
         action_select.select_option("all")
         page.wait_for_timeout(500)

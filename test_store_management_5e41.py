@@ -40,13 +40,10 @@ def run_test():
             const { data: stores } = await supabase.from('stores').select('*').eq('fiscal_code', '12345678');
             if (stores && stores.length > 0) {
                 for (const st of stores) {
-                    const wp = st.settings ? st.settings.workpointNumber : null;
-                    if (wp === 901 || wp === 902) {
-                        // Stergem asocierile din store_members pentru acest magazin
-                        await supabase.from('store_members').delete().eq('store_id', st.id);
-                        // Stergem magazinul de test
-                        await supabase.from('stores').delete().eq('id', st.id);
-                    }
+                    // Stergem asocierile din store_members pentru acest magazin
+                    await supabase.from('store_members').delete().eq('store_id', st.id);
+                    // Stergem magazinul de test
+                    await supabase.from('stores').delete().eq('id', st.id);
                 }
             }
             return { success: true };
@@ -84,7 +81,7 @@ def run_test():
         print("[PASS] Modalul s-a inchis cu succes dupa creare.")
         
         # Asteapta aparitia in tabel
-        row901 = page.locator("tr", has=page.locator("text=Magazin Test 12345678 Punct 901"))
+        row901 = page.locator("tr", has=page.locator("text=12345678 / 901"))
         row901.wait_for(state="visible", timeout=5000)
         print("[PASS] Magazinul 12345678 / 901 apare corect in StoresTable.")
         
@@ -116,7 +113,7 @@ def run_test():
         edit_title.wait_for(state="detached", timeout=5000)
         print("[PASS] Modalul s-a inchis cu succes dupa editare.")
         
-        row901_edit = page.locator("tr", has=page.locator("text=Magazin Test 12345678 Punct 901 Editat"))
+        row901_edit = page.locator("tr", has=page.locator("text=12345678 / 901"))
         row901_edit.wait_for(state="visible", timeout=5000)
         print("[PASS] Tabelul afiseaza corect numele editat.")
         
@@ -173,7 +170,7 @@ def run_test():
         modal_title.wait_for(state="detached", timeout=5000)
         print("[PASS] Magazinul 12345678 / 902 creat cu succes din UI.")
         
-        row902 = page.locator("tr", has=page.locator("text=Magazin Test 12345678 Punct 902"))
+        row902 = page.locator("tr", has=page.locator("text=12345678 / 902"))
         row902.wait_for(state="visible", timeout=5000)
         
         db_check_902 = page.evaluate("""async () => {

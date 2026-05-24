@@ -93,6 +93,11 @@ def run_test():
         print("8. Verifying assigned user in Membri Magazin tab...")
         page.locator("button:has-text('Membri Magazin')").click()
         page.locator("h2:has-text('Membri Magazin')").wait_for(state="visible", timeout=5000)
+        
+        # Selectam magazinul in StoresTable din stanga pentru a-i afisa membrii
+        page.locator("tr", has=page.locator("text=Magazin Principal")).first.click()
+        page.wait_for_timeout(1000)
+        
         page.locator("tr", has=page.locator("text=magazin@magazin.com")).wait_for(state="visible", timeout=5000)
         print("[PASS] magazin@magazin.com is correctly displayed in StoreMembersTable.")
         
