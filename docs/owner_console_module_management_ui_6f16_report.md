@@ -97,3 +97,39 @@ Am creat și rulat testul E2E dedicat `test_owner_module_management_6f16.py` car
 *   **RPC-Only Writes**: Nicio componentă din interfață nu efectuează direct operațiuni DML (fără `.from('store_module_access').insert(...)`). Toate modificările trec prin API-ul securizat al bazei de date.
 *   **Validation Rules**: UI-ul blochează vizual și funcțional modificarea modulelor indisponibile.
 *   **Audit logs**: Motivul completat de platform_owner este transmis direct către log-ul de audit al bazei de date.
+
+---
+
+## 5. Corecție 6F.1.6.1 — E2E Cleanup & Preset Safety
+
+### Risc Identificat
+Testul E2E original aplica preset-ul **Basic** pe `Magazin Principal` și restaura în cleanup doar `ai_consultant=false`. Module operaționale critice (`reception`, `transfer`, `commercial_reports`, `store_settings`, `loss_reporting`, `waste_audit`, `dashboard`, `expiration_tracking`) rămâneau dezactivate explicit prin override.
+
+### Verificare DB
+Prin `get_store_module_access('00000000-0000-0000-0000-000000000001')` s-au confirmat 8 module cu `effective_enabled=false` din cauza preset-ului Basic aplicat în test.
+
+### Module Restaurate (via RPC)
+- `dashboard`, `reception`, `transfer`, `loss_reporting`, `waste_audit`, `commercial_reports`, `store_settings`, `expiration_tracking` → restaurate la `enabled=true`
+- `ai_consultant` → menținut `enabled=false` (baseline corect)
+
+### Corecție Test E2E
+- **Snapshot pre-test**: capturare completă a stării tuturor modulelor via `get_store_module_access`.
+- **Preset test fără aplicare live**: modalul de confirmare este testat (apare, are butoanele cu ID `#preset-cancel-btn`/`#preset-confirm-btn`), dar preset-ul **NU** este aplicat pe `Magazin Principal`.
+- **Cleanup robust în `finally`**: restaurare exactă a snapshot-ului via `bulk_set_store_modules`, indiferent de PASS/FAIL.
+- **Fallback hardcodat**: dacă snapshot-ul nu poate fi restaurat, se aplică baseline-ul operațional definit în constantă.
+
+### ID-uri Adăugate în UI
+- `#toggle-cancel-btn`, `#toggle-confirm-btn` (modal reasoning)
+- `#preset-cancel-btn`, `#preset-confirm-btn` (modal preset)
+
+### Fără DML Direct
+Toate operațiile au folosit exclusiv `set_store_module_access` și `bulk_set_store_modules`. Nicio modificare directă pe tabelele `store_module_access` sau `platform_modules`.
+
+### Status Final
+```
+npm run build   → PASS ✅
+E2E test        → PASS ✅ (Exit code 0)
+Magazin Principal → module operaționale restaurate
+```
+
+**Decizie: Ready for 6F.1.7 — Module Entitlements E2E Hardening / Visual QA**

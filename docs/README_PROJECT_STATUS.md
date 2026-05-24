@@ -174,4 +174,11 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a extins componenta de vizualizare audit logs din consolă (`OwnerAuditLogsPanel.tsx`) pentru acțiunile de `store.module_enable` și `store.module_disable`.
   - Testarea E2E Playwright (`test_owner_module_management_6f16.py`) și build-ul de producție (`npm run build`) au fost rulate și au trecut cu succes.
 
-
+- **Etapa 6F.1.6.1 (Module Management E2E Cleanup & Preset Safety)**: **Realizat** — PASS.
+  - S-a identificat riscul operațional: preset-ul Basic aplicat în testul E2E lăsa `Magazin Principal` cu module critice dezactivate (reception, transfer, commercial_reports, store_settings, loss_reporting, waste_audit, dashboard, expiration_tracking).
+  - S-a efectuat un audit complet al stării modulelor prin RPC `get_store_module_access` și s-a restaurat baseline-ul operațional sigur prin apeluri `set_store_module_access` / `bulk_set_store_modules`. Niciun DML direct.
+  - S-a refactorizat testul E2E cu: snapshot complet pre-test, cleanup robust în `finally` care restaurează exact snapshot-ul capturat indiferent de PASS/FAIL, și eliminarea aplicării live a preset-ului pe `Magazin Principal` (se testează doar UI-ul modalului: apare, are butoanele cu ID stabil, se poate anula).
+  - S-au adăugat ID-uri stabile pe butoanele din modaluri (`#toggle-cancel-btn`, `#toggle-confirm-btn`, `#preset-cancel-btn`, `#preset-confirm-btn`) în `OwnerStoreModulesPanel.tsx`.
+  - Build PASS, test E2E PASS (Exit code 0).
+  - Rapoarte: `docs/module_management_e2e_cleanup_safety_6f161_report.md`, secțiunea 5 adăugată în `docs/owner_console_module_management_ui_6f16_report.md`.
+  - **Următorul pas: Etapa 6F.1.7 — Module Entitlements E2E Hardening / Visual QA**

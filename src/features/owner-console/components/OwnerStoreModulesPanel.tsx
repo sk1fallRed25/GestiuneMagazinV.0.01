@@ -469,12 +469,14 @@ export const OwnerStoreModulesPanel: React.FC<OwnerStoreModulesPanelProps> = ({
             {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700/60 bg-gray-50/50 dark:bg-gray-800/50 flex justify-end gap-3">
               <button
+                id="toggle-cancel-btn"
                 onClick={() => setConfirmToggleData(null)}
                 className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
               >
                 Anulează
               </button>
               <button
+                id="toggle-confirm-btn"
                 onClick={handleConfirmToggle}
                 disabled={!toggleReason.trim() || loading}
                 className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all disabled:opacity-50"
@@ -524,12 +526,14 @@ export const OwnerStoreModulesPanel: React.FC<OwnerStoreModulesPanelProps> = ({
             {/* Modal Footer */}
             <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700/60 bg-gray-50/50 dark:bg-gray-800/50 flex justify-end gap-3">
               <button
+                id="preset-cancel-btn"
                 onClick={() => setConfirmPresetData(null)}
                 className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-bold text-xs rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-all"
               >
                 Anulează
               </button>
               <button
+                id="preset-confirm-btn"
                 onClick={handleConfirmPreset}
                 disabled={loading}
                 className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all disabled:opacity-50"
