@@ -14,8 +14,9 @@ export const usePos = () => {
     const [submitting, setSubmitting] = useState(false);
     
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
-    const [cashAmount, setCashAmount] = useState<number>(0);
-    const [cardAmount, setCardAmount] = useState<number>(0);
+    const [cashAmount, setCashAmount] = useState<string>('0.00');
+    const [cardAmount, setCardAmount] = useState<string>('0.00');
+    const [lastEditedMixedField, setLastEditedMixedField] = useState<'cash' | 'card' | null>(null);
 
     // Shift Management State
     const [activeShift, setActiveShift] = useState<ActiveShift | null>(null);
@@ -140,9 +141,10 @@ export const usePos = () => {
 
     const clearCart = () => {
         setCart([]);
-        setCashAmount(0);
-        setCardAmount(0);
+        setCashAmount('0.00');
+        setCardAmount('0.00');
         setPaymentMethod('cash');
+        setLastEditedMixedField(null);
     };
 
     const totalBon = useMemo(() => {
@@ -219,6 +221,105 @@ export const usePos = () => {
         }
     };
 
+    // Calcule monetare
+    const roundMoney = (value: number): number =>
+        Math.round((value + Number.EPSILON) * 100) / 100;
+
+    const parseMoneyInput = (value: string | number): number => {
+        if (typeof value === 'number') return value;
+        const normalized = value.replace(',', '.');
+        const parsed = Number.parseFloat(normalized);
+        return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const handleMixedCashChange = (rawValue: string) => {
+        setCashAmount(rawValue);
+        setLastEditedMixedField('cash');
+
+        const total = roundMoney(totalBon);
+        const cash = parseMoneyInput(rawValue);
+        const cappedCash = roundMoney(Math.min(Math.max(cash, 0), total));
+        
+        if (cash > total || cash < 0) {
+            setCashAmount(cappedCash.toFixed(2));
+        }
+
+        const card = roundMoney(total - cappedCash);
+        setCardAmount(card.toFixed(2));
+    };
+
+    const handleMixedCardChange = (rawValue: string) => {
+        setCardAmount(rawValue);
+        setLastEditedMixedField('card');
+
+        const total = roundMoney(totalBon);
+        const card = parseMoneyInput(rawValue);
+        const cappedCard = roundMoney(Math.min(Math.max(card, 0), total));
+
+        if (card > total || card < 0) {
+            setCardAmount(cappedCard.toFixed(2));
+        }
+
+        const cash = roundMoney(total - cappedCard);
+        setCashAmount(cash.toFixed(2));
+    };
+
+    const handleMixedCashBlur = () => {
+        const total = roundMoney(totalBon);
+        const cashNum = parseMoneyInput(cashAmount);
+        const cappedCash = roundMoney(Math.min(Math.max(cashNum, 0), total));
+        setCashAmount(cappedCash.toFixed(2));
+        setCardAmount(roundMoney(total - cappedCash).toFixed(2));
+    };
+
+    const handleMixedCardBlur = () => {
+        const total = roundMoney(totalBon);
+        const cardNum = parseMoneyInput(cardAmount);
+        const cappedCard = roundMoney(Math.min(Math.max(cardNum, 0), total));
+        setCardAmount(cappedCard.toFixed(2));
+        setCashAmount(roundMoney(total - cappedCard).toFixed(2));
+    };
+
+    const handlePaymentMethodChange = (method: PaymentMethod) => {
+        setPaymentMethod(method);
+        if (method === 'mixed') {
+            const total = roundMoney(totalBon);
+            setCashAmount(total.toFixed(2));
+            setCardAmount('0.00');
+            setLastEditedMixedField('cash');
+        }
+    };
+
+    // Auto-balance if totalBon changes
+    useEffect(() => {
+        if (paymentMethod === 'mixed') {
+            const total = roundMoney(totalBon);
+            if (lastEditedMixedField === 'cash') {
+                const cashNum = parseMoneyInput(cashAmount);
+                const cappedCash = roundMoney(Math.min(cashNum, total));
+                const card = roundMoney(total - cappedCash);
+                
+                if (Math.abs(cashNum - cappedCash) > 0.001 || cashAmount === '') {
+                    setCashAmount(cappedCash.toFixed(2));
+                }
+                setCardAmount(card.toFixed(2));
+            } else if (lastEditedMixedField === 'card') {
+                const cardNum = parseMoneyInput(cardAmount);
+                const cappedCard = roundMoney(Math.min(cardNum, total));
+                const cash = roundMoney(total - cappedCard);
+                
+                if (Math.abs(cardNum - cappedCard) > 0.001 || cardAmount === '') {
+                    setCardAmount(cappedCard.toFixed(2));
+                }
+                setCashAmount(cash.toFixed(2));
+            } else {
+                setCashAmount(total.toFixed(2));
+                setCardAmount('0.00');
+                setLastEditedMixedField('cash');
+            }
+        }
+    }, [totalBon, paymentMethod]);
+
     // Finalizare vânzare
     const finalizeSale = async () => {
         if (!currentStoreId || !user) {
@@ -240,9 +341,14 @@ export const usePos = () => {
 
         // Validare plăți mixte în frontend
         if (paymentMethod === 'mixed') {
-            const paid = (Number(cashAmount) || 0) + (Number(cardAmount) || 0);
-            if (Math.abs(paid - totalBon) > 0.01) {
-                toast.error(`Suma plătită (${paid.toFixed(2)}) nu coincide cu totalul (${totalBon.toFixed(2)}).`);
+            const cashNum = parseMoneyInput(cashAmount);
+            const cardNum = parseMoneyInput(cardAmount);
+            if (cashNum < 0 || cardNum < 0) {
+                toast.error("Sumele de plată nu pot fi negative.");
+                return;
+            }
+            if (roundMoney(cashNum + cardNum) !== roundMoney(totalBon)) {
+                toast.error("Suma cash + card trebuie să fie egală cu totalul de plată.");
                 return;
             }
         }
@@ -260,8 +366,8 @@ export const usePos = () => {
                 profileId: user.id,
                 items: cart,
                 paymentMethod,
-                cashAmount: paymentMethod === 'mixed' ? cashAmount : (paymentMethod === 'cash' ? totalBon : 0),
-                cardAmount: paymentMethod === 'mixed' ? cardAmount : (paymentMethod === 'card' ? totalBon : 0),
+                cashAmount: paymentMethod === 'mixed' ? parseMoneyInput(cashAmount) : (paymentMethod === 'cash' ? totalBon : 0),
+                cardAmount: paymentMethod === 'mixed' ? parseMoneyInput(cardAmount) : (paymentMethod === 'card' ? totalBon : 0),
                 shiftId: activeShift.shiftId
             });
 
@@ -285,11 +391,13 @@ export const usePos = () => {
         loadingSearch,
         submitting,
         paymentMethod,
-        setPaymentMethod,
+        setPaymentMethod: handlePaymentMethodChange,
         cashAmount,
-        setCashAmount,
+        setCashAmount: handleMixedCashChange,
         cardAmount,
-        setCardAmount,
+        setCardAmount: handleMixedCardChange,
+        onCashBlur: handleMixedCashBlur,
+        onCardBlur: handleMixedCardBlur,
         totalBon,
         activeShift,
         cashRegisters,

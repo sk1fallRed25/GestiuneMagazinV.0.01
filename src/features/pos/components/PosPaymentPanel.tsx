@@ -6,10 +6,12 @@ interface PosPaymentPanelProps {
     total: number;
     paymentMethod: PaymentMethod;
     onPaymentMethodChange: (m: PaymentMethod) => void;
-    cashAmount: number;
-    onCashAmountChange: (a: number) => void;
-    cardAmount: number;
-    onCardAmountChange: (a: number) => void;
+    cashAmount: string;
+    onCashAmountChange: (a: string) => void;
+    cardAmount: string;
+    onCardAmountChange: (a: string) => void;
+    onCashBlur?: () => void;
+    onCardBlur?: () => void;
     onFinalize: () => void;
     loading: boolean;
     disabled: boolean;
@@ -23,6 +25,8 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
     onCashAmountChange,
     cardAmount,
     onCardAmountChange,
+    onCashBlur,
+    onCardBlur,
     onFinalize,
     loading,
     disabled
@@ -56,19 +60,25 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
                     <div>
                         <label className="text-xs font-bold text-gray-400 block mb-1">SUMĂ CASH</label>
                         <input 
-                            type="number" 
+                            type="text" 
+                            inputMode="decimal"
+                            pattern="[0-9]*[.,]?[0-9]*"
                             className="w-full p-2 border-2 border-gray-100 rounded-lg outline-none focus:border-green-500"
-                            value={cashAmount || ''}
-                            onChange={e => onCashAmountChange(parseFloat(e.target.value) || 0)}
+                            value={cashAmount}
+                            onChange={e => onCashAmountChange(e.target.value)}
+                            onBlur={onCashBlur}
                         />
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-400 block mb-1">SUMĂ CARD</label>
                         <input 
-                            type="number" 
+                            type="text" 
+                            inputMode="decimal"
+                            pattern="[0-9]*[.,]?[0-9]*"
                             className="w-full p-2 border-2 border-gray-100 rounded-lg outline-none focus:border-blue-500"
-                            value={cardAmount || ''}
-                            onChange={e => onCardAmountChange(parseFloat(e.target.value) || 0)}
+                            value={cardAmount}
+                            onChange={e => onCardAmountChange(e.target.value)}
+                            onBlur={onCardBlur}
                         />
                     </div>
                 </div>

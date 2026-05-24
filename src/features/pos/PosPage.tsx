@@ -25,6 +25,8 @@ const PosPage: React.FC = () => {
         setCashAmount,
         cardAmount,
         setCardAmount,
+        onCashBlur,
+        onCardBlur,
         totalBon,
         activeShift,
         cashRegisters,
@@ -125,6 +127,8 @@ const PosPage: React.FC = () => {
                     onCashAmountChange={setCashAmount}
                     cardAmount={cardAmount}
                     onCardAmountChange={setCardAmount}
+                    onCashBlur={onCashBlur}
+                    onCardBlur={onCardBlur}
                     onFinalize={finalizeSale}
                     loading={submitting}
                     disabled={cart.length === 0 || !activeShift}
