@@ -62,11 +62,36 @@ Procedura stocată a fost inspectată la nivel de definiție și comportament:
     {
       "vatPayer": true,
       "vatGroups": {
-        "A": 19,
-        "B": 9,
-        "C": 5,
-        "D": 0,
-        "E": 0
+        "A": {
+          "rate": 21,
+          "label": "TVA standard",
+          "active": true,
+          "fiscal_code": "A"
+        },
+        "B": {
+          "rate": 11,
+          "label": "TVA redus",
+          "active": true,
+          "fiscal_code": "B"
+        },
+        "C": {
+          "rate": 11,
+          "label": "TVA redus",
+          "active": true,
+          "fiscal_code": "C"
+        },
+        "D": {
+          "rate": 0,
+          "label": "TVA zero",
+          "active": true,
+          "fiscal_code": "D"
+        },
+        "E": {
+          "rate": 0,
+          "label": "Neplătitor TVA",
+          "active": true,
+          "fiscal_code": "E"
+        }
       },
       "priceTaxPolicy": "inclusive",
       "defaultVatGroup": "A"
@@ -78,11 +103,36 @@ Procedura stocată a fost inspectată la nivel de definiție și comportament:
     {
       "vatPayer": false,
       "vatGroups": {
-        "A": 19,
-        "B": 9,
-        "C": 5,
-        "D": 0,
-        "E": 0
+        "A": {
+          "rate": 21,
+          "label": "TVA standard",
+          "active": true,
+          "fiscal_code": "A"
+        },
+        "B": {
+          "rate": 11,
+          "label": "TVA redus",
+          "active": true,
+          "fiscal_code": "B"
+        },
+        "C": {
+          "rate": 11,
+          "label": "TVA redus",
+          "active": true,
+          "fiscal_code": "C"
+        },
+        "D": {
+          "rate": 0,
+          "label": "TVA zero",
+          "active": true,
+          "fiscal_code": "D"
+        },
+        "E": {
+          "rate": 0,
+          "label": "Neplătitor TVA",
+          "active": true,
+          "fiscal_code": "E"
+        }
       },
       "priceTaxPolicy": "inclusive",
       "defaultVatGroup": "E"
