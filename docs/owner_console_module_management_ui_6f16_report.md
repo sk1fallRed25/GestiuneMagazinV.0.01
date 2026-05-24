@@ -133,3 +133,10 @@ Magazin Principal → module operaționale restaurate
 ```
 
 **Decizie: Ready for 6F.1.7 — Module Entitlements E2E Hardening / Visual QA**
+
+---
+
+## 6. Notă Etapă 6F.1.6.2 — DOM/Test Alignment Hotfix
+
+Etapa 6F.1.6.2 a asigurat alinierea completă a DOM-ului cu testul E2E prin introducerea ID-urilor stabile (`#toggle-cancel-btn`, `#toggle-confirm-btn`, `#preset-cancel-btn`, `#preset-confirm-btn`) și a atributelor de accesibilitate (`aria-label`) în modalele de reasoning și preset ale `OwnerStoreModulesPanel.tsx`. Testul E2E `test_owner_module_management_6f16.py` utilizează acești selectori stabili în mod nativ, având o rată de succes de 100% (compilare/rulare PASS) cu un cleanup impecabil executat în clauza `finally` strict prin RPC.
+

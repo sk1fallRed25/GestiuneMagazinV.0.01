@@ -182,3 +182,10 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Build PASS, test E2E PASS (Exit code 0).
   - Rapoarte: `docs/module_management_e2e_cleanup_safety_6f161_report.md`, secțiunea 5 adăugată în `docs/owner_console_module_management_ui_6f16_report.md`.
   - **Următorul pas: Etapa 6F.1.7 — Module Entitlements E2E Hardening / Visual QA**
+
+- **Etapa 6F.1.6.2 (Owner Module Management DOM/Test Alignment Hotfix)**: **Realizat** — PASS.
+  - S-au adăugat ID-uri stabile (`#toggle-cancel-btn`, `#toggle-confirm-btn`, `#preset-cancel-btn`, `#preset-confirm-btn`) și atribute de accesibilitate `aria-label` în modalele de toggle individual și aplicare preset în componenta `OwnerStoreModulesPanel.tsx`.
+  - S-a validat alinierea DOM-ului cu testul E2E `test_owner_module_management_6f16.py`, care rulează acum 100% reproductibil și sigur.
+  - Cleanup-ul robust rămâne strict prin RPC-uri și zero DML direct pe baza de date. Nu s-au modificat DB/RLS/RPC-uri.
+  - Build-ul Vite/TypeScript de producție a trecut perfect (`npm run build` PASS).
+  - **Următorul pas: Etapa 6F.1.7 — Module Entitlements E2E Hardening / Visual QA**

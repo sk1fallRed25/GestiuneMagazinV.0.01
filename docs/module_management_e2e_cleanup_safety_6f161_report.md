@@ -187,3 +187,22 @@ Sistemul este în stare curată:
 - Testul E2E nu mai lasă override-uri nedorite.
 - Cleanup robust garantează izolarea fiecărui test-run.
 - Niciun DML direct; toate operațiile prin RPC securizate.
+
+---
+
+## 8. Corecție 6F.1.6.2 — DOM/Test Alignment
+
+La verificarea GitHub a apărut o nealiniere între selectorii din testul E2E `test_owner_module_management_6f16.py` și componenta `OwnerStoreModulesPanel.tsx`. Pentru a asigura o testare robustă și stabilă:
+- În **Individual Toggle Reasoning Modal** s-au adăugat selectorii stabili:
+  - Buton Anulează: `id="toggle-cancel-btn"` cu `aria-label="Anulează modificarea modulului"`
+  - Buton Salvează Modificarea: `id="toggle-confirm-btn"` cu `aria-label="Confirmă modificarea modulului"`
+- În **Preset Application Modal** s-au adăugat selectorii stabili:
+  - Buton Anulează: `id="preset-cancel-btn"` cu `aria-label="Anulează aplicarea pachetului"`
+  - Buton Aplică Pachet: `id="preset-confirm-btn"` cu `aria-label="Confirmă aplicarea pachetului"`
+
+### Rezultate Verificare 6F.1.6.2:
+1. **Build Vite/TypeScript:** `PASS ✅` (compilare și transformare complete).
+2. **Execuție E2E Test (Playwright):** `PASS ✅` (reproductibilitate 100% garantată, rulare curată).
+3. **Protecție Bază de Date:** `ZERO DML direct`. Toate operațiunile efectuate exclusiv prin RPC-uri native (`get_store_module_access`, `set_store_module_access` și `bulk_set_store_modules`).
+4. **Izolare:** Cleanup robust în clauza `finally` a testului restabilește cu succes starea pre-test (snapshot) a `Magazin Principal`.
+
