@@ -1,3 +1,5 @@
+import { VatGroupKey } from '../products/types';
+
 export interface FastAddForm {
     barcode: string;
     name: string;
@@ -5,6 +7,7 @@ export interface FastAddForm {
     priceSale: string;
     pricePurchase: string;
     vatPercent: string;
+    vatGroup: VatGroupKey;
     initialStock: string;
     stockZone: 'depozit' | 'magazin';
     batchNumber?: string;
@@ -20,6 +23,7 @@ export interface FastAddProductPayload {
     priceSale: number;
     pricePurchase: number;
     vatPercent: number;
+    vatGroup: VatGroupKey;
     initialStock: number;
     stockZone: 'depozit' | 'magazin';
     batchNumber?: string | null;
@@ -32,3 +36,4 @@ export interface FastAddResult {
     createdPrice: boolean;
     createdInitialStock: boolean;
 }
+

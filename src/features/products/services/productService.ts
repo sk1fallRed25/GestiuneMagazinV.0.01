@@ -3,11 +3,93 @@ import {
     Product, 
     ProductUpdateInput, 
     ProductDbRow, 
+    VatGroupKey,
+    ProductVatGroup,
+    ProductVatConfig
 } from '../types';
+
 
 type ProductCoreUpdate = Partial<Pick<ProductDbRow, 'name' | 'barcode' | 'unit' | 'status'>>;
 
+const vatGroupToLegacyPercent = (group: VatGroupKey): number => {
+    const rates: Record<VatGroupKey, number> = {
+        A: 21,
+        B: 11,
+        C: 11,
+        D: 0,
+        E: 0
+    };
+    return rates[group] || 21;
+};
+
 export const productService = {
+    /**
+     * Încarcă configurația fiscală de TVA a magazinului.
+     */
+    async getProductVatConfig(storeId: string): Promise<ProductVatConfig> {
+        if (!storeId) {
+            throw new Error("Selectează un magazin pentru a configura produsele.");
+        }
+
+        const { data, error } = await supabase.rpc('get_product_vat_config', {
+            p_store_id: storeId
+        });
+
+        if (error) {
+            console.error("Error get_product_vat_config:", error);
+            throw new Error(error.message || "Nu s-a putut încărca configurația TVA.");
+        }
+
+        if (!data) {
+            throw new Error("Configurația TVA nu a fost returnată de server.");
+        }
+
+        try {
+            const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+            const vatPayer = !!parsed.vat_payer;
+            let defaultVatGroup = (parsed.default_vat_group || 'A') as VatGroupKey;
+            const priceTaxPolicy = parsed.price_tax_policy || 'inclusive';
+
+            const rawGroups = parsed.vat_groups || {};
+            const vatGroups: Record<VatGroupKey, ProductVatGroup> = {
+                A: { rate: 21, label: 'TVA standard', fiscalCode: 'A', active: true },
+                B: { rate: 11, label: 'TVA redus', fiscalCode: 'B', active: true },
+                C: { rate: 11, label: 'TVA redus', fiscalCode: 'C', active: true },
+                D: { rate: 0, label: 'TVA zero', fiscalCode: 'D', active: true },
+                E: { rate: 0, label: 'Neplătitor TVA', fiscalCode: 'E', active: true }
+            };
+
+            const keys: VatGroupKey[] = ['A', 'B', 'C', 'D', 'E'];
+            keys.forEach(k => {
+                const g = rawGroups[k];
+                if (g) {
+                    vatGroups[k] = {
+                        rate: typeof g.rate === 'number' ? g.rate : Number(g.rate) || 0,
+                        label: g.label || vatGroups[k].label,
+                        fiscalCode: k,
+                        active: g.active !== undefined ? !!g.active : true
+                    };
+                }
+            });
+
+            if (!vatPayer) {
+                defaultVatGroup = 'E';
+            } else if (defaultVatGroup === 'E') {
+                defaultVatGroup = 'A';
+            }
+
+            return {
+                vatPayer,
+                defaultVatGroup,
+                priceTaxPolicy,
+                vatGroups
+            };
+        } catch (e) {
+            console.error("Parsing error in getProductVatConfig:", e);
+            throw new Error("Format invalid pentru configurația TVA.");
+        }
+    },
+
     /**
      * Listează produsele unui magazin, agregând prețurile și stocurile.
      */
@@ -68,7 +150,9 @@ export const productService = {
                 um: p.unit,
                 unitate_masura: p.unit,
                 active: p.status === 'active',
-                status: p.status
+                status: p.status,
+                vatGroup: (price?.vat_group as VatGroupKey) || 'A',
+                vatPercent: price?.vat_percent !== undefined ? Number(price.vat_percent) : 21
             };
         });
     },
@@ -97,7 +181,7 @@ export const productService = {
         }
 
         // 2. Update/Upsert Preț cu protecție contra suprascrierii
-        if (input.pret_vanzare !== undefined || input.pret_achizitie !== undefined) {
+        if (input.pret_vanzare !== undefined || input.pret_achizitie !== undefined || input.vatGroup !== undefined) {
             // Citim prețul existent
             const { data: existingPrice } = await supabase
                 .from('product_prices')
@@ -108,7 +192,9 @@ export const productService = {
 
             const priceSale = input.pret_vanzare !== undefined ? input.pret_vanzare : (Number(existingPrice?.price_sale) || 0);
             const pricePurchase = input.pret_achizitie !== undefined ? input.pret_achizitie : (Number(existingPrice?.price_purchase) || 0);
-            const vatPercent = Number(existingPrice?.vat_percent) || 19;
+            
+            const vatGroup = input.vatGroup || (existingPrice?.vat_group as VatGroupKey) || 'A';
+            const vatPercent = input.vatGroup ? vatGroupToLegacyPercent(input.vatGroup) : (Number(existingPrice?.vat_percent) || 21);
 
             const { error: prError } = await supabase
                 .from('product_prices')
@@ -118,6 +204,7 @@ export const productService = {
                     price_sale: priceSale,
                     price_purchase: pricePurchase,
                     vat_percent: vatPercent,
+                    vat_group: vatGroup,
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'store_id,product_id' });
             if (prError) throw prError;

@@ -109,6 +109,7 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 6D.4.1 (Product VAT SQL Apply Verification)**: Realizat (`docs/product_vat_sql_apply_verification_6d41_report.md`) — **PASS** (cu observația că necesită hotfix-ul 6D.4.1.1 pentru imunizarea/alinierea ratelor TVA la runtime).
 - **Etapa 6D.4.1.1 (Product VAT Config Rate Alignment Hotfix)**: Realizat (`docs/product_vat_config_rates_alignment_6d411_report.md`, `database/hotfix_product_vat_config_rates_6d411.sql`).
 - **Etapa 6D.4.1.2 (Product VAT Config Rate Hotfix Verification)**: Realizat (`docs/product_vat_config_rates_hotfix_verification_6d412_report.md`) — **PASS**. Toate testele funcționale pe procedurile stocate de configurare a TVA-ului au fost validate cu succes în baza de date, iar imunitatea fiscală runtime este garantată.
+- **Etapa 6D.4.2 (Product VAT Frontend Integration)**: Realizat (`docs/product_vat_frontend_integration_6d42_report.md`) — **PASS**. S-a integrat selectorul reutilizabil `ProductVatGroupSelector` în listele de produse, modalul de editare și formularul de adăugare rapidă (Fast Add v2), cu încărcarea dinamică a configurației din RPC-ul magazinului curent și calculul automat al cotei procentuale. Rularea build-ului a fost validată cu succes.
 
-Următorul pas: **6D.4.2 Product VAT Frontend Integration** (integrarea selectorului de grupă TVA în paginile de formulare și tabele produse).
+Următorul pas: **6D.4.3 Product VAT Integration E2E Test** (testarea automată E2E prin Playwright a fluxurilor de produse cu grupe TVA).
 

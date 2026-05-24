@@ -1,3 +1,19 @@
+export type VatGroupKey = 'A' | 'B' | 'C' | 'D' | 'E';
+
+export interface ProductVatGroup {
+  rate: number;
+  label: string;
+  fiscalCode: VatGroupKey;
+  active: boolean;
+}
+
+export interface ProductVatConfig {
+  vatPayer: boolean;
+  defaultVatGroup: VatGroupKey;
+  priceTaxPolicy: 'inclusive' | 'exclusive';
+  vatGroups: Record<VatGroupKey, ProductVatGroup>;
+}
+
 export interface Product {
   id: string; // UUID in v2
   nume: string;
@@ -10,6 +26,8 @@ export interface Product {
   unitate_masura: string; // Alias legacy
   active?: boolean;
   status?: 'active' | 'archived' | 'deleted';
+  vatGroup?: VatGroupKey;
+  vatPercent?: number;
 }
 
 /**
@@ -37,8 +55,10 @@ export interface ProductPriceDbRow {
   price_sale: number;
   price_purchase: number;
   vat_percent: number;
+  vat_group?: VatGroupKey;
   updated_at: string;
 }
+
 
 /**
  * Tabel public.stock_batches (v2)
@@ -68,7 +88,10 @@ export interface ProductUpdateInput {
   um?: string;
   unitate_masura?: string;
   status?: 'active' | 'archived' | 'deleted';
+  vatGroup?: VatGroupKey;
+  vatPercent?: number;
 }
+
 
 export interface ProductsPageProps {
     userRole?: string;

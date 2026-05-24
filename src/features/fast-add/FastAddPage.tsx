@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { ScanBarcode, ArrowLeft, Package, CheckCircle, AlertTriangle, Save, Loader2, DollarSign, Percent, Calendar } from 'lucide-react';
 import { useFastAdd } from './hooks/useFastAdd';
 import { detecteazaCategorie, formateazaGramaj } from './utils'; // Vom implementa un fișier de utilitare sau le lăsăm aici
+import { ProductVatGroupSelector } from '../products/components/ProductVatGroupSelector';
 
 export default function FastAddPage() {
-    const { form, submitting, error, updateField, submit, resetForm } = useFastAdd();
+    const { form, submitting, error, updateField, submit, resetForm, vatConfig } = useFastAdd();
     const barcodeRef = useRef<HTMLInputElement>(null);
     const nameRef = useRef<HTMLInputElement>(null);
     const [status, setStatus] = useState({ msg: '', type: '' });
@@ -189,6 +190,12 @@ export default function FastAddPage() {
                             </div>
                         </div>
                     </div>
+
+                    <ProductVatGroupSelector 
+                        value={form.vatGroup}
+                        onChange={(val) => updateField('vatGroup', val)}
+                        config={vatConfig}
+                    />
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>

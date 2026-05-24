@@ -73,6 +73,7 @@ export const fastAddService = {
                 price_sale: payload.priceSale,
                 price_purchase: payload.pricePurchase,
                 vat_percent: payload.vatPercent,
+                vat_group: payload.vatGroup,
                 updated_at: new Date().toISOString()
             }], { onConflict: 'store_id,product_id' });
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, X } from 'lucide-react';
-import { Product, ProductUpdateInput } from '../types';
+import { Product, ProductUpdateInput, ProductVatConfig, VatGroupKey } from '../types';
+import { ProductVatGroupSelector } from './ProductVatGroupSelector';
 import toast from 'react-hot-toast';
 
 interface ProductEditModalProps {
@@ -8,18 +9,28 @@ interface ProductEditModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (productId: string, data: ProductUpdateInput) => Promise<void>;
+    vatConfig: ProductVatConfig | null;
 }
 
-const ProductEditModal = ({ product, isOpen, onClose, onSubmit }: ProductEditModalProps) => {
-    // Folosim un state local pentru a gestiona valorile ca string pentru a permite editarea fluidă (ex: ștergerea unui caracter)
-    const [localState, setLocalState] = useState({
+const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: ProductEditModalProps) => {
+    const [localState, setLocalState] = useState<{
+        nume: string;
+        cod_bare: string;
+        pret_vanzare: string;
+        pret_achizitie: string;
+        um: string;
+        stoc_depozit: string;
+        stoc_magazin: string;
+        vatGroup: VatGroupKey;
+    }>({
         nume: '',
         cod_bare: '',
         pret_vanzare: '0',
         pret_achizitie: '0',
         um: '',
         stoc_depozit: '0',
-        stoc_magazin: '0'
+        stoc_magazin: '0',
+        vatGroup: 'A'
     });
 
     useEffect(() => {
@@ -31,24 +42,27 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit }: ProductEditMod
                 pret_achizitie: (product.pret_achizitie || 0).toString(),
                 um: product.um || '',
                 stoc_depozit: (product.stoc_depozit || 0).toString(),
-                stoc_magazin: (product.stoc_magazin || 0).toString()
+                stoc_magazin: (product.stoc_magazin || 0).toString(),
+                vatGroup: product.vatGroup || (vatConfig?.defaultVatGroup) || 'A'
             });
         }
-    }, [product]);
+    }, [product, vatConfig]);
 
     if (!isOpen || !product) return null;
 
     const handleNumberChange = (field: string, value: string) => {
-        // Permitem doar cifre și un singur punct zecimal
         if (value === '' || /^\d*\.?\d*$/.test(value)) {
             setLocalState(prev => ({ ...prev, [field]: value }));
         }
     };
 
+    const handleVatGroupChange = (val: VatGroupKey) => {
+        setLocalState(prev => ({ ...prev, vatGroup: val }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Conversie și validare finală
         const pret_vanzare = parseFloat(localState.pret_vanzare) || 0;
         const pret_achizitie = parseFloat(localState.pret_achizitie) || 0;
         const stoc_depozit = parseFloat(localState.stoc_depozit) || 0;
@@ -66,7 +80,8 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit }: ProductEditMod
             pret_achizitie,
             um: localState.um,
             stoc_depozit,
-            stoc_magazin
+            stoc_magazin,
+            vatGroup: localState.vatGroup
         };
 
         try {
@@ -134,6 +149,12 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit }: ProductEditMod
                             />
                         </div>
                     </div>
+
+                    <ProductVatGroupSelector 
+                        value={localState.vatGroup}
+                        onChange={handleVatGroupChange}
+                        config={vatConfig}
+                    />
 
                     <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Unitate de Măsură (U.M.)</label>

@@ -1,15 +1,16 @@
 import React from 'react';
 import { Edit3, Trash2, Package } from 'lucide-react';
-import { Product } from '../types';
+import { Product, ProductVatConfig } from '../types';
 
 interface ProductTableProps {
     products: Product[];
     onEdit: (product: Product) => void;
     onDelete: (id: string) => void;
     userRole?: string;
+    vatConfig?: ProductVatConfig | null;
 }
 
-const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProps) => {
+const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig }: ProductTableProps) => {
     // Definire roluri cu permisiuni de ștergere (v2)
     // În v2, 'admin' și 'platform_owner' au permisiuni de administrare.
     const canDelete = ['admin', 'platform_owner'].includes(userRole || '');
@@ -21,6 +22,7 @@ const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProp
                     <tr>
                         <th className="px-6 py-5">Denumire Produs</th>
                         <th className="px-6 py-5">Preț Vânzare</th>
+                        <th className="px-6 py-5">TVA</th>
                         <th className="px-6 py-5 text-center">Stoc Depozit</th>
                         <th className="px-6 py-5 text-center">Stoc Magazin</th>
                         <th className="px-6 py-5">U.M.</th>
@@ -43,6 +45,15 @@ const ProductTable = ({ products, onEdit, onDelete, userRole }: ProductTableProp
                             </td>
                             <td className="px-6 py-4 font-bold text-gray-700">
                                 {produs.pret_vanzare.toFixed(2)} <span className="text-[10px] text-gray-400">LEI</span>
+                            </td>
+                            <td className="px-6 py-4">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold leading-none font-mono ${
+                                    produs.vatGroup === 'E' 
+                                        ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                        : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                }`}>
+                                    {produs.vatGroup || 'A'} ({produs.vatPercent !== undefined ? produs.vatPercent : 21}%)
+                                </span>
                             </td>
                             <td className="px-6 py-4 text-center font-bold text-indigo-600 bg-indigo-50/30">
                                 {produs.stoc_depozit}

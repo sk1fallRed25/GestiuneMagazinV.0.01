@@ -19,7 +19,8 @@ const ProductsPage = () => {
         filteredProducts,
         updateProduct,
         deleteProduct,
-        currentStoreId
+        currentStoreId,
+        vatConfig
     } = useProducts();
 
 
@@ -80,6 +81,7 @@ const ProductsPage = () => {
                 onEdit={handleEdit} 
                 onDelete={handleDelete}
                 userRole={userRole}
+                vatConfig={vatConfig}
             />
 
             {/* Modal Editare */}
@@ -88,6 +90,7 @@ const ProductsPage = () => {
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
                 onSubmit={updateProduct}
+                vatConfig={vatConfig}
             />
         </div>
     );

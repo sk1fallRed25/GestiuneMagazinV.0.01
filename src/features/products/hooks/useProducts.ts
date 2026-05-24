@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
-import { Product, ProductUpdateInput } from '../types';
+import { Product, ProductUpdateInput, ProductVatConfig } from '../types';
 import { productService } from '../services/productService';
 import { useAuth } from '../../auth/useAuth';
 
@@ -9,6 +9,8 @@ export const useProducts = () => {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [vatConfig, setVatConfig] = useState<ProductVatConfig | null>(null);
+    const [vatLoading, setVatLoading] = useState(false);
 
     const fetchProducts = useCallback(async () => {
         if (!currentStoreId) {
@@ -28,9 +30,26 @@ export const useProducts = () => {
         }
     }, [currentStoreId]);
 
+    const fetchVatConfig = useCallback(async () => {
+        if (!currentStoreId) {
+            setVatConfig(null);
+            return;
+        }
+        setVatLoading(true);
+        try {
+            const config = await productService.getProductVatConfig(currentStoreId);
+            setVatConfig(config);
+        } catch (error) {
+            console.error("Eroare la încărcarea configurației TVA:", error);
+        } finally {
+            setVatLoading(false);
+        }
+    }, [currentStoreId]);
+
     useEffect(() => {
         fetchProducts();
-    }, [fetchProducts]);
+        fetchVatConfig();
+    }, [fetchProducts, fetchVatConfig]);
 
     const filteredProducts = useMemo(() => {
         return products.filter(p =>
@@ -95,13 +114,14 @@ export const useProducts = () => {
 
     return {
         products,
-        loading,
+        loading: loading || vatLoading,
         searchTerm,
         setSearchTerm,
         filteredProducts,
         refreshProducts: fetchProducts,
         updateProduct,
         deleteProduct,
-        currentStoreId
+        currentStoreId,
+        vatConfig
     };
 };
