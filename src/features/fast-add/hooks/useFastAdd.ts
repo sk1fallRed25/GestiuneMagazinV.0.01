@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../auth/useAuth';
 import { fastAddService } from '../services/fastAddService';
-import { productService } from '../../products/services/productService';
+import { productService, normalizeVatGroupForStore, getStandardVatRate } from '../../products/services/productService';
 import { ProductVatConfig, VatGroupKey } from '../../products/types';
 import { FastAddForm, FastAddProductPayload } from '../types';
 import toast from 'react-hot-toast';
@@ -107,15 +107,10 @@ export const useFastAdd = () => {
             return false;
         }
 
-        const vatGroup = form.vatGroup;
-        const rates: Record<VatGroupKey, number> = {
-            A: 21,
-            B: 11,
-            C: 11,
-            D: 0,
-            E: 0
-        };
-        const vatPercent = rates[vatGroup] || 21;
+        const finalVatGroup = vatConfig?.vatPayer === false
+            ? 'E'
+            : normalizeVatGroupForStore(form.vatGroup, vatConfig);
+        const vatPercent = getStandardVatRate(finalVatGroup);
 
         setSubmitting(true);
         setError(null);
@@ -130,7 +125,7 @@ export const useFastAdd = () => {
                 priceSale,
                 pricePurchase,
                 vatPercent,
-                vatGroup,
+                vatGroup: finalVatGroup,
                 initialStock,
                 stockZone: form.stockZone,
                 batchNumber: form.batchNumber?.trim() || null,

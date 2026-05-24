@@ -1,6 +1,7 @@
 import React from 'react';
 import { Edit3, Trash2, Package } from 'lucide-react';
 import { Product, ProductVatConfig } from '../types';
+import { normalizeVatGroupForStore, getStandardVatRate } from '../services/productService';
 
 interface ProductTableProps {
     products: Product[];
@@ -47,13 +48,19 @@ const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig }: Produ
                                 {produs.pret_vanzare.toFixed(2)} <span className="text-[10px] text-gray-400">LEI</span>
                             </td>
                             <td className="px-6 py-4">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold leading-none font-mono ${
-                                    produs.vatGroup === 'E' 
-                                        ? 'bg-amber-50 text-amber-700 border border-amber-100'
-                                        : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                }`}>
-                                    {produs.vatGroup || 'A'} ({produs.vatPercent !== undefined ? produs.vatPercent : 21}%)
-                                </span>
+                                {(() => {
+                                    const finalVatGroup = normalizeVatGroupForStore(produs.vatGroup, vatConfig ?? null);
+                                    const finalVatPercent = getStandardVatRate(finalVatGroup);
+                                    return (
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold leading-none font-mono ${
+                                            finalVatGroup === 'E' 
+                                                ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                                : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                        }`}>
+                                            {finalVatGroup} ({finalVatPercent}%)
+                                        </span>
+                                    );
+                                })()}
                             </td>
                             <td className="px-6 py-4 text-center font-bold text-indigo-600 bg-indigo-50/30">
                                 {produs.stoc_depozit}

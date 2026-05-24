@@ -11,7 +11,7 @@ import {
 
 type ProductCoreUpdate = Partial<Pick<ProductDbRow, 'name' | 'barcode' | 'unit' | 'status'>>;
 
-const vatGroupToLegacyPercent = (group: VatGroupKey): number => {
+export const getStandardVatRate = (group: VatGroupKey): number => {
     const rates: Record<VatGroupKey, number> = {
         A: 21,
         B: 11,
@@ -19,7 +19,39 @@ const vatGroupToLegacyPercent = (group: VatGroupKey): number => {
         D: 0,
         E: 0
     };
-    return rates[group] || 21;
+    return rates[group] ?? 21;
+};
+
+const vatGroupToLegacyPercent = (group: VatGroupKey): number => {
+    return getStandardVatRate(group);
+};
+
+export const normalizeVatGroupForStore = (
+    input: unknown,
+    config: ProductVatConfig | null
+): VatGroupKey => {
+    if (config?.vatPayer === false) {
+        return 'E';
+    }
+
+    const validGroups: VatGroupKey[] = ['A', 'B', 'C', 'D', 'E'];
+    const isValid = (g: string): g is VatGroupKey => validGroups.includes(g as VatGroupKey);
+
+    const inputStr = typeof input === 'string' ? input.trim().toUpperCase() : '';
+
+    if (inputStr && isValid(inputStr)) {
+        return inputStr;
+    }
+
+    const fallback = config?.defaultVatGroup;
+    if (fallback && isValid(fallback)) {
+        if (fallback === 'E') {
+            return 'A';
+        }
+        return fallback;
+    }
+
+    return 'A';
 };
 
 export const productService = {
@@ -45,12 +77,12 @@ export const productService = {
         }
 
         try {
-            const parsed = typeof data === 'string' ? JSON.parse(data) : data;
-            const vatPayer = !!parsed.vat_payer;
-            let defaultVatGroup = (parsed.default_vat_group || 'A') as VatGroupKey;
-            const priceTaxPolicy = parsed.price_tax_policy || 'inclusive';
+            const parsed = (typeof data === 'string' ? JSON.parse(data) : data) as Record<string, unknown>;
+            const vatPayer = !!(parsed.vatPayer ?? parsed.vat_payer ?? true);
+            let defaultVatGroup = ((parsed.defaultVatGroup ?? parsed.default_vat_group ?? 'A') as string) as VatGroupKey;
+            const priceTaxPolicy = ((parsed.priceTaxPolicy ?? parsed.price_tax_policy ?? 'inclusive') as 'inclusive' | 'exclusive');
 
-            const rawGroups = parsed.vat_groups || {};
+            const rawGroups = (parsed.vatGroups ?? parsed.vat_groups ?? {}) as Record<string, unknown>;
             const vatGroups: Record<VatGroupKey, ProductVatGroup> = {
                 A: { rate: 21, label: 'TVA standard', fiscalCode: 'A', active: true },
                 B: { rate: 11, label: 'TVA redus', fiscalCode: 'B', active: true },
@@ -61,14 +93,20 @@ export const productService = {
 
             const keys: VatGroupKey[] = ['A', 'B', 'C', 'D', 'E'];
             keys.forEach(k => {
-                const g = rawGroups[k];
+                const g = rawGroups[k] as Record<string, unknown> | undefined;
                 if (g) {
+                    const labelVal = (g.label as string) || vatGroups[k].label;
+                    const fiscalCodeVal = ((g.fiscalCode ?? g.fiscal_code ?? k) as string) as VatGroupKey;
+                    const activeVal = g.active !== undefined ? !!g.active : true;
+                    
                     vatGroups[k] = {
-                        rate: typeof g.rate === 'number' ? g.rate : Number(g.rate) || 0,
-                        label: g.label || vatGroups[k].label,
-                        fiscalCode: k,
-                        active: g.active !== undefined ? !!g.active : true
+                        rate: getStandardVatRate(k),
+                        label: labelVal,
+                        fiscalCode: fiscalCodeVal,
+                        active: activeVal
                     };
+                } else {
+                    vatGroups[k].rate = getStandardVatRate(k);
                 }
             });
 
@@ -193,8 +231,12 @@ export const productService = {
             const priceSale = input.pret_vanzare !== undefined ? input.pret_vanzare : (Number(existingPrice?.price_sale) || 0);
             const pricePurchase = input.pret_achizitie !== undefined ? input.pret_achizitie : (Number(existingPrice?.price_purchase) || 0);
             
-            const vatGroup = input.vatGroup || (existingPrice?.vat_group as VatGroupKey) || 'A';
-            const vatPercent = input.vatGroup ? vatGroupToLegacyPercent(input.vatGroup) : (Number(existingPrice?.vat_percent) || 21);
+            let vatGroup = input.vatGroup || (existingPrice?.vat_group as VatGroupKey) || 'A';
+            const validGroups: VatGroupKey[] = ['A', 'B', 'C', 'D', 'E'];
+            if (!validGroups.includes(vatGroup)) {
+                vatGroup = 'A';
+            }
+            const vatPercent = vatGroupToLegacyPercent(vatGroup);
 
             const { error: prError } = await supabase
                 .from('product_prices')

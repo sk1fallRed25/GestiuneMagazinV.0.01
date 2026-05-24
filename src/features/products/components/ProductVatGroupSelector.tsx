@@ -52,9 +52,13 @@ export const ProductVatGroupSelector: React.FC<ProductVatGroupSelectorProps> = (
         );
     }
 
+    // Visual fallback: if value is invalid or the group is not active, fallback to config.defaultVatGroup
+    const isValueActive = value && vatGroups[value]?.active;
+    const selectValue = isValueActive ? value : (config.defaultVatGroup || 'A');
+
     // Filtrăm grupele de TVA active
     const activeGroups = Object.entries(vatGroups)
-        .filter(([_, g]) => g.active)
+        .filter(([k, g]) => g.active || k === selectValue)
         .map(([key, g]) => ({
             key: key as VatGroupKey,
             ...g
@@ -66,16 +70,16 @@ export const ProductVatGroupSelector: React.FC<ProductVatGroupSelectorProps> = (
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                     Grupă TVA Fiscală
                 </label>
-                {value && vatGroups[value] && (
+                {selectValue && vatGroups[selectValue] && (
                     <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
-                        Cotă selectată: {vatGroups[value].rate}%
+                        Cotă selectată: {vatGroups[selectValue].rate}%
                     </span>
                 )}
             </div>
 
             <div className="relative group">
                 <select
-                    value={value}
+                    value={selectValue}
                     onChange={(e) => onChange(e.target.value as VatGroupKey)}
                     disabled={disabled || readOnly}
                     className={`w-full border p-4 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700 bg-white appearance-none ${

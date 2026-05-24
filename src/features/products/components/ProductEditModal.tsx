@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, X } from 'lucide-react';
 import { Product, ProductUpdateInput, ProductVatConfig, VatGroupKey } from '../types';
 import { ProductVatGroupSelector } from './ProductVatGroupSelector';
+import { normalizeVatGroupForStore } from '../services/productService';
 import toast from 'react-hot-toast';
 
 interface ProductEditModalProps {
@@ -43,7 +44,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: Pro
                 um: product.um || '',
                 stoc_depozit: (product.stoc_depozit || 0).toString(),
                 stoc_magazin: (product.stoc_magazin || 0).toString(),
-                vatGroup: product.vatGroup || (vatConfig?.defaultVatGroup) || 'A'
+                vatGroup: normalizeVatGroupForStore(product.vatGroup, vatConfig)
             });
         }
     }, [product, vatConfig]);
@@ -73,6 +74,10 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: Pro
             return;
         }
 
+        const finalVatGroup = vatConfig?.vatPayer === false
+            ? 'E'
+            : normalizeVatGroupForStore(localState.vatGroup, vatConfig);
+
         const updateData: ProductUpdateInput = {
             nume: localState.nume,
             cod_bare: localState.cod_bare,
@@ -81,7 +86,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig }: Pro
             um: localState.um,
             stoc_depozit,
             stoc_magazin,
-            vatGroup: localState.vatGroup
+            vatGroup: finalVatGroup
         };
 
         try {

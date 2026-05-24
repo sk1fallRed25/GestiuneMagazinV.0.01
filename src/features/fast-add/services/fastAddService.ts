@@ -1,5 +1,6 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
 import { FastAddProductPayload, FastAddResult } from '../types';
+import { VatGroupKey } from '../../products/types';
 
 const assertFiniteNonNegative = (value: number, fieldLabel: string) => {
     if (!Number.isFinite(value) || value < 0) {
@@ -65,6 +66,20 @@ export const fastAddService = {
         }
 
         // 2. Upsert prețuri
+        let vatGroup = payload.vatGroup || 'A';
+        const validGroups: VatGroupKey[] = ['A', 'B', 'C', 'D', 'E'];
+        if (!validGroups.includes(vatGroup)) {
+            vatGroup = 'A';
+        }
+        const rates: Record<VatGroupKey, number> = {
+            A: 21,
+            B: 11,
+            C: 11,
+            D: 0,
+            E: 0
+        };
+        const vatPercent = rates[vatGroup] || 21;
+
         const { error: priceError } = await supabase
             .from('product_prices')
             .upsert([{
@@ -72,8 +87,8 @@ export const fastAddService = {
                 product_id: productId,
                 price_sale: payload.priceSale,
                 price_purchase: payload.pricePurchase,
-                vat_percent: payload.vatPercent,
-                vat_group: payload.vatGroup,
+                vat_percent: vatPercent,
+                vat_group: vatGroup,
                 updated_at: new Date().toISOString()
             }], { onConflict: 'store_id,product_id' });
 
