@@ -14,6 +14,8 @@ import { StoreFormModal } from './components/StoreFormModal';
 import { OwnerAuditLogsPanel } from './components/OwnerAuditLogsPanel';
 import { OwnerStoreModulesPanel } from './components/OwnerStoreModulesPanel';
 import { OwnerStore, CreateStorePayload, UpdateStorePayload } from './types';
+import { StoreLifecycleActionModal } from './components/StoreLifecycleActionModal';
+import { StoreDeletionEligibilityModal } from './components/StoreDeletionEligibilityModal';
 
 export const OwnerConsolePage: React.FC = () => {
   const {
@@ -46,6 +48,23 @@ export const OwnerConsolePage: React.FC = () => {
   const [isStoreModalOpen, setIsStoreModalOpen] = useState<boolean>(false);
   const [storeModalMode, setStoreModalMode] = useState<'create' | 'edit'>('create');
   const [storeModalData, setStoreModalData] = useState<OwnerStore | null>(null);
+
+  // Lifecycle management states
+  const [lifecycleStore, setLifecycleStore] = useState<OwnerStore | null>(null);
+  const [lifecycleAction, setLifecycleAction] = useState<'suspend' | 'reactivate' | 'archive' | 'request_deletion' | 'cancel_deletion' | null>(null);
+  const [isLifecycleActionModalOpen, setIsLifecycleActionModalOpen] = useState<boolean>(false);
+  const [isEligibilityModalOpen, setIsEligibilityModalOpen] = useState<boolean>(false);
+
+  const handleLifecycleActionClick = (store: OwnerStore, action: 'suspend' | 'reactivate' | 'archive' | 'request_deletion' | 'cancel_deletion') => {
+    setLifecycleStore(store);
+    setLifecycleAction(action);
+    setIsLifecycleActionModalOpen(true);
+  };
+
+  const handleCheckEligibilityClick = (store: OwnerStore) => {
+    setLifecycleStore(store);
+    setIsEligibilityModalOpen(true);
+  };
 
   const selectedStore = useMemo(() => {
     return stores.find(s => s.id === selectedStoreId) || null;
@@ -124,6 +143,8 @@ export const OwnerConsolePage: React.FC = () => {
             onCreateStore={handleCreateStoreClick}
             onEditStore={handleEditStoreClick}
             loading={loading}
+            onLifecycleAction={handleLifecycleActionClick}
+            onCheckEligibility={handleCheckEligibilityClick}
           />
         </div>
       )}
@@ -149,6 +170,8 @@ export const OwnerConsolePage: React.FC = () => {
             onCreateStore={handleCreateStoreClick}
             onEditStore={handleEditStoreClick}
             loading={loading}
+            onLifecycleAction={handleLifecycleActionClick}
+            onCheckEligibility={handleCheckEligibilityClick}
           />
           <StoreMembersTable
             members={selectedStoreMembers}
@@ -170,6 +193,8 @@ export const OwnerConsolePage: React.FC = () => {
             onCreateStore={handleCreateStoreClick}
             onEditStore={handleEditStoreClick}
             loading={loading}
+            onLifecycleAction={handleLifecycleActionClick}
+            onCheckEligibility={handleCheckEligibilityClick}
           />
           <OwnerStoreModulesPanel
             selectedStoreId={selectedStoreId}
@@ -213,6 +238,36 @@ export const OwnerConsolePage: React.FC = () => {
           }
         }}
         loading={loading}
+      />
+
+      {/* Lifecycle Action Modals */}
+      <StoreLifecycleActionModal
+        isOpen={isLifecycleActionModalOpen}
+        store={lifecycleStore}
+        action={lifecycleAction}
+        onClose={() => {
+          setIsLifecycleActionModalOpen(false);
+          setLifecycleStore(null);
+          setLifecycleAction(null);
+        }}
+        onSuccess={() => {
+          refreshAll();
+          loadAuditLogs();
+        }}
+      />
+
+      <StoreDeletionEligibilityModal
+        isOpen={isEligibilityModalOpen}
+        store={lifecycleStore}
+        onClose={() => {
+          setIsEligibilityModalOpen(false);
+          setLifecycleStore(null);
+        }}
+        onRequestDeletion={() => {
+          if (lifecycleStore) {
+            handleLifecycleActionClick(lifecycleStore, 'request_deletion');
+          }
+        }}
       />
     </div>
   );

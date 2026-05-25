@@ -27,6 +27,7 @@ interface StoreDbRow {
   active?: boolean | null;
   created_at?: string | null;
   settings?: unknown;
+  lifecycle_status?: string | null;
 }
 
 interface StoreMemberDbRow {
@@ -212,6 +213,24 @@ export const ownerConsoleService = {
         case 'member.active_update':
           summary = `Setare stare activare membru (${(log.new_data as Record<string, unknown>)?.active ? 'activ' : 'inactiv'}) la ${storeName}`;
           break;
+        case 'store.suspend':
+          summary = `Suspendare magazin: ${storeName}. Motiv: ${(log.new_data as Record<string, unknown>)?.reason || 'nespecificat'}`;
+          break;
+        case 'store.reactivate':
+          summary = `Reactivare magazin: ${storeName}. Motiv: ${(log.new_data as Record<string, unknown>)?.reason || 'nespecificat'}`;
+          break;
+        case 'store.archive':
+          summary = `Arhivare magazin: ${storeName}. Motiv: ${(log.new_data as Record<string, unknown>)?.reason || 'nespecificat'}`;
+          break;
+        case 'store.deletion_request':
+          summary = `Solicitare ștergere: ${storeName}. Motiv: ${(log.new_data as Record<string, unknown>)?.reason || 'nespecificat'}`;
+          break;
+        case 'store.cancel_deletion':
+          summary = `Anulare ștergere: ${storeName}. Motiv: ${(log.new_data as Record<string, unknown>)?.reason || 'nespecificat'}`;
+          break;
+        case 'store.hard_delete_blocked':
+          summary = `Încercare ștergere blocată pentru magazin: ${storeName}. Motiv: ${(log.new_data as Record<string, unknown>)?.reason || 'activitate existentă'}`;
+          break;
         default:
           summary = `Acțiune: ${log.action}`;
       }
@@ -236,7 +255,7 @@ export const ownerConsoleService = {
   async getStores(): Promise<OwnerStore[]> {
     const { data: storesData, error: storesErr } = await supabase
       .from('stores')
-      .select('id, name, address, fiscal_code, active, created_at, settings')
+      .select('id, name, address, fiscal_code, active, created_at, settings, lifecycle_status')
       .order('created_at', { ascending: false });
 
     if (storesErr) {
@@ -271,7 +290,8 @@ export const ownerConsoleService = {
         membersCount,
         settings: parsedSettings,
         workpointNumber: parsedSettings.workpointNumber,
-        displayCode: parsedSettings.displayCode
+        displayCode: parsedSettings.displayCode,
+        lifecycleStatus: (store.lifecycle_status || 'active') as any
       };
     });
   },

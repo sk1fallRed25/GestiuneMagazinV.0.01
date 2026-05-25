@@ -52,6 +52,18 @@ export const OwnerAuditLogsPanel: React.FC<OwnerAuditLogsPanelProps> = ({
         return { label: 'Modificare Rol', className: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20' };
       case 'member.active_update':
         return { label: 'Stare Membru', className: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20' };
+      case 'store.suspend':
+        return { label: 'Suspendare Magazin', className: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20' };
+      case 'store.reactivate':
+        return { label: 'Reactivare Magazin', className: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20' };
+      case 'store.archive':
+        return { label: 'Arhivare Magazin', className: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20' };
+      case 'store.deletion_request':
+        return { label: 'Solicitare Ștergere', className: 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/20' };
+      case 'store.cancel_deletion':
+        return { label: 'Anulare Ștergere', className: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20' };
+      case 'store.hard_delete_blocked':
+        return { label: 'Ștergere Blocată', className: 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20' };
       default:
         return { label: action, className: 'bg-gray-500/10 text-gray-700 dark:text-gray-300 border-gray-500/20' };
     }
@@ -107,6 +119,12 @@ export const OwnerAuditLogsPanel: React.FC<OwnerAuditLogsPanelProps> = ({
               <option value="member.assign">Alocare Membru</option>
               <option value="member.role_update">Modificare Rol</option>
               <option value="member.active_update">Stare Membru</option>
+              <option value="store.suspend">Suspendare Magazin</option>
+              <option value="store.reactivate">Reactivare Magazin</option>
+              <option value="store.archive">Arhivare Magazin</option>
+              <option value="store.deletion_request">Solicitare Ștergere</option>
+              <option value="store.cancel_deletion">Anulare Ștergere</option>
+              <option value="store.hard_delete_blocked">Ștergere Blocată</option>
             </select>
           </div>
 

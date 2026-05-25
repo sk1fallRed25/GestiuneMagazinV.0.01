@@ -207,6 +207,11 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Testul utilizează acum magazinul de test existent (`Magazin Test 12345678 Punct 902`) pentru a simula tranzițiile de stare prin RPC, restaurând starea sa inițială la final exclusiv prin RPC-ul `reactivate_store`. Nicio înregistrare nu este ștearsă fizic din baza de date.
   - Scenariul de succes pentru `request_store_deletion` a fost marcat ca `NOT RUN LIVE` pentru a preveni necesitatea unui cleanup distructiv.
   - Raport hotfix: `docs/store_lifecycle_verification_test_safety_6f1111_report.md`.
-  - Următorul pas: Etapa 6F.1.12 — Store Lifecycle UI Integration.
-
-
+- **Etapa 6F.1.12 (Owner Console Store Lifecycle UI Integration)**: **Realizat** — PASS.
+  - S-au definit tipurile și contractele de date (`types.ts`) reprezentând noile statusuri și diagnostice de lifecycle.
+  - S-a creat `storeLifecycleService.ts` pentru a wrapp-ui cele 7 RPC-uri active de lifecycle și s-a dezvoltat hook-ul `useStoreLifecycle.ts`.
+  - S-a implementat modalele `StoreLifecycleActionModal.tsx` (cu confirmarea acțiunii și motiv de audit obligatoriu) și `StoreDeletionEligibilityModal.tsx` (cu diagnosticul de dependențe și recomandarea de arhivare).
+  - S-a actualizat `StoresTable.tsx` cu status badges și dropdown de acțiuni, iar `OwnerAuditLogsPanel.tsx` cu noile filtre și traduceri de audit.
+  - S-au integrat modalele în `OwnerConsolePage.tsx` cu mecanism de auto-refresh pe succes.
+  - S-a validat E2E prin testul `test_owner_store_lifecycle_ui_6f12.py` (`PASS`) și s-a confirmat lipsa TS build regressions (`npm run build` PASS).
+  - Raport complet: `docs/owner_console_store_lifecycle_ui_6f12_report.md`.

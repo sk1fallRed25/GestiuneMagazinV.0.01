@@ -28,6 +28,13 @@ export interface StoreSettings {
   notes?: string | null;
 }
 
+export type StoreLifecycleStatus =
+  | 'active'
+  | 'suspended'
+  | 'archived'
+  | 'pending_deletion'
+  | 'deleted';
+
 export interface OwnerStore {
   id: string;
   name: string;
@@ -39,6 +46,16 @@ export interface OwnerStore {
   settings?: StoreSettings;
   workpointNumber?: number | null;
   displayCode?: string | null;
+  lifecycleStatus?: StoreLifecycleStatus;
+  suspendedAt?: string | null;
+  suspendedBy?: string | null;
+  suspensionReason?: string | null;
+  archivedAt?: string | null;
+  archivedBy?: string | null;
+  archiveReason?: string | null;
+  deletionRequestedAt?: string | null;
+  deletionRequestedBy?: string | null;
+  deletionReason?: string | null;
 }
 
 export interface StoreFormState {
@@ -160,7 +177,13 @@ export type OwnerAuditAction =
   | 'store.module_disable'
   | 'member.assign'
   | 'member.role_update'
-  | 'member.active_update';
+  | 'member.active_update'
+  | 'store.suspend'
+  | 'store.reactivate'
+  | 'store.archive'
+  | 'store.deletion_request'
+  | 'store.cancel_deletion'
+  | 'store.hard_delete_blocked';
 
 export type OwnerAuditEntityType = 'store' | 'store_member' | 'store_module';
 
@@ -197,5 +220,37 @@ export interface OwnerAuditLogView {
   summary: string;
   oldData: Record<string, unknown> | null;
   newData: Record<string, unknown> | null;
+}
+
+export interface StoreDeletionEligibility {
+  canDelete: boolean;
+  reason: string;
+  recommendedAction: 'archive' | 'delete';
+  counts: Record<string, number>;
+}
+
+export interface StoreLifecycleStatusResponse {
+  storeId: string;
+  lifecycleStatus: StoreLifecycleStatus;
+  active: boolean;
+  suspendedAt?: string | null;
+  suspensionReason?: string | null;
+  archivedAt?: string | null;
+  archiveReason?: string | null;
+  deletionRequestedAt?: string | null;
+  deletionReason?: string | null;
+  deletionEligibility?: StoreDeletionEligibility;
+}
+
+export interface StoreLifecycleActionResult {
+  ok: boolean;
+  changed?: boolean;
+  storeId?: string;
+  lifecycleStatus?: StoreLifecycleStatus;
+  reason?: string;
+  canDelete?: boolean;
+  recommendedAction?: string;
+  counts?: Record<string, number>;
+  message?: string;
 }
 
