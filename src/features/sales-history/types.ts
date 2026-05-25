@@ -33,6 +33,13 @@ export interface SaleItemDetails {
     vatSnapshotAvailable?: boolean;
     vatIsFallback?: boolean;
     vatDisplayLabel?: string;
+    // SGR properties
+    sgrEnabled?: boolean;
+    sgrType?: 'plastic' | 'metal' | 'glass' | null;
+    sgrDepositAmount?: number | null;
+    sgrTotalAmount?: number | null;
+    sgrVatGroup?: 'D' | null;
+    sgrVatRate?: number | null;
 }
 
 export interface SalePaymentDetails {

@@ -18,6 +18,7 @@ import {
     ReturnPreviousEntry
 } from '../types';
 import { normalizeVatGroup, getStandardVatRateForGroup } from '../utils/vatDisplay';
+import { normalizeSgrType } from '../../products/utils/sgr';
 
 /**
  * Tipurile locale pentru răspunsurile Supabase (Joins)
@@ -79,6 +80,12 @@ interface SaleItemDetailsRow {
     price_without_vat: number | string | null;
     vat_amount: number | string | null;
     total_without_vat: number | string | null;
+    sgr_enabled: boolean | null;
+    sgr_type: string | null;
+    sgr_deposit_amount: number | string | null;
+    sgr_total_amount: number | string | null;
+    sgr_vat_group: string | null;
+    sgr_vat_rate: number | string | null;
     products: ProductJoin | ProductJoin[] | null;
     stock_batches: BatchJoin | BatchJoin[] | null;
 }
@@ -227,6 +234,12 @@ export const salesHistoryService = {
                 price_without_vat,
                 vat_amount,
                 total_without_vat,
+                sgr_enabled,
+                sgr_type,
+                sgr_deposit_amount,
+                sgr_total_amount,
+                sgr_vat_group,
+                sgr_vat_rate,
                 products (
                     name, 
                     barcode,
@@ -315,6 +328,19 @@ export const salesHistoryService = {
                 }
             }
 
+            const sgrEnabled = i.sgr_enabled !== null && i.sgr_enabled !== undefined ? Boolean(i.sgr_enabled) : false;
+            const sgrType = sgrEnabled ? normalizeSgrType(i.sgr_type) : null;
+            const sgrDepositAmount = sgrEnabled 
+                ? (i.sgr_deposit_amount !== null && i.sgr_deposit_amount !== undefined ? Number(i.sgr_deposit_amount) : 0.50)
+                : null;
+            const sgrTotalAmount = sgrEnabled
+                ? (i.sgr_total_amount !== null && i.sgr_total_amount !== undefined ? Number(i.sgr_total_amount) : toNumberStrict(i.quantity, 'cantitate') * 0.50)
+                : null;
+            const sgrVatGroup = sgrEnabled ? ((i.sgr_vat_group as 'D' | null) || 'D') : null;
+            const sgrVatRate = sgrEnabled 
+                ? (i.sgr_vat_rate !== null && i.sgr_vat_rate !== undefined ? Number(i.sgr_vat_rate) : 0.00)
+                : null;
+
             return {
                 id: i.id,
                 productId: i.product_id,
@@ -336,7 +362,14 @@ export const salesHistoryService = {
                 totalWithoutVat: finalTotalWithoutVat,
                 vatSnapshotAvailable,
                 vatIsFallback,
-                vatDisplayLabel
+                vatDisplayLabel,
+                // SGR properties
+                sgrEnabled,
+                sgrType,
+                sgrDepositAmount,
+                sgrTotalAmount,
+                sgrVatGroup,
+                sgrVatRate
             };
         });
 
