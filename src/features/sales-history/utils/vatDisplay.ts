@@ -35,3 +35,34 @@ export function formatMoney(value?: number | null): string {
     }
     return `${value.toFixed(2)} LEI`;
 }
+
+export type VatGroupKey = 'A' | 'B' | 'C' | 'D' | 'E';
+
+export function getStandardVatRateForGroup(group?: string | null): number | null {
+  const normalized = typeof group === 'string' ? group.trim().toUpperCase() : '';
+
+  switch (normalized) {
+    case 'A':
+      return 21;
+    case 'B':
+      return 11;
+    case 'C':
+      return 11;
+    case 'D':
+      return 0;
+    case 'E':
+      return 0;
+    default:
+      return null;
+  }
+}
+
+export function normalizeVatGroup(group?: string | null): VatGroupKey | null {
+  if (!group) return null;
+  const normalized = group.trim().toUpperCase();
+  if (normalized === 'A' || normalized === 'B' || normalized === 'C' || normalized === 'D' || normalized === 'E') {
+    return normalized as VatGroupKey;
+  }
+  return null;
+}
+

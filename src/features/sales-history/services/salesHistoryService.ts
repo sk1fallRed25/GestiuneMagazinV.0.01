@@ -17,6 +17,7 @@ import {
     ReturnPaymentSummary,
     ReturnPreviousEntry
 } from '../types';
+import { normalizeVatGroup, getStandardVatRateForGroup } from '../utils/vatDisplay';
 
 /**
  * Tipurile locale pentru răspunsurile Supabase (Joins)
@@ -276,10 +277,12 @@ export const salesHistoryService = {
             } else {
                 // Legacy fallback: locate current product price configuration for this store
                 const prices = product?.product_prices;
-                const pricesArray = Array.isArray(prices) ? prices : (prices ? [prices] : []);
-                const storePrice = pricesArray.find((p: any) => p.store_id === storeId) || pricesArray[0];
-                const fallbackVatGroup = (storePrice?.vat_group as 'A' | 'B' | 'C' | 'D' | 'E' | null) || null;
-                const fallbackVatRate = storePrice?.vat_percent !== undefined && storePrice?.vat_percent !== null ? Number(storePrice.vat_percent) : null;
+                const pricesArray: ProductPriceJoin[] = Array.isArray(prices) 
+                    ? prices 
+                    : (prices ? [prices] : []);
+                const storePrice = pricesArray.find((p) => p.store_id === storeId) ?? pricesArray[0] ?? null;
+                const fallbackVatGroup = normalizeVatGroup(storePrice?.vat_group ?? null);
+                const fallbackVatRate = getStandardVatRateForGroup(fallbackVatGroup);
 
                 if (fallbackVatGroup !== null && fallbackVatRate !== null) {
                     vatSnapshotAvailable = false;
@@ -288,15 +291,27 @@ export const salesHistoryService = {
                     finalVatRate = fallbackVatRate;
                     finalPriceIncludesVat = true; // Legacy sales are assumed price-inclusive
                     
-                    const rateDivisor = 1 + (fallbackVatRate / 100);
-                    finalTotalWithoutVat = Number((totalItem / rateDivisor).toFixed(2));
-                    finalVatAmount = Number((totalItem - finalTotalWithoutVat).toFixed(2));
-                    finalPriceWithoutVat = Number((unitPrice / rateDivisor).toFixed(2));
+                    if (fallbackVatRate === 0) {
+                        finalTotalWithoutVat = totalItem;
+                        finalVatAmount = 0;
+                        finalPriceWithoutVat = unitPrice;
+                    } else {
+                        const rateDivisor = 1 + (fallbackVatRate / 100);
+                        finalTotalWithoutVat = Number((totalItem / rateDivisor).toFixed(2));
+                        finalVatAmount = Number((totalItem - finalTotalWithoutVat).toFixed(2));
+                        finalPriceWithoutVat = Number((unitPrice / rateDivisor).toFixed(2));
+                    }
                     vatDisplayLabel = `Estimativ (${fallbackVatGroup} — ${fallbackVatRate}%)`;
                 } else {
                     vatSnapshotAvailable = false;
                     vatIsFallback = false;
                     vatDisplayLabel = 'TVA indisponibil';
+                    finalVatGroup = null;
+                    finalVatRate = null;
+                    finalPriceIncludesVat = null;
+                    finalTotalWithoutVat = null;
+                    finalVatAmount = null;
+                    finalPriceWithoutVat = null;
                 }
             }
 

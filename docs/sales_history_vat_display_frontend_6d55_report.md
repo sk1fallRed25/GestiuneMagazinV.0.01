@@ -129,3 +129,14 @@ All test suites exited with `0`.
 - **Legacy Fallback Math & Display:** PASS
 - **E2E Automation:** PASS
 - **Audit & Security Rules Compliance:** PASS
+
+---
+
+## 6. Corecție 6D.5.5.1 — Parser & Fallback Rate Hotfix
+
+To address issues with legacy fallback rate accuracy and TypeScript type-safety:
+1. **Elimination of `any`:** Refactored product pricing lookup to use typed `ProductPriceJoin` elements strictly.
+2. **Standard Group Rates:** Implemented `getStandardVatRateForGroup` and `normalizeVatGroup` inside `src/features/sales-history/utils/vatDisplay.ts`. All legacy estimations now derive rates directly from VAT group identifiers (A=21%, B=11%, C=11%, D=0%, E=0%), instead of parsing mutable `vat_percent` fields.
+3. **Database Snapshot Integrity:** Preserved historical data fields (`sale_items.vat_group` and `sale_items.vat_rate`) for new sales. The standard fallback resolver is triggered *only* when snapshot fields in the database are `NULL`.
+4. **Validation:** Production builds completed without errors. E2E verification test `test_sales_history_vat_display_6d55.py` and regression test `verify_vat_snapshot_e2e.py` passed with exit code 0.
+

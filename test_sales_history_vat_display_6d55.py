@@ -30,8 +30,24 @@ def sanity_scan_self():
             
     safe_print("[PASS] Sanity scan passed. No unauthorized database writes in test script.")
 
+def check_static_code_conformance():
+    safe_print("[SAFE] Performing static code conformance check for fallback VAT rates...")
+    service_path = "src/features/sales-history/services/salesHistoryService.ts"
+    with open(service_path, 'r', encoding='utf-8') as f:
+        code = f.read()
+    
+    # 1. Verify getStandardVatRateForGroup is called to calculate fallbackVatRate
+    assert "getStandardVatRateForGroup" in code, "getStandardVatRateForGroup helper not found in service code!"
+    
+    # 2. Verify we don't assign fallbackVatRate from vat_percent
+    assert "const fallbackVatRate = getStandardVatRateForGroup(fallbackVatGroup);" in code, \
+        "fallbackVatRate is not derived from getStandardVatRateForGroup!"
+        
+    safe_print("[PASS] Static code conformance check passed: fallback rates are derived from group key instead of store_prices.vat_percent.")
+
 def run_test():
     sanity_scan_self()
+    check_static_code_conformance()
     
     with sync_playwright() as p:
         safe_print("Launching browser...")
