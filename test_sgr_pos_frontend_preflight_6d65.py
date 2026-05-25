@@ -25,6 +25,7 @@ def run_test():
         try:
             # 1. Login
             safe_print("\n1. Navigating to login...")
+            page.add_init_script("window.SGR_CHECKOUT_BACKEND_ENABLED = false;")
             page.goto("http://localhost:5173/#/login")
             page.wait_for_load_state("networkidle")
             page.wait_for_timeout(1000)

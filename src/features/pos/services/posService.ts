@@ -165,6 +165,10 @@ export const posService = {
             const itemPrice = toNumberStrict(item.price, `preț ${item.name}`);
             totalSaleUI += itemQty * itemPrice;
 
+            if (item.sgrEnabled) {
+                totalSaleUI += itemQty * 0.50;
+            }
+
             itemsForRpc.push({
                 product_id: item.productId,
                 quantity: itemQty

@@ -161,7 +161,9 @@ export const usePos = () => {
         setLastEditedMixedField(null);
     };
 
-    const SGR_CHECKOUT_BACKEND_ENABLED = false;
+    const SGR_CHECKOUT_BACKEND_ENABLED = typeof window !== 'undefined' && (window as any).SGR_CHECKOUT_BACKEND_ENABLED !== undefined
+        ? (window as any).SGR_CHECKOUT_BACKEND_ENABLED
+        : true;
 
     const calculateSgrLineAmount = useCallback((item: CartItem): number => {
         return item.sgrEnabled ? item.quantity * 0.50 : 0;
