@@ -243,4 +243,12 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Testul Playwright E2E dedicat (`test_sgr_product_forms_6d63.py`) și testul de regresie VAT (`test_store_settings_product_vat_6d5.py`) au trecut cu succes complet.
   - Build-ul Vite/TypeScript de producție s-a finalizat fără erori.
   - Raport oficial creat la `docs/sgr_product_forms_integration_6d63_report.md`.
+- **Etapa 6D.6.4 (SGR POS / finalize_sale Integration Blueprint & Pre-Apply Hardening)**: **Realizat** — PASS.
+  - S-a auditat fluxul de checkout în frontend POS (`posService.ts`) și s-a analizat modul de calcul al totalului de plată.
+  - S-a determinat că recalcularea tranzacțională a SGR trebuie să aibă loc direct pe server (RPC) citind valorile direct din nomenclatorul `products`, asigurând rolul de unică sursă de adevăr pentru prevenirea fraudelor client-side.
+  - S-a redactat blueprint-ul SQL complet al funcției modificate în `database/proposed_sgr_finalize_sale_6d64.sql`, păstrând toate validările existente (roluri, ture, stoc lot FEFO, audit).
+  - S-a elaborat ghidul detaliat de integrare POS client, istoric bonuri și reguli de retur în `docs/sgr_pos_finalize_sale_blueprint_6d64.md`.
+  - Nu s-au efectuat modificări live în baza de date Supabase, interfața POS sau funcția `finalize_sale` live.
+  - Raport oficial generat în `docs/sgr_pos_finalize_sale_6d64_report.md`.
+
 
