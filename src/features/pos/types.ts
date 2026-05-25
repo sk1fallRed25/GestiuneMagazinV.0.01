@@ -6,6 +6,8 @@ export interface PosProduct {
     priceSale: number;
     vatPercent: number;
     stockMagazin: number;
+    sgrEnabled?: boolean;
+    sgrType?: 'plastic' | 'metal' | 'glass' | null;
 }
 
 export interface CartItem {
@@ -18,6 +20,10 @@ export interface CartItem {
     quantity: number;
     stockAvailable: number;
     total: number;
+    sgrEnabled?: boolean;
+    sgrType?: 'plastic' | 'metal' | 'glass' | null;
+    sgrDepositAmount?: number;
+    sgrTotalAmount?: number;
 }
 
 export type PaymentMethod = 'cash' | 'card' | 'mixed';

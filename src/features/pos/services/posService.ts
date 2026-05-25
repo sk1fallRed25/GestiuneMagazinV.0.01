@@ -9,6 +9,7 @@ import {
     CloseShiftPayload, 
     ShiftCloseResult 
 } from '../types';
+import { normalizeSgrType } from '../../products/utils/sgr';
 
 const toNumberStrict = (value: unknown, fieldName: string): number => {
     const n = Number(value);
@@ -28,7 +29,7 @@ export const posService = {
         // 1. Căutare produse
         const { data: products, error: pError } = await supabase
             .from('products')
-            .select('id, name, barcode, unit')
+            .select('id, name, barcode, unit, sgr_enabled, sgr_type')
             .eq('store_id', storeId)
             .eq('status', 'active')
             .or(`name.ilike.%${query}%,barcode.ilike.%${query}%`)
@@ -65,6 +66,10 @@ export const posService = {
             const productBatches = batches?.filter(b => b.product_id === p.id) || [];
             const stockMagazin = productBatches.reduce((acc, b) => acc + toNumberStrict(b.quantity, 'stoc lot'), 0);
 
+            const sgrType = normalizeSgrType(p.sgr_type);
+            const sgrEnabled = !!(p.sgr_enabled && sgrType !== null);
+            console.log("searchProducts mapped item:", { name: p.name, sgr_enabled: p.sgr_enabled, sgr_type: p.sgr_type, sgrEnabled, sgrType });
+
             return {
                 id: p.id,
                 name: p.name,
@@ -72,7 +77,9 @@ export const posService = {
                 unit: p.unit,
                 priceSale: price ? toNumberStrict(price.price_sale, 'preț vânzare') : 0,
                 vatPercent: price ? toNumberStrict(price.vat_percent, 'TVA') : 19,
-                stockMagazin
+                stockMagazin,
+                sgrEnabled,
+                sgrType
             };
         });
     },
@@ -85,7 +92,7 @@ export const posService = {
 
         const { data: products, error: pError } = await supabase
             .from('products')
-            .select('id, name, barcode, unit')
+            .select('id, name, barcode, unit, sgr_enabled, sgr_type')
             .eq('store_id', storeId)
             .eq('barcode', barcode)
             .eq('status', 'active')
@@ -119,6 +126,10 @@ export const posService = {
 
         const stockMagazin = (batches || []).reduce((acc, b) => acc + toNumberStrict(b.quantity, 'stoc lot'), 0);
 
+        const sgrType = normalizeSgrType(products.sgr_type);
+        const sgrEnabled = !!(products.sgr_enabled && sgrType !== null);
+        console.log("getProductByBarcode mapped item:", { name: products.name, sgr_enabled: products.sgr_enabled, sgr_type: products.sgr_type, sgrEnabled, sgrType });
+
         return {
             id: products.id,
             name: products.name,
@@ -126,7 +137,9 @@ export const posService = {
             unit: products.unit,
             priceSale: price ? toNumberStrict(price.price_sale, 'preț vânzare') : 0,
             vatPercent: price ? toNumberStrict(price.vat_percent, 'TVA') : 19,
-            stockMagazin
+            stockMagazin,
+            sgrEnabled,
+            sgrType
         };
     },
 

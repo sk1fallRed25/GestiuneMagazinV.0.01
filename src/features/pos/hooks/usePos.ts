@@ -98,7 +98,12 @@ export const usePos = () => {
                 }
                 return prev.map(item => 
                     item.productId === product.id 
-                        ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.price } 
+                        ? { 
+                            ...item, 
+                            quantity: item.quantity + 1, 
+                            total: (item.quantity + 1) * item.price,
+                            sgrTotalAmount: item.sgrEnabled ? (item.quantity + 1) * 0.50 : 0
+                          } 
                         : item
                 );
             }
@@ -112,7 +117,11 @@ export const usePos = () => {
                 vatPercent: product.vatPercent,
                 quantity: 1,
                 stockAvailable: product.stockMagazin,
-                total: product.priceSale
+                total: product.priceSale,
+                sgrEnabled: product.sgrEnabled,
+                sgrType: product.sgrType,
+                sgrDepositAmount: product.sgrEnabled ? 0.50 : 0,
+                sgrTotalAmount: product.sgrEnabled ? 0.50 : 0
             };
             return [...prev, newItem];
         });
@@ -133,7 +142,12 @@ export const usePos = () => {
                     toast.error(`Stoc insuficient! Maxim disponibil: ${item.stockAvailable}`);
                     return item;
                 }
-                return { ...item, quantity: qty, total: qty * item.price };
+                return { 
+                    ...item, 
+                    quantity: qty, 
+                    total: qty * item.price,
+                    sgrTotalAmount: item.sgrEnabled ? qty * 0.50 : 0
+                };
             }
             return item;
         }));
@@ -147,9 +161,39 @@ export const usePos = () => {
         setLastEditedMixedField(null);
     };
 
+    const SGR_CHECKOUT_BACKEND_ENABLED = false;
+
+    const calculateSgrLineAmount = useCallback((item: CartItem): number => {
+        return item.sgrEnabled ? item.quantity * 0.50 : 0;
+    }, []);
+
+    const calculateCartProductsTotal = useCallback((items: CartItem[]): number => {
+        return items.reduce((acc, item) => acc + item.quantity * item.price, 0);
+    }, []);
+
+    const calculateCartSgrTotal = useCallback((items: CartItem[]): number => {
+        return items.reduce((acc, item) => acc + (item.sgrEnabled ? item.quantity * 0.50 : 0), 0);
+    }, []);
+
+    const calculateCartGrandTotal = useCallback((items: CartItem[]): number => {
+        return calculateCartProductsTotal(items) + calculateCartSgrTotal(items);
+    }, [calculateCartProductsTotal, calculateCartSgrTotal]);
+
     const totalBon = useMemo(() => {
-        return cart.reduce((acc, item) => acc + item.total, 0);
-    }, [cart]);
+        return calculateCartGrandTotal(cart);
+    }, [cart, calculateCartGrandTotal]);
+
+    const productsSubtotal = useMemo(() => {
+        return calculateCartProductsTotal(cart);
+    }, [cart, calculateCartProductsTotal]);
+
+    const cartSgrTotal = useMemo(() => {
+        return calculateCartSgrTotal(cart);
+    }, [cart, calculateCartSgrTotal]);
+
+    const isSgrBlocked = useMemo(() => {
+        return cartSgrTotal > 0 && !SGR_CHECKOUT_BACKEND_ENABLED;
+    }, [cartSgrTotal]);
 
     // Operațiuni Ture
     const handleOpenShift = async (cashRegisterId: string | null, openingCash: number, notes?: string) => {
@@ -334,6 +378,10 @@ export const usePos = () => {
             toast.error("Coșul este gol.");
             return;
         }
+        if (isSgrBlocked) {
+            toast.error("Garanția SGR este activă în coș. Checkout-ul pentru produse cu SGR este blocat temporar până la actualizarea backend-ului (Rollout Preflight Guard).");
+            return;
+        }
         if (totalBon <= 0) {
             toast.error("Totalul bonului trebuie să fie pozitiv.");
             return;
@@ -411,6 +459,10 @@ export const usePos = () => {
         removeFromCart,
         updateQuantity,
         clearCart,
+        productsSubtotal,
+        cartSgrTotal,
+        isSgrBlocked,
+        SGR_CHECKOUT_BACKEND_ENABLED,
         finalizeSale
     };
 };

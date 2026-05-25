@@ -40,7 +40,7 @@ def run_test():
             safe_print("[PASS] Logged in successfully.")
             
             # Switch to Magazin Principal if the switcher button is present (multi-store account)
-            switcher = page.locator("button[aria-label='Alege context operațional']")
+            switcher = page.locator("button[aria-label*='context']")
             if switcher.is_visible():
                 current_store_text = switcher.inner_text()
                 if "Magazin Principal" not in current_store_text:

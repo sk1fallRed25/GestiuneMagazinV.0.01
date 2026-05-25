@@ -38,6 +38,7 @@ const PosPage: React.FC = () => {
         addToCart,
         removeFromCart,
         updateQuantity,
+        isSgrBlocked,
         finalizeSale
     } = usePos();
 
@@ -119,6 +120,20 @@ const PosPage: React.FC = () => {
                     />
                 </div>
 
+                {isSgrBlocked && (
+                    <div 
+                        className="bg-amber-50 border-y border-amber-200 p-4 text-xs text-amber-800 flex flex-col gap-1 animate-in fade-in duration-300"
+                        data-testid="pos-sgr-preflight-banner"
+                    >
+                        <div className="font-bold flex items-center gap-1.5">
+                            ⚠️ Preflight Guard SGR Activat
+                        </div>
+                        <div>
+                            Sistemul de Garanție SGR este configurat în POS, însă finalizarea checkout-ului cu produse SGR va fi activată după actualizarea backend-ului (Etapa 6D.6.6).
+                        </div>
+                    </div>
+                )}
+
                 <PosPaymentPanel 
                     total={totalBon}
                     paymentMethod={paymentMethod}
@@ -131,7 +146,7 @@ const PosPage: React.FC = () => {
                     onCardBlur={onCardBlur}
                     onFinalize={finalizeSale}
                     loading={submitting}
-                    disabled={cart.length === 0 || !activeShift}
+                    disabled={cart.length === 0 || !activeShift || isSgrBlocked}
                 />
             </div>
         </div>

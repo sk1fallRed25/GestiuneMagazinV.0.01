@@ -10,7 +10,7 @@ def run_test():
     with sync_playwright() as p:
         safe_print("Launching browser...")
         browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
+        context = browser.new_context(service_workers="block")
         page = context.new_page()
         
         page.on("console", lambda msg: safe_print(f"[BROWSER CONSOLE] {msg.type}: {msg.text}"))
@@ -36,20 +36,24 @@ def run_test():
         page.locator("button[type='submit']").click()
         
         safe_print("Waiting for Dashboard to load...")
-        page.locator("button[aria-label='Selectează magazinul activ']").wait_for(state="visible", timeout=30000)
+        page.locator("h1:has-text('Dashboard')").wait_for(state="visible", timeout=30000)
         safe_print("[PASS] Logged in successfully.")
 
         # Switch to Magazin Principal to be absolutely certain
         safe_print("Checking active store...")
-        current_store_text = page.locator("button[aria-label='Selectează magazinul activ']").inner_text()
-        if "Magazin Principal" not in current_store_text:
-            safe_print(f"Switching from '{current_store_text}' to 'Magazin Principal'...")
-            page.locator("button[aria-label='Selectează magazinul activ']").click()
-            page.wait_for_timeout(500)
-            page.locator("button:has-text('Magazin Principal')").click()
-            page.wait_for_timeout(2000)
+        switcher = page.locator("button[aria-label*='context']")
+        if switcher.is_visible():
+            current_store_text = switcher.inner_text()
+            if "Magazin Principal" not in current_store_text:
+                safe_print(f"Switching from '{current_store_text}' to 'Magazin Principal'...")
+                switcher.click()
+                page.wait_for_timeout(500)
+                page.locator("button:has-text('Magazin Principal')").click()
+                page.wait_for_timeout(2000)
+            else:
+                safe_print("Already on Magazin Principal.")
         else:
-            safe_print("Already on Magazin Principal.")
+            safe_print("Switcher is not interactive (single store or static context).")
 
         # Ensure active shift is open via database RPC check
         safe_print("\n2. Ensuring active shift is open...")

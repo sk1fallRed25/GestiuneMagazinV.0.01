@@ -33,6 +33,20 @@ export const PosCart: React.FC<PosCartProps> = ({ items, onUpdateQuantity, onRem
                                 <div className="text-sm text-gray-500 font-mono mt-1">
                                     {item.price.toFixed(2)} x {item.quantity}
                                 </div>
+                                {item.sgrEnabled && (
+                                    <div 
+                                        className="text-xs text-indigo-600 bg-indigo-50/50 border border-indigo-100 rounded-md p-1.5 mt-2 flex justify-between items-center"
+                                        data-testid="pos-sgr-line"
+                                    >
+                                        <div>
+                                            <span className="font-semibold">+ Garanție SGR - {(item.sgrType || 'ambalaj').toUpperCase()}</span>
+                                            <span className="text-[10px] text-gray-500 block">TVA: D — 0%</span>
+                                        </div>
+                                        <span className="font-mono font-bold">
+                                            {item.quantity} x 0.50 = {(item.quantity * 0.50).toFixed(2)} lei
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="font-bold text-lg text-gray-900 w-24 text-right">
@@ -64,6 +78,37 @@ export const PosCart: React.FC<PosCartProps> = ({ items, onUpdateQuantity, onRem
                     ))
                 )}
             </div>
+
+            {(() => {
+                const productsSubtotal = items.reduce((acc, item) => acc + item.quantity * item.price, 0);
+                const cartSgrTotal = items.reduce((acc, item) => acc + (item.sgrEnabled ? item.quantity * 0.50 : 0), 0);
+                const grandTotal = productsSubtotal + cartSgrTotal;
+
+                if (cartSgrTotal <= 0) return null;
+
+                return (
+                    <div className="bg-slate-50 p-4 border-t border-gray-200 space-y-1.5 text-sm text-gray-700">
+                        <div className="flex justify-between">
+                            <span>Subtotal produse:</span>
+                            <span className="font-semibold text-gray-900" data-testid="pos-products-subtotal">
+                                {productsSubtotal.toFixed(2)} lei
+                            </span>
+                        </div>
+                        <div className="flex justify-between text-indigo-600">
+                            <span>Garanții SGR (D - 0%):</span>
+                            <span className="font-semibold" data-testid="pos-sgr-total">
+                                {cartSgrTotal.toFixed(2)} lei
+                            </span>
+                        </div>
+                        <div className="flex justify-between text-base font-black text-gray-900 border-t border-gray-200 pt-1.5 mt-1">
+                            <span>Total de plată:</span>
+                            <span data-testid="pos-grand-total">
+                                {grandTotal.toFixed(2)} lei
+                            </span>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
