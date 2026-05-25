@@ -223,3 +223,6 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Toate testele trec cu succes (inclusiv testele de regresie pe lockdown-ul Platform Owner), iar build-ul de producție Vite se finalizează fără erori.
   - Raport complet generat în `docs/store_lifecycle_e2e_visual_qa_6f13_report.md`.
 
+- **Etapa 6D.5.4 (Sales VAT Snapshot SQL Apply Verification)**: **Realizat** — PASS. S-a verificat aplicarea migrării `20260525140000_sales_history_vat_snapshot.sql` ce extinde structura `public.sale_items` cu 6 noi coloane pentru snapshot TVA. Testul tranzacțional E2E automatizat (`verify_vat_snapshot_e2e.py`) a confirmat funcționarea corectă a patch-ului `finalize_sale` (salvare snapshot corect pentru o tranzacție reală), funcționarea corectă a helper-ilor fiscali, securitatea acestora (execuție directă blocată pentru utilizatorii autentificați) și compatibilitatea deplină cu înregistrările legacy. Raportul oficial este disponibil la `docs/sales_vat_snapshot_sql_apply_verification_6d54_report.md`.
+
+
