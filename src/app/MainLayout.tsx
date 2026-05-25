@@ -135,37 +135,10 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                             <div className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">Platformă</div>
                             <NavLink to="/owner" label="Consolă Proprietar" icon={<ShieldAlert size={18} />} />
 
-                            <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare</div>
-                            {currentStoreId ? (
-                                <>
-                                    <div className="px-4 py-1.5 mx-2 mb-2 text-[10px] font-bold text-indigo-400 bg-indigo-950/40 border border-indigo-900/50 rounded-lg truncate">
-                                        Context: {currentStore?.name || 'Magazin Selectat'}
-                                    </div>
-                                    {isModuleEnabled('products') && (
-                                        <NavLink to="/produse" label="Stocuri & Produse" icon={<Package size={18} />} />
-                                    )}
-                                    {isModuleEnabled('store_settings') && (
-                                        <NavLink to="/setari-magazin" label="Setări Magazin" icon={<Settings size={18} />} />
-                                    )}
-                                    {isModuleEnabled('commercial_reports') && (
-                                        <NavLink to="/rapoarte" label="Rapoarte Comerciale" icon={<BarChart3 size={18} />} />
-                                    )}
-                                </>
-                            ) : (
-                                <div className="space-y-1.5">
-                                    <div className="px-4 py-2 text-xs text-slate-500 italic">
-                                        Selectează un magazin pentru a accesa opțiunile sale operaționale.
-                                    </div>
-                                    <div className="flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-slate-600 cursor-not-allowed text-sm font-medium" title="Selectează un magazin pentru a edita setările lui.">
-                                        <Settings size={18} className="text-slate-700 opacity-50" />
-                                        <span className="opacity-50">Setări Magazin</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-slate-600 cursor-not-allowed text-sm font-medium" title="Selectează un magazin pentru rapoarte operaționale.">
-                                        <BarChart3 size={18} className="text-slate-700 opacity-50" />
-                                        <span className="opacity-50">Rapoarte Comerciale</span>
-                                    </div>
-                                </div>
-                            )}
+                            <div className="px-4 py-2 mt-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrare Globală</div>
+                            <div className="px-4 py-3 mx-2 text-xs text-slate-400 bg-slate-900/50 rounded-xl border border-slate-800/80 italic leading-relaxed">
+                                Administrezi platforma global. Magazinele se gestionează din Consolă Proprietar.
+                            </div>
                         </>
                     ) : (
                         <>

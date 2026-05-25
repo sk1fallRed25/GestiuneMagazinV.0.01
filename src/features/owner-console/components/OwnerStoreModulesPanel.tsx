@@ -122,7 +122,7 @@ export const OwnerStoreModulesPanel: React.FC<OwnerStoreModulesPanelProps> = ({
         </div>
         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Administrare Module Magazin</h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md">
-          Selectați un magazin sau un punct de lucru din tabelul de mai sus pentru a vedea și modifica accesul la modulele platformei.
+          Selectează un magazin pentru a configura modulele disponibile clientului.
         </p>
       </div>
     );
@@ -154,6 +154,9 @@ export const OwnerStoreModulesPanel: React.FC<OwnerStoreModulesPanelProps> = ({
               {selectedStore.address && (
                 <p className="text-xs text-indigo-300/80 mt-1 font-medium">{selectedStore.address}</p>
               )}
+              <p className="text-xs text-indigo-300/90 mt-2 font-medium bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg inline-block">
+                ℹ️ Această selecție nu schimbă contextul global al aplicației.
+              </p>
             </div>
           </div>
 
@@ -270,7 +273,7 @@ export const OwnerStoreModulesPanel: React.FC<OwnerStoreModulesPanelProps> = ({
                     return (
                       <div
                         key={module.moduleKey}
-                        className={`bg-white dark:bg-gray-800 rounded-3xl p-5 border shadow-sm transition-all flex flex-col justify-between gap-4 relative overflow-hidden ${
+                        className={`bg-white dark:bg-gray-800 rounded-3xl p-6 border shadow-sm transition-all flex flex-col justify-between gap-5 relative overflow-hidden ${
                           module.effectiveEnabled
                             ? 'border-emerald-100 dark:border-emerald-950/40 hover:shadow-md'
                             : 'border-gray-100 dark:border-gray-700/60'
@@ -322,13 +325,13 @@ export const OwnerStoreModulesPanel: React.FC<OwnerStoreModulesPanelProps> = ({
                             {module.status === 'planned' && (
                               <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded flex items-center gap-1">
                                 <Lock className="w-2.5 h-2.5" />
-                                Planificat
+                                Planned (future release)
                               </span>
                             )}
                             {module.status === 'disabled' && (
                               <span className="text-[10px] font-bold px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 rounded flex items-center gap-1">
                                 <Lock className="w-2.5 h-2.5" />
-                                Dezactivat global
+                                Disabled globally
                               </span>
                             )}
 

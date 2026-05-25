@@ -217,6 +217,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const selectStore = async (storeId: string) => {
+    if (state.role === 'platform_owner') {
+      console.warn("Platform owner global store context is disabled. Use Owner Console local store selection.");
+      return;
+    }
     if (!storeId) {
       localStorage.removeItem('selected_store_id');
       setState(prev => ({

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StoreMembership } from '../../features/auth/types';
-import { Store, ChevronDown, Check, Building2 } from 'lucide-react';
+import { Store, ChevronDown, Check, Building2, ShieldCheck } from 'lucide-react';
 
 interface StoreContextSwitcherProps {
   availableStores: StoreMembership[];
@@ -17,6 +17,33 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  if (isOwner) {
+    return (
+      <div 
+        className="flex items-center gap-2.5 bg-slate-50 px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-sm select-none"
+        title="Platform Owner nu operează direct într-un magazin. Alege magazinul din panourile dedicate din Consolă Proprietar."
+        aria-label="Platform Owner activează administrarea globală. Selectarea magazinelor se face din Consolă Proprietar."
+      >
+        <div className="w-7 h-7 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600 shrink-0">
+          <ShieldCheck size={15} />
+        </div>
+        <div className="text-left font-sans">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-indigo-700 tracking-wide uppercase">
+              Platform Administration
+            </span>
+            <span className="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">
+              Fără magazin activ
+            </span>
+          </div>
+          <span className="text-[10px] text-slate-500 font-medium block mt-0.5">
+            Administrare globală
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

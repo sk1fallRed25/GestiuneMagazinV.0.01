@@ -42,7 +42,7 @@ export const OwnerTabs: React.FC<OwnerTabsProps> = ({
       aria-label="Navigare Owner Console"
     >
       {/* Tab strip */}
-      <div className="flex items-end gap-1.5 border-b border-gray-200 dark:border-gray-700/60 overflow-x-auto pb-0 scrollbar-none">
+      <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-700/60 pb-3">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const isSelected = selectedTab === tab.id;
@@ -56,13 +56,13 @@ export const OwnerTabs: React.FC<OwnerTabsProps> = ({
               aria-controls={`owner-tabpanel-${tab.id}`}
               onClick={() => onSelectTab(tab.id as OwnerConsoleTab)}
               className={`
-                group relative flex items-center gap-2 px-4 py-3 text-sm font-semibold
+                group flex items-center gap-2 px-4 py-2.5 text-sm font-semibold
                 whitespace-nowrap transition-all duration-200 focus:outline-none
                 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2
-                rounded-t-xl border-b-2 -mb-px
+                rounded-xl border
                 ${isSelected
-                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-500/5'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50/50 dark:hover:bg-gray-700/20'
+                  ? 'border-indigo-600/30 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 shadow-sm'
+                  : 'border-slate-200 dark:border-slate-700 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800'
                 }
               `}
             >
@@ -86,11 +86,6 @@ export const OwnerTabs: React.FC<OwnerTabsProps> = ({
                 >
                   {tab.count}
                 </span>
-              )}
-
-              {/* Active indicator dot */}
-              {isSelected && (
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-indigo-600 dark:bg-indigo-400" aria-hidden="true" />
               )}
             </button>
           );

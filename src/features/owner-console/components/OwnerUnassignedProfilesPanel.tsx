@@ -112,41 +112,41 @@ export const OwnerUnassignedProfilesPanel: React.FC<OwnerUnassignedProfilesPanel
 
       {/* Info: Platform Owners */}
       {platformOwners.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-500/20 overflow-hidden">
-          <div className="px-6 py-4 bg-blue-50/50 dark:bg-blue-500/10 border-b border-blue-100 dark:border-blue-500/20">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700/60 overflow-hidden">
+          <div className="px-5 py-3.5 bg-slate-50/50 dark:bg-gray-800/50 border-b border-slate-100 dark:border-slate-700/60">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" aria-hidden="true" />
+                <Shield className="w-5 h-5 text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" aria-hidden="true" />
                 <div>
-                  <h3 className="text-sm font-bold text-blue-900 dark:text-blue-300">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                     Platform Owner — Acces Global Inerent
                   </h3>
-                  <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5 max-w-xl">
+                  <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5 max-w-xl">
                     Acești utilizatori au acces global la platformă și nu necesită alocare directă pe un magazin.
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-500/30 whitespace-nowrap shrink-0">
+              <span className="text-xs font-semibold px-2.5 py-1 bg-slate-100 dark:bg-gray-700 text-slate-700 dark:text-slate-300 rounded-full border border-slate-200 dark:border-slate-600 whitespace-nowrap shrink-0">
                 {platformOwners.length} Conturi
               </span>
             </div>
           </div>
 
-          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {platformOwners.map(p => (
-              <div key={p.id} className="p-4 bg-blue-50/30 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-500/20 flex items-center justify-between">
+              <div key={p.id} className="p-3 bg-slate-50/30 dark:bg-slate-800/30 rounded-xl border border-slate-100/80 dark:border-slate-700/40 flex items-center justify-between">
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm text-gray-900 dark:text-white flex items-center gap-1.5 truncate">
-                    <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" aria-hidden="true" />
+                  <div className="font-semibold text-xs text-gray-950 dark:text-white flex items-center gap-1.5 truncate">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
                     <span className="truncate">{p.email}</span>
                   </div>
-                  <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1 mt-1">
-                    <AlertCircle className="w-3 h-3" aria-hidden="true" />
-                    <span>Platform Owner · Acces Global</span>
+                  <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1 mt-1">
+                    <Shield className="w-3 h-3 text-slate-400" aria-hidden="true" />
+                    <span>Platform Owner · Global</span>
                   </div>
                 </div>
-                <div className="text-[11px] text-gray-400 flex items-center gap-1 shrink-0 ml-2">
-                  <Calendar className="w-3 h-3" aria-hidden="true" />
+                <div className="text-[10px] text-gray-400 flex items-center gap-1 shrink-0 ml-2">
+                  <Calendar className="w-3.5 h-3.5 text-gray-300" aria-hidden="true" />
                   {new Date(p.createdAt).toLocaleDateString('ro-RO')}
                 </div>
               </div>

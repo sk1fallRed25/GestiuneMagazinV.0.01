@@ -26,6 +26,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 
   const loading = authLoading || (isAuthenticated && modulesLoading);
 
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-50">
@@ -44,10 +45,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
 
   // 1. Store Context Guard
   const requiresStore = routeConfig?.requiresStoreContext ?? true;
+  if (currentRole === 'platform_owner' && requiresStore) {
+    return <Navigate to="/owner" replace />;
+  }
+
   if (requiresStore && !currentStoreId) {
-    if (currentRole === 'platform_owner') {
-      return <Navigate to="/owner" replace />;
-    }
     // Non-owner without a store context: block access
     return (
       <div className="flex items-center justify-center h-screen bg-red-50 p-6 text-slate-800">
