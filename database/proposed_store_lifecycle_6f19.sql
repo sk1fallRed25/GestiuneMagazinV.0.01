@@ -1,10 +1,11 @@
 -- ############################################################################
--- STORE LIFECYCLE MANAGEMENT BLUEPRINT (ETAPA 6F.1.9)
+-- STORE LIFECYCLE MANAGEMENT BLUEPRINT (ETAPA 6F.1.10 - HARDENED)
 -- Project: Gestiune Magazin v2
 --
 -- IMPORTANT: This script is a BLUEPRINT (architectural proposal).
 -- DO NOT apply directly to the live production database in this stage.
--- It is designed to model secure lifecycle status switches under Platform Owner control.
+-- Hard delete operations have been neutralized (converted to a safe exception stub)
+-- because of the cascading delete danger (ON DELETE CASCADE) on critical tables.
 -- ############################################################################
 
 -- ============================================================================
@@ -38,15 +39,19 @@ CREATE INDEX IF NOT EXISTS idx_stores_active_lifecycle
 
 -- Comments explaining columns
 COMMENT ON COLUMN public.stores.lifecycle_status IS 'State of the store. Enforced values: active, suspended, archived, pending_deletion, deleted.';
-COMMENT ON COLUMN public.stores.active IS 'Legacy compatibility flag. Should be true only if lifecycle_status is active, otherwise false.';
+COMMENT ON COLUMN public.stores.active IS 'Legacy compatibility flag. Sourced by trigger from lifecycle_status: true for active, false otherwise.';
+
 
 -- ============================================================================
 -- 2. COMPATIBILITY & STATE ALIGNMENT TRIGGER
 -- ============================================================================
--- Ensures that any manual or programmatic update to lifecycle_status automatically
--- synchronizes the legacy `active` boolean flag.
+-- Ensures that any insert or update of lifecycle_status automatically synchronizes
+-- the legacy `active` boolean column.
 CREATE OR REPLACE FUNCTION public.sync_store_active_with_lifecycle()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
 BEGIN
     IF NEW.lifecycle_status = 'active' THEN
         NEW.active := true;
@@ -55,7 +60,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 DROP TRIGGER IF EXISTS trigger_sync_store_active_with_lifecycle ON public.stores;
 CREATE TRIGGER trigger_sync_store_active_with_lifecycle
@@ -85,7 +90,12 @@ BEGIN
         RAISE EXCEPTION 'Access denied. Only Platform Owner can inspect store lifecycle status.';
     END IF;
 
-    -- 2. Retrieve store details
+    -- 2. Param Validation
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'p_store_id is required.';
+    END IF;
+
+    -- 3. Retrieve store details
     SELECT id, name, active, lifecycle_status,
            suspended_at, suspended_by, suspension_reason,
            archived_at, archived_by, archive_reason,
@@ -95,10 +105,10 @@ BEGIN
     WHERE id = p_store_id;
 
     IF v_store IS NULL THEN
-        RETURN jsonb_build_object('ok', false, 'error', 'Store not found.');
+        RAISE EXCEPTION 'Store not found.';
     END IF;
 
-    -- 3. Calculate eligibility and table counts
+    -- 4. Calculate eligibility and table counts (includes is_platform_owner check inside)
     v_eligible := public.get_store_deletion_eligibility(p_store_id);
 
     RETURN jsonb_build_object(
@@ -142,14 +152,19 @@ BEGIN
         RAISE EXCEPTION 'Access denied. Only Platform Owner can suspend stores.';
     END IF;
 
+    -- 2. Param Validation
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'p_store_id is required.';
+    END IF;
+
     v_user_id := auth.uid();
     v_trimmed_reason := trim(p_reason);
 
-    -- 2. Validation
     IF v_trimmed_reason IS NULL OR length(v_trimmed_reason) < 3 THEN
         RAISE EXCEPTION 'Suspension reason is mandatory and must be at least 3 characters long.';
     END IF;
 
+    -- 3. Lock store row & Fetch current status
     SELECT lifecycle_status INTO v_old_status
     FROM public.stores
     WHERE id = p_store_id
@@ -159,11 +174,17 @@ BEGIN
         RAISE EXCEPTION 'Store not found.';
     END IF;
 
+    -- 4. State Transition Check
     IF v_old_status = 'suspended' THEN
         RETURN jsonb_build_object('ok', true, 'changed', false, 'message', 'Store is already suspended.');
     END IF;
 
-    -- 3. Perform update
+    -- Suspend is only allowed from active status
+    IF v_old_status <> 'active' THEN
+        RAISE EXCEPTION 'Cannot suspend store. Store is in status: %', v_old_status;
+    END IF;
+
+    -- 5. Perform update
     UPDATE public.stores
     SET lifecycle_status = 'suspended',
         suspended_at = now(),
@@ -174,7 +195,7 @@ BEGIN
         deletion_requested_at = NULL, deletion_requested_by = NULL, deletion_reason = NULL
     WHERE id = p_store_id;
 
-    -- 4. Audit Log
+    -- 6. Audit Log
     INSERT INTO public.audit_logs (
         store_id, profile_id, action, entity_type, entity_id, old_data, new_data
     ) VALUES (
@@ -212,14 +233,19 @@ BEGIN
         RAISE EXCEPTION 'Access denied. Only Platform Owner can reactivate stores.';
     END IF;
 
+    -- 2. Param Validation
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'p_store_id is required.';
+    END IF;
+
     v_user_id := auth.uid();
     v_trimmed_reason := trim(p_reason);
 
-    -- 2. Validation
     IF v_trimmed_reason IS NULL OR length(v_trimmed_reason) < 3 THEN
         RAISE EXCEPTION 'Reactivation reason is mandatory and must be at least 3 characters long.';
     END IF;
 
+    -- 3. Lock store row & Fetch current status
     SELECT lifecycle_status INTO v_old_status
     FROM public.stores
     WHERE id = p_store_id
@@ -229,11 +255,18 @@ BEGIN
         RAISE EXCEPTION 'Store not found.';
     END IF;
 
+    -- 4. State Transition Check
     IF v_old_status = 'active' THEN
         RETURN jsonb_build_object('ok', true, 'changed', false, 'message', 'Store is already active.');
     END IF;
 
-    -- 3. Perform update
+    -- Reactivation is blocked if store is permanently deleted/tombstoned
+    IF v_old_status = 'deleted' THEN
+        RAISE EXCEPTION 'Cannot reactivate a permanently deleted store.';
+    END IF;
+
+    -- Reactivation is permitted from suspended, archived, or pending_deletion
+    -- 5. Perform update
     UPDATE public.stores
     SET lifecycle_status = 'active',
         -- Clear audit trail for non-active states since store is now restored
@@ -242,7 +275,7 @@ BEGIN
         deletion_requested_at = NULL, deletion_requested_by = NULL, deletion_reason = NULL
     WHERE id = p_store_id;
 
-    -- 4. Audit Log
+    -- 6. Audit Log (History remains in audit_logs)
     INSERT INTO public.audit_logs (
         store_id, profile_id, action, entity_type, entity_id, old_data, new_data
     ) VALUES (
@@ -262,7 +295,7 @@ END;
 $$;
 
 
--- D. archive_store(p_store_id uuid, p_reason text)
+-- E. archive_store(p_store_id uuid, p_reason text)
 -- Permanently archives store context for closed collaborations. Historical data remains read-only.
 CREATE OR REPLACE FUNCTION public.archive_store(p_store_id uuid, p_reason text)
 RETURNS jsonb
@@ -280,14 +313,19 @@ BEGIN
         RAISE EXCEPTION 'Access denied. Only Platform Owner can archive stores.';
     END IF;
 
+    -- 2. Param Validation
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'p_store_id is required.';
+    END IF;
+
     v_user_id := auth.uid();
     v_trimmed_reason := trim(p_reason);
 
-    -- 2. Validation
     IF v_trimmed_reason IS NULL OR length(v_trimmed_reason) < 3 THEN
         RAISE EXCEPTION 'Archive reason is mandatory and must be at least 3 characters long.';
     END IF;
 
+    -- 3. Lock store row & Fetch current status
     SELECT lifecycle_status INTO v_old_status
     FROM public.stores
     WHERE id = p_store_id
@@ -297,11 +335,17 @@ BEGIN
         RAISE EXCEPTION 'Store not found.';
     END IF;
 
+    -- 4. State Transition Check
     IF v_old_status = 'archived' THEN
         RETURN jsonb_build_object('ok', true, 'changed', false, 'message', 'Store is already archived.');
     END IF;
 
-    -- 3. Perform update
+    IF v_old_status = 'deleted' THEN
+        RAISE EXCEPTION 'Cannot archive a permanently deleted store.';
+    END IF;
+
+    -- Archiving is permitted from active, suspended, or pending_deletion
+    -- 5. Perform update
     UPDATE public.stores
     SET lifecycle_status = 'archived',
         archived_at = now(),
@@ -312,7 +356,7 @@ BEGIN
         deletion_requested_at = NULL, deletion_requested_by = NULL, deletion_reason = NULL
     WHERE id = p_store_id;
 
-    -- 4. Audit Log
+    -- 6. Audit Log
     INSERT INTO public.audit_logs (
         store_id, profile_id, action, entity_type, entity_id, old_data, new_data
     ) VALUES (
@@ -332,7 +376,7 @@ END;
 $$;
 
 
--- E. get_store_deletion_eligibility(p_store_id uuid)
+-- D. get_store_deletion_eligibility(p_store_id uuid)
 -- Calculates if a physical hard-delete is permissible.
 CREATE OR REPLACE FUNCTION public.get_store_deletion_eligibility(p_store_id uuid)
 RETURNS jsonb
@@ -341,8 +385,10 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+    -- Core counts
     v_sales_count bigint := 0;
-    v_shifts_count bigint := 0;
+    v_pos_shifts_count bigint := 0;
+    v_cashier_shifts_count bigint := 0;
     v_movements_count bigint := 0;
     v_batches_qty_count bigint := 0;
     v_returns_count bigint := 0;
@@ -351,34 +397,69 @@ DECLARE
     v_overrides_count bigint := 0;
     v_audit_logs_count bigint := 0;
     
+    -- Additional table counts for exact schema alignment
+    v_receptions_count bigint := 0;
+    v_reception_items_count bigint := 0;
+    v_waste_items_count bigint := 0;
+    v_client_events_count bigint := 0;
+    v_sync_conflicts_count bigint := 0;
+    v_error_reports_count bigint := 0;
+    v_products_count bigint := 0;
+    v_product_prices_count bigint := 0;
+    v_categories_count bigint := 0;
+    v_devices_count bigint := 0;
+    
     v_can_delete boolean := true;
     v_reason text := 'Store is eligible for permanent deletion.';
     v_recommended_action text := 'delete';
 BEGIN
-    -- 1. Check sales
+    -- 1. Security Check
+    IF NOT public.is_platform_owner() THEN
+        RAISE EXCEPTION 'Access denied. Only Platform Owner can inspect store deletion eligibility.';
+    END IF;
+
+    -- 2. Param Validation
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'p_store_id is required.';
+    END IF;
+
+    -- 3. Verify Store Existence
+    IF NOT EXISTS (SELECT 1 FROM public.stores WHERE id = p_store_id) THEN
+        RAISE EXCEPTION 'Store not found.';
+    END IF;
+
+    -- 4. Count references across all 18 dependent tables in the live schema
     SELECT COALESCE(count(*), 0) INTO v_sales_count FROM public.sales WHERE store_id = p_store_id;
-    -- 2. Check cashier/pos shifts
-    SELECT COALESCE(count(*), 0) INTO v_shifts_count FROM public.pos_shifts WHERE store_id = p_store_id;
-    -- 3. Check stock movements
+    SELECT COALESCE(count(*), 0) INTO v_pos_shifts_count FROM public.pos_shifts WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_cashier_shifts_count FROM public.cashier_shifts WHERE store_id = p_store_id;
     SELECT COALESCE(count(*), 0) INTO v_movements_count FROM public.stock_movements WHERE store_id = p_store_id;
-    -- 4. Check stock batches with active quantity (quantity > 0)
     SELECT COALESCE(count(*), 0) INTO v_batches_qty_count FROM public.stock_batches WHERE store_id = p_store_id AND quantity > 0;
-    -- 5. Check returns
     SELECT COALESCE(count(*), 0) INTO v_returns_count FROM public.sale_returns WHERE store_id = p_store_id;
-    -- 6. Check waste events
     SELECT COALESCE(count(*), 0) INTO v_waste_count FROM public.waste_events WHERE store_id = p_store_id;
-    -- 7. Check active members
     SELECT COALESCE(count(*), 0) INTO v_members_count FROM public.store_members WHERE store_id = p_store_id AND active = true;
-    -- 8. Check module entitlements/overrides
     SELECT COALESCE(count(*), 0) INTO v_overrides_count FROM public.store_module_access WHERE store_id = p_store_id;
-    -- 9. Check audit logs (excluding automatic system initialization logs if applicable)
     SELECT COALESCE(count(*), 0) INTO v_audit_logs_count FROM public.audit_logs WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_receptions_count FROM public.receptions WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_reception_items_count FROM public.reception_items WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_waste_items_count FROM public.waste_items WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_client_events_count FROM public.client_events WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_sync_conflicts_count FROM public.sync_conflicts WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_error_reports_count FROM public.error_reports WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_products_count FROM public.products WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_product_prices_count FROM public.product_prices WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_categories_count FROM public.categories WHERE store_id = p_store_id;
+    SELECT COALESCE(count(*), 0) INTO v_devices_count FROM public.devices WHERE store_id = p_store_id;
 
     -- Evaluate delete safety
-    IF v_sales_count > 0 OR v_shifts_count > 0 OR v_movements_count > 0 OR v_batches_qty_count > 0 OR
-       v_returns_count > 0 OR v_waste_count > 0 OR v_members_count > 0 OR v_overrides_count > 0 OR v_audit_logs_count > 0 THEN
+    IF v_sales_count > 0 OR v_pos_shifts_count > 0 OR v_cashier_shifts_count > 0 OR 
+       v_movements_count > 0 OR v_batches_qty_count > 0 OR v_returns_count > 0 OR 
+       v_waste_count > 0 OR v_members_count > 0 OR v_overrides_count > 0 OR 
+       v_audit_logs_count > 0 OR v_receptions_count > 0 OR v_reception_items_count > 0 OR
+       v_waste_items_count > 0 OR v_client_events_count > 0 OR v_sync_conflicts_count > 0 OR
+       v_error_reports_count > 0 OR v_products_count > 0 OR v_product_prices_count > 0 OR
+       v_categories_count > 0 OR v_devices_count > 0 THEN
         v_can_delete := false;
-        v_reason := 'Store has historical operational activity, inventory, active members, or logs. Hard delete is blocked.';
+        v_reason := 'Store has historical operational activity, inventory, active members, config, or logs. Hard delete is blocked.';
         v_recommended_action := 'archive';
     END IF;
 
@@ -388,14 +469,25 @@ BEGIN
         'recommendedAction', v_recommended_action,
         'counts', jsonb_build_object(
             'sales', v_sales_count,
-            'posShifts', v_shifts_count,
+            'posShifts', v_pos_shifts_count,
+            'cashierShifts', v_cashier_shifts_count,
             'stockMovements', v_movements_count,
             'stockBatchesWithQuantity', v_batches_qty_count,
             'returns', v_returns_count,
             'wasteEvents', v_waste_count,
             'storeMembers', v_members_count,
             'moduleOverrides', v_overrides_count,
-            'auditLogs', v_audit_logs_count
+            'auditLogs', v_audit_logs_count,
+            'receptions', v_receptions_count,
+            'receptionItems', v_reception_items_count,
+            'wasteItems', v_waste_items_count,
+            'clientEvents', v_client_events_count,
+            'syncConflicts', v_sync_conflicts_count,
+            'errorReports', v_error_reports_count,
+            'products', v_products_count,
+            'productPrices', v_product_prices_count,
+            'categories', v_categories_count,
+            'devices', v_devices_count
         )
     );
 END;
@@ -421,14 +513,19 @@ BEGIN
         RAISE EXCEPTION 'Access denied. Only Platform Owner can request store deletion.';
     END IF;
 
+    -- 2. Param Validation
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'p_store_id is required.';
+    END IF;
+
     v_user_id := auth.uid();
     v_trimmed_reason := trim(p_reason);
 
-    -- 2. Validation
     IF v_trimmed_reason IS NULL OR length(v_trimmed_reason) < 3 THEN
         RAISE EXCEPTION 'Deletion request reason is mandatory and must be at least 3 characters long.';
     END IF;
 
+    -- 3. Lock store row & Fetch current status
     SELECT lifecycle_status INTO v_old_status
     FROM public.stores
     WHERE id = p_store_id
@@ -438,7 +535,17 @@ BEGIN
         RAISE EXCEPTION 'Store not found.';
     END IF;
 
-    -- 3. Check Eligibility
+    -- 4. State Transition Check
+    IF v_old_status = 'pending_deletion' THEN
+        RETURN jsonb_build_object('ok', true, 'changed', false, 'message', 'Store is already pending deletion.');
+    END IF;
+
+    IF v_old_status = 'deleted' THEN
+        RAISE EXCEPTION 'Store is already permanently deleted.';
+    END IF;
+
+    -- Deletion request is permitted from active, suspended, or archived
+    -- 5. Check Eligibility
     v_eligibility := public.get_store_deletion_eligibility(p_store_id);
     IF NOT (v_eligibility->>'canDelete')::boolean THEN
         -- Audit the blocked attempt
@@ -459,7 +566,7 @@ BEGIN
         );
     END IF;
 
-    -- 4. Perform update to pending_deletion
+    -- 6. Perform update to pending_deletion
     UPDATE public.stores
     SET lifecycle_status = 'pending_deletion',
         deletion_requested_at = now(),
@@ -470,7 +577,7 @@ BEGIN
         archived_at = NULL, archived_by = NULL, archive_reason = NULL
     WHERE id = p_store_id;
 
-    -- 5. Audit Log
+    -- 7. Audit Log
     INSERT INTO public.audit_logs (
         store_id, profile_id, action, entity_type, entity_id, old_data, new_data
     ) VALUES (
@@ -490,9 +597,83 @@ END;
 $$;
 
 
--- G. hard_delete_store_if_eligible(p_store_id uuid, p_confirmation text, p_reason text)
--- Performs physical cascade deletion ONLY if eligible and double-confirmed.
--- Note: As this is a blueprint, we define the code path here, but it requires thorough dry-runs.
+-- G. cancel_store_deletion_request(p_store_id uuid, p_reason text)
+-- Transitions store status from 'pending_deletion' back to 'active'.
+CREATE OR REPLACE FUNCTION public.cancel_store_deletion_request(p_store_id uuid, p_reason text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_user_id uuid;
+    v_old_status text;
+    v_trimmed_reason text;
+BEGIN
+    -- 1. Security Check
+    IF NOT public.is_platform_owner() THEN
+        RAISE EXCEPTION 'Access denied. Only Platform Owner can cancel store deletion request.';
+    END IF;
+
+    -- 2. Param Validation
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'p_store_id is required.';
+    END IF;
+
+    v_user_id := auth.uid();
+    v_trimmed_reason := trim(p_reason);
+
+    IF v_trimmed_reason IS NULL OR length(v_trimmed_reason) < 3 THEN
+        RAISE EXCEPTION 'Cancellation reason is mandatory and must be at least 3 characters long.';
+    END IF;
+
+    -- 3. Lock store row & Fetch current status
+    SELECT lifecycle_status INTO v_old_status
+    FROM public.stores
+    WHERE id = p_store_id
+    FOR UPDATE;
+
+    IF v_old_status IS NULL THEN
+        RAISE EXCEPTION 'Store not found.';
+    END IF;
+
+    -- 4. State Transition Check: Cancel deletion request is permitted ONLY from pending_deletion
+    IF v_old_status <> 'pending_deletion' THEN
+        RAISE EXCEPTION 'Store is not in pending_deletion status. Current status: %', v_old_status;
+    END IF;
+
+    -- 5. Perform update to active
+    UPDATE public.stores
+    SET lifecycle_status = 'active',
+        -- Clear deletion requested audits
+        deletion_requested_at = NULL,
+        deletion_requested_by = NULL,
+        deletion_reason = NULL
+    WHERE id = p_store_id;
+
+    -- 6. Audit Log
+    INSERT INTO public.audit_logs (
+        store_id, profile_id, action, entity_type, entity_id, old_data, new_data
+    ) VALUES (
+        p_store_id, v_user_id, 'store.cancel_deletion', 'store', p_store_id,
+        jsonb_build_object('lifecycle_status', v_old_status),
+        jsonb_build_object('lifecycle_status', 'active', 'reason', v_trimmed_reason)
+    );
+
+    RETURN jsonb_build_object(
+        'ok', true,
+        'changed', true,
+        'storeId', p_store_id,
+        'lifecycleStatus', 'active',
+        'reason', v_trimmed_reason
+    );
+END;
+$$;
+
+
+-- H. hard_delete_store_if_eligible(p_store_id uuid, p_confirmation text, p_reason text)
+-- STUB: Performs physical cascade deletion check ONLY but does NOT run the delete query.
+-- Raising an exception prevents accidental data loss due to ON DELETE CASCADE on financial and audit data.
 CREATE OR REPLACE FUNCTION public.hard_delete_store_if_eligible(p_store_id uuid, p_confirmation text, p_reason text)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -510,10 +691,15 @@ BEGIN
         RAISE EXCEPTION 'Access denied. Only Platform Owner can hard delete stores.';
     END IF;
 
+    -- 2. Param Validation
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'p_store_id is required.';
+    END IF;
+
     v_user_id := auth.uid();
     v_trimmed_reason := trim(p_reason);
 
-    -- 2. Validation
+    -- 3. Verify confirmation text
     IF p_confirmation <> 'STERG DEFINITIV MAGAZINUL' THEN
         RAISE EXCEPTION 'Invalid confirmation text. Must type exact text: STERG DEFINITIV MAGAZINUL';
     END IF;
@@ -522,6 +708,7 @@ BEGIN
         RAISE EXCEPTION 'Deletion reason is mandatory and must be at least 3 characters long.';
     END IF;
 
+    -- 4. Lock store row & Fetch current status
     SELECT lifecycle_status INTO v_old_status
     FROM public.stores
     WHERE id = p_store_id
@@ -531,7 +718,7 @@ BEGIN
         RAISE EXCEPTION 'Store not found.';
     END IF;
 
-    -- 3. Run Eligibility Checks
+    -- 5. Run Eligibility Checks
     v_eligibility := public.get_store_deletion_eligibility(p_store_id);
     IF NOT (v_eligibility->>'canDelete')::boolean THEN
         -- Audit blocked attempt
@@ -546,27 +733,9 @@ BEGIN
         RAISE EXCEPTION 'Cannot delete store: %. Archive is recommended.', v_eligibility->>'reason';
     END IF;
 
-    -- 4. Audit deletion right before execution (this will be cascades-deleted unless saved to global log, but standard practice is to write it)
-    INSERT INTO public.audit_logs (
-        store_id, profile_id, action, entity_type, entity_id, old_data, new_data
-    ) VALUES (
-        p_store_id, v_user_id, 'store.hard_delete', 'store', p_store_id,
-        jsonb_build_object('lifecycle_status', v_old_status),
-        jsonb_build_object('lifecycle_status', 'deleted', 'reason', v_trimmed_reason)
-    );
-
-    -- 5. Delete Store Modules Override to clean references
-    DELETE FROM public.store_module_access WHERE store_id = p_store_id;
-
-    -- 6. Perform physical CASCADE delete from stores table (dependent tables have ON DELETE CASCADE setup)
-    DELETE FROM public.stores WHERE id = p_store_id;
-
-    RETURN jsonb_build_object(
-        'ok', true,
-        'storeId', p_store_id,
-        'message', 'Store and all associated cascade-dependent records have been successfully permanently deleted.',
-        'reason', v_trimmed_reason
-    );
+    -- 6. Raised exception stub to prevent actual deletion.
+    -- Hard deletion will be implemented in a separate stage (e.g. 6F.1.14 with backups & exports).
+    RAISE EXCEPTION 'Hard delete is disabled in this release. Use archive_store for real clients.';
 END;
 $$;
 
@@ -581,6 +750,7 @@ REVOKE EXECUTE ON FUNCTION public.reactivate_store(uuid, text) FROM PUBLIC, anon
 REVOKE EXECUTE ON FUNCTION public.archive_store(uuid, text) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.get_store_deletion_eligibility(uuid) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.request_store_deletion(uuid, text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.cancel_store_deletion_request(uuid, text) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.hard_delete_store_if_eligible(uuid, text, text) FROM PUBLIC, anon;
 
 -- Grant execution to authenticated users (functions will perform role verification internal logic)
@@ -590,4 +760,5 @@ GRANT EXECUTE ON FUNCTION public.reactivate_store(uuid, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.archive_store(uuid, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.get_store_deletion_eligibility(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.request_store_deletion(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.cancel_store_deletion_request(uuid, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.hard_delete_store_if_eligible(uuid, text, text) TO authenticated;

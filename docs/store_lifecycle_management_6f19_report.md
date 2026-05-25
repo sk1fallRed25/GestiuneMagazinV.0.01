@@ -62,3 +62,7 @@ Conform instrucțiunilor stricte pentru această etapă:
 
 ## 7. Următorul Pas Recomandat
 Următorul pas în implementare este **Etapa 6F.1.10: Store Lifecycle SQL Pre-Apply Hardening**, urmată de aplicarea migrației pe baza de date de test și scrierea testelor automate (6F.1.11, 6F.1.12, 6F.1.13).
+
+> [!NOTE]
+> **Ajustare 6F.1.10**: În cadrul etapei 6F.1.10, s-a realizat auditul și întărirea acestui blueprint. S-a decis blocarea completă a ștergerii fizice reale din primul rollout de aplicare (transformată în stub excepție), adăugarea funcției de anulare a cererii de ștergere, securizarea RPC-urilor cu `SELECT FOR UPDATE` și verificarea strictă a 18 tabele din schema live.
+

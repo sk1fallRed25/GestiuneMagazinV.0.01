@@ -250,3 +250,34 @@ Alegeți opțiunea dorită pentru a avansa:
 
 - [x] **Ready for 6F.1.10 SQL Pre-Apply Hardening** (Proiectarea este finalizată conform specificațiilor, structura RPC-urilor este securizată și gata pentru faza de pre-hardening).
 - [ ] **Needs architecture review** (Sunt necesare modificări suplimentare la nivel de schema sau comportament).
+
+---
+
+## 13. Corecție 6F.1.10 — Pre-Apply Hardening
+În faza de pre-apply hardening s-au realizat următoarele ajustări critice pentru a asigura imunitatea datelor și alinierea perfectă cu schema live:
+
+### A. Securizarea funcției de eligibilitate
+Funcția `get_store_deletion_eligibility(p_store_id)` a fost securizată:
+- Adăugarea verificării explicite `public.is_platform_owner()`.
+- Validarea `p_store_id IS NOT NULL` și verificarea existenței magazinului.
+- Extinderea verificărilor la **18 tabele** din schema reală a bazei de date (inclusiv `receptions`, `reception_items`, `waste_items`, `client_events`, `sync_conflicts`, `error_reports`, `products`, `product_prices`, `categories`, `devices` și tabelele legacy de shift `cashier_shifts`).
+
+### B. Blocarea / Neutralizarea funcției de Hard Delete
+Operațiunea distructivă din `hard_delete_store_if_eligible` a fost blocată complet:
+- S-a eliminat codul `DELETE FROM public.stores`.
+- S-a transformat funcția într-un **stub securizat** care aruncă o excepție controlată:
+  `RAISE EXCEPTION 'Hard delete is disabled in this release. Use archive_store for real clients.';`
+- Motiv: Riscul imens de ștergere în cascadă a jurnalelor de audit și lipsa unui workflow formal de export. Ștergerea definitivă a fost amânată pentru o etapă viitoare separată (ex. `6F.1.14 Store Hard Delete Export/Tombstone & Final Deletion`).
+
+### C. Adăugarea funcției de anulare a ștergerii
+S-a introdus o nouă funcție RPC:
+- `cancel_store_deletion_request(p_store_id uuid, p_reason text)` care permite Platform Owner-ului să întoarcă un magazin din starea `pending_deletion` în starea `active` cu un motiv valid și jurnalizare în `audit_logs` sub acțiunea `store.cancel_deletion`. Aceasta previne intrarea într-o stare de blocaj ireversibil.
+
+### D. Securizarea și optimizarea tranzacțională a RPC-urilor
+- Toate cele 8 RPC-uri folosesc `SECURITY DEFINER`, setează explicit `SET search_path = public` și își validează argumentele.
+- RPC-urile care modifică stare (`suspend_store`, `reactivate_store`, `archive_store`, `request_store_deletion`, `cancel_store_deletion_request`) utilizează `SELECT FOR UPDATE` la nivelul rândului magazinului pentru a preveni accesul concurent destructiv.
+- S-a implementat o matrice strictă de tranziții (ex. un magazin `archived` sau `deleted` nu poate fi suspendat direct; un magazin `deleted` nu poate fi reactivat).
+
+### E. Alinierea trigger-ului
+Trigger-ul `sync_store_active_with_lifecycle()` rulează cu `SET search_path = public` pentru a evita problemele semnalate de Supabase Advisors și nu are privilegii `SECURITY DEFINER` nejustificate.
+
