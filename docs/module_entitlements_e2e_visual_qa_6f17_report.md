@@ -61,3 +61,9 @@ Componenta [OwnerStoreModulesPanel.tsx](file:///c:/Users/stefan/WebstormProjects
 - **Toggles**: Elementele de control folosesc `role="switch"` împreună cu atributele dinamice `aria-checked` și `aria-label` descriptiv (`Comută starea pentru {nume_modul}`).
 - **Stări Active/Dezactivate**: Focus indicators clari pe ecrane mici și mari (`focus:outline-none focus:ring-2 focus:ring-indigo-500`).
 - **Modal Reasoning**: Structură accesibilă cu `#toggle-modal-title` și focus management pe input-ul motivului de audit.
+
+---
+
+## Notă Adițională (Actualizări ulterioare)
+- **6F.1.8**: A întărit separarea `platform_owner` de contextul magazin.
+- **6F.1.8.1**: A curățat `StoreContextSwitcher` (ordine hook-uri corectă, eliminare cod mort) și a aliniat documentația.

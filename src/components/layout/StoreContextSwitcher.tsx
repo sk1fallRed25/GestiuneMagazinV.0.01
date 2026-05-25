@@ -18,6 +18,19 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (isOwner) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOwner]);
+
+  // 1. Platform Owner static badge early return (safe context lockdown)
   if (isOwner) {
     return (
       <div 
@@ -45,16 +58,8 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
     );
   }
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
+  // After the early return guard for isOwner, all subsequent code is strictly for non-owner users.
+  
   const handleSelect = async (storeId: string) => {
     if (storeId === currentStoreId) {
       setIsOpen(false);
@@ -62,9 +67,7 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
     }
     
     const confirmed = window.confirm(
-      isOwner 
-        ? "Schimbi în contextul operațional al magazinului selectat?" 
-        : "Schimbi magazinul activ? Datele afișate vor fi filtrate pentru noul punct de lucru."
+      "Schimbi magazinul activ? Datele afișate vor fi filtrate pentru noul punct de lucru."
     );
     if (confirmed) {
       await onSelectStore(storeId);
@@ -73,14 +76,6 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
   };
 
   if (availableStores.length === 0) {
-    if (isOwner) {
-      return (
-        <div className="flex items-center gap-2 bg-indigo-50/50 px-3 py-1.5 rounded-xl border border-indigo-100 shadow-sm">
-          <Building2 size={15} className="text-indigo-600" />
-          <span className="text-xs font-bold text-indigo-700 tracking-wide uppercase font-sans">Platform Administration</span>
-        </div>
-      );
-    }
     return (
       <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
         <Store size={14} className="text-slate-400" />
@@ -89,9 +84,9 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
     );
   }
 
-  const currentMembership = availableStores.find(m => m.store_id === currentStoreId) || (isOwner ? null : availableStores[0]);
+  const currentMembership = availableStores.find(m => m.store_id === currentStoreId) || availableStores[0];
 
-  if (availableStores.length === 1 && !isOwner) {
+  if (availableStores.length === 1) {
     return (
       <div className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
         <Store size={15} className="text-indigo-600 shrink-0" />
@@ -123,7 +118,7 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
           {currentMembership ? (
             <>
               <p className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[160px]">
-                {isOwner ? `Context activ: ${currentMembership.storeName || currentMembership.store?.name}` : (currentMembership.storeName || currentMembership.store?.name || 'Magazin')}
+                {currentMembership.storeName || currentMembership.store?.name || 'Magazin'}
               </p>
               <p className="text-[10px] text-slate-500 font-mono mt-0.5 flex items-center gap-1">
                 <span>{currentMembership.displayCode}</span>
@@ -150,50 +145,10 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
           <div className="p-3 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-600 uppercase tracking-wider">Magazine disponibile</span>
             <span className="text-[10px] font-semibold bg-slate-200/70 text-slate-600 px-2 py-0.5 rounded-full">
-              {availableStores.length + (isOwner ? 1 : 0)}
+              {availableStores.length}
             </span>
           </div>
           <div className="max-h-64 overflow-y-auto divide-y divide-slate-50 custom-scrollbar">
-            {isOwner && (
-              <button
-                onClick={async () => {
-                  if (!currentStoreId) {
-                    setIsOpen(false);
-                    return;
-                  }
-                  const confirmed = window.confirm("Revii la administrarea globală a platformei?");
-                  if (confirmed) {
-                    await onSelectStore('');
-                    setIsOpen(false);
-                  }
-                }}
-                className={`w-full text-left p-3 flex items-center justify-between transition-colors ${
-                  !currentStoreId ? 'bg-indigo-50/50 hover:bg-indigo-50/80' : 'hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-start gap-3 pr-2 overflow-hidden">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
-                    !currentStoreId ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    <Building2 size={15} />
-                  </div>
-                  <div>
-                    <p className={`text-xs font-bold ${!currentStoreId ? 'text-indigo-950' : 'text-slate-700'}`}>
-                      Platform Administration
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                      Fără magazin selectat
-                    </p>
-                  </div>
-                </div>
-                {!currentStoreId && (
-                  <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm">
-                    <Check size={12} />
-                  </div>
-                )}
-              </button>
-            )}
-
             {availableStores.map((store) => {
               const isSelected = store.store_id === currentStoreId;
               return (
