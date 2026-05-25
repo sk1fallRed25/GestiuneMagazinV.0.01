@@ -4,6 +4,12 @@
 --              inside the POS checkout RPC function.
 --
 -- !! DO NOT APPLY TO THE LIVE DATABASE IN THIS STAGE !!
+--
+-- ROLLOUT WARNING:
+-- Do not apply this function while the deployed POS frontend still calculates
+-- payments without SGR. This patch validates payments against SGR-inclusive
+-- totals and can reject sales for products where products.sgr_enabled = true.
+-- Apply only together with the POS SGR frontend integration and E2E validation.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.finalize_sale(

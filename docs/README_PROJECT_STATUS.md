@@ -250,5 +250,7 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a elaborat ghidul detaliat de integrare POS client, istoric bonuri și reguli de retur în `docs/sgr_pos_finalize_sale_blueprint_6d64.md`.
   - Nu s-au efectuat modificări live în baza de date Supabase, interfața POS sau funcția `finalize_sale` live.
   - Raport oficial generat în `docs/sgr_pos_finalize_sale_6d64_report.md`.
+- **Etapa 6D.6.4.1 (SGR Checkout Rollout Safety Hotfix)**: **Realizat** — PASS. S-a identificat riscul de payment mismatch în cazul în care patch-ul SQL pentru `finalize_sale` (care include taxa SGR în totalul bonului) este aplicat înainte ca POS frontend să implementeze SGR în total/plăți. S-a stabilit strategia de lansare sincronizată (Synchronized Release) și s-a reordonat roadmap-ul (etapa 6D.6.5 devine POS Frontend Preflight, iar aplicarea SQL devine 6D.6.6). Blueprint-ul SQL a primit un avertisment explicit de rollout în antet, iar blueprint-ul general a fost actualizat cu o secțiune de siguranță și un plan de rollback. Nu s-a modificat baza de date live și nu s-a modificat POS runtime. Raport complet în `docs/sgr_checkout_rollout_safety_6d641_report.md`.
+
 
 

@@ -34,4 +34,10 @@ A fost creat un patch complet pentru procedura `finalize_sale`, păstrând intac
 
 ## 3. Decizie finală
 - **Status**: **PASS**
-- Blueprint-urile și analizele îndeplinesc toate normele de securitate stabilite și sunt gata pentru faza de aplicare și verificare din etapa următoare (**6D.6.5**).
+- Blueprint-urile și analizele îndeplinesc toate normele de securitate stabilite și sunt gata pentru etapa următoare.
+
+## 4. Corecție 6D.6.4.1 — Rollout Safety
+- **Risc identificat**: Risc critic de payment mismatch dacă patch-ul SQL pentru `finalize_sale` (care validează plățile incluzând taxa SGR de 0.50 lei pe produs) este aplicat înainte ca POS frontend să implementeze calcularea totalului și a plăților cu SGR.
+- **Decizie**: Nu se aplică SQL-ul în etapa următoare. Aplicarea SQL-ului trebuie sincronizată complet cu deploy-ul interfeței POS frontend (Synchronized Release).
+- **Modificări Roadmap**: Etapa 6D.6.5 devine **SGR POS Frontend Integration Preflight** (fără modificări SQL live), iar aplicarea SQL-ului este mutată în etapa 6D.6.6.
+

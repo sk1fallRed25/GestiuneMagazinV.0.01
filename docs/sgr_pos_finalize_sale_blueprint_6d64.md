@@ -74,12 +74,45 @@ Pentru fluxul de retur:
 - **Modificări frauduloase**: Verificarea obligatorie a plăților la nivel de bază de date pe baza stării reale din nomenclator elimină posibilitatea bypass-ului prin comenzi falsificate în consola de frontend.
 
 ## 9. Etape Următoare
-1. **6D.6.5 — SGR finalize_sale SQL Apply Verification**: Aplicarea scriptului în Supabase SQL Editor și scrierea testelor automate pentru validarea tranzacțională a calculelor.
-2. **6D.6.6 — SGR POS Frontend Integration**: Integrarea în coșul POS, totalizator și plăți.
-3. **6D.6.7 — SGR Sales History Integration**: Afișarea în bonul digital și sumarul TVA fiscal.
-4. **6D.6.8 — SGR Returns Integration**: Corelarea cu fluxurile de stornare.
-5. **6D.6.9 — SGR E2E / Visual QA**: Validarea completă integrată și generarea de dovezi vizuale.
+1. **6D.6.5 — SGR POS Frontend Integration Preflight**:
+   - POS citește SGR din nomenclator.
+   - Coșul afișează linia de garanție SGR.
+   - Totalul din interfață include taxa SGR.
+   - Algoritmul de mixed payment folosește totalul cu SGR.
+   - Fără deploy final sau activare live SQL pe baza de date de producție.
+2. **6D.6.6 — SGR finalize_sale SQL Manual Apply + Backend Verification**:
+   - Aplicarea manuală a patch-ului SQL `finalize_sale`.
+   - Verificarea manuală direct în baza de date / RPC.
+3. **6D.6.7 — SGR POS + finalize_sale E2E**:
+   - Testare E2E completă: produs cu SGR, verificare total în interfață, verificare plăți corecte, creare vânzare, stocare corectă în `sale_items` cu ambele tipuri de snapshot (TVA și SGR).
+4. **6D.6.8 — SGR Sales History / Receipt Integration**:
+   - Afișarea detaliată în istoricul vânzărilor și pe bon.
+5. **6D.6.9 — SGR Returns Integration**:
+   - Corelarea stornărilor de SGR cu retururile.
+6. **6D.6.10 — SGR Final Visual QA**:
+   - Validare vizuală finală și înregistrare dovezi.
 
 ## 10. Decizie
 Planul și blueprint-ul de design sunt pregătite pentru:
-**Ready for 6D.6.5 SGR finalize_sale SQL Apply Verification**.
+**Ready for 6D.6.5 SGR POS Frontend Integration Preflight**.
+
+## 11. Corecție 6D.6.4.1 — Rollout Safety
+
+### Riscul de Payment Mismatch
+A fost identificat un risc critic de blocare a vânzărilor în cazul unei lansări nesincronizate:
+- **Backend nou + POS vechi**: Dacă funcția `finalize_sale` cu suport SGR este aplicată înainte ca interfața POS frontend să includă SGR în calculul totalului și al plăților, orice vânzare cu produse având `sgr_enabled = true` va fi respinsă cu eroare de tip payment mismatch (plățile trimise vor fi mai mici decât totalul calculat de DB cu 0.50 RON per unitate).
+- **POS nou + Backend vechi**: Dacă frontend-ul trimite plăți incluzând SGR, dar funcția `finalize_sale` de pe backend nu a fost actualizată, apelul RPC va fi respins deoarece plățile primite vor fi mai mari decât totalul simplu fără SGR calculat de baza de date.
+
+### Strategia de Rollout Recomandată
+Se recomandă strategia **Synchronized Release**:
+1. Pregătirea simultană a patch-ului SQL `finalize_sale` și a integrării POS frontend.
+2. Aplicarea patch-ului SQL și deploy-ul frontend-ului în aceeași fereastră de mentenanță.
+3. Rularea unui test E2E imediat cu produse SGR pentru a valida checkout-ul.
+4. În caz de erori neprevăzute, activarea imediată a planului de rollback.
+
+### Rollback Plan
+1. Înainte de aplicarea patch-ului SQL în etapa 6D.6.6, se va rula interogarea `SELECT pg_get_functiondef('public.finalize_sale'::regproc)` pentru a obține definiția exactă a funcției active.
+2. Definiția funcției de backup va fi salvată în fișierul `database/rollback_finalize_sale_before_sgr_6d65.sql`.
+3. În caz de incident, se va aplica scriptul de rollback pentru a restabili funcția anterioară `finalize_sale`.
+4. Se va dezactiva temporar interfața POS SGR din frontend (prin toggle de configurare sau rollback cod frontend) și se vor marca produsele SGR ca non-blocking sau se va evita vânzarea lor până la remedierea problemei.
+
