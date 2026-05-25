@@ -112,3 +112,19 @@ Cleanup status: {'success': True, 'error': None}
 3.  **Audit Logs Fără Scurgeri**: Logs de audit s-au generat corect pentru fiecare tranziție în `public.audit_logs`, respectând tipul acțiunii, motivul și ID-ul magazinului, fără scurgeri de date confidențiale (parole, token-uri).
 
 Toate verificările din etapa **6F.1.11** sunt complete. Sistemul este pregătit pentru implementarea UI-ului în Owner Console (Etapa 6F.1.12).
+
+---
+
+## 4. Corecție 6F.1.11.1 — Test DML Safety
+
+### Problemă identificată
+Scriptul inițial de testare (`test_store_lifecycle_verify_6f111.py`) efectua operații DML direct distructive (insert/delete pe `stores`, `audit_logs` și `store_members`) din browser prin intermediul JS client-ului autentificat ca Platform Owner. Această abordare contravenea principiului de siguranță al ciclului de viață prin care nicio înregistrare istorică de magazin sau audit log nu trebuie ștearsă fizic din aplicație.
+
+### Remediere și Schimbări
+1. **Eliminare DML direct**: S-au șters toate apelurile `.insert(...)`, `.delete(...)` și `.update(...)` pe tabelele critice din test.
+2. **Utilizare Test Store existent**: Testul rulează acum tranzițiile de stare (`suspend_store`, `reactivate_store`, `archive_store`) exclusiv pe magazinul de test pre-existent: `Magazin Test 12345678 Punct 902` (ID: `3579be32-a52b-4256-acb2-1886537c7f2a`).
+3. **Restaurare prin RPC**: Starea inițială a magazinului de test este restaurată în blocul `finally` utilizând exclusiv RPC-ul securizat `reactivate_store(...)`. Nicio înregistrare nu este ștearsă fizic.
+4. **Validare statică SQL**: Validarea constrângerilor CHECK și triggerului de sincronizare a flag-ului legacy `active` se realizează prin combinarea introspecției statice a fișierului SQL (`proposed_store_lifecycle_6f19.sql`) cu monitorizarea modificării de stare prin RPC pe baza de date live.
+5. **Guard static anti-DML**: S-a introdus funcția `sanity_scan_self()` la începutul scriptului de testare. Aceasta scanează propriul fișier și blochează execuția dacă sunt detectate apeluri DML directe pe tabelele critice.
+6. **Not Run Live**: Scenariul de succes pentru `request_store_deletion` a fost marcat ca `NOT RUN LIVE — clean eligible store would require unsafe direct cleanup` pentru a respecta interzicerea ștergerilor fizice în mediul live/staging.
+

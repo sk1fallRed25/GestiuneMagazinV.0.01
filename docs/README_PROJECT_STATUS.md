@@ -201,6 +201,12 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a validat mecanismul defensiv "Double Exception Safety" din `hard_delete_store_if_eligible` (aruncă excepții separate pentru magazin ineligible și excepția de tip stub pentru magazin curat, prevenind cascade delete-ul).
   - Jurnalizarea în `audit_logs` a fost confirmată pentru toate tranzițiile (`store.deletion_request`, `store.cancel_deletion`, `store.suspend`, `store.reactivate`, `store.archive`, `store.hard_delete_blocked`) fără scurgeri de secrete.
   - Raport complet: `docs/store_lifecycle_sql_apply_verification_6f111_report.md`.
+- **Etapa 6F.1.11.1 (Store Lifecycle Verification Test DML Safety Hotfix)**: **Realizat** — PASS.
+  - S-a refactorizat testul de verificare `test_store_lifecycle_verify_6f111.py` pentru a elimina complet orice scriere directă sau ștergere fizică (fără `.delete()`, `.insert(` sau `.update(` pe tabelele de bază `stores`, `audit_logs`, `store_members`).
+  - S-a introdus un guard static de securitate (`sanity_scan_self()`) care blochează rularea dacă se detectează utilizarea directă a acestor comenzi.
+  - Testul utilizează acum magazinul de test existent (`Magazin Test 12345678 Punct 902`) pentru a simula tranzițiile de stare prin RPC, restaurând starea sa inițială la final exclusiv prin RPC-ul `reactivate_store`. Nicio înregistrare nu este ștearsă fizic din baza de date.
+  - Scenariul de succes pentru `request_store_deletion` a fost marcat ca `NOT RUN LIVE` pentru a preveni necesitatea unui cleanup distructiv.
+  - Raport hotfix: `docs/store_lifecycle_verification_test_safety_6f1111_report.md`.
   - Următorul pas: Etapa 6F.1.12 — Store Lifecycle UI Integration.
 
 
