@@ -228,9 +228,11 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 6D.5.5.1 (Sales History VAT Display Parser & Fallback Rate Hotfix)**: **Realizat** — PASS. Fallback-ul TVA pentru bonurile legacy folosește ratele standard pe grupa TVA (A=21%, B=11%, C=11%, D=0%, E=0%), nu `vat_percent` legacy din setări. `any` a fost complet eliminat din parserul `salesHistoryService.ts` în favoarea tipizării stricte. Snapshot-ul real salvat în baza de date rămâne neatins și servește ca sursă istorică oficială pentru tranzacțiile noi. Build de producție Vite compilabil curat (`npm run build` PASS), teste E2E Playwright de validare locală (`test_sales_history_vat_display_6d55.py` și regression `verify_vat_snapshot_e2e.py`) încheiate cu succes. Raport oficial creat la `docs/sales_history_vat_display_hotfix_6d551_report.md`. Următorul pas: 6D.5.6 Sales History VAT Display E2E / Visual QA.
 - **Etapa 6D.6.0 (SGR Container Deposit Blueprint)**: **Realizat** — PASS. S-a realizat proiectarea completă a sistemului de garanție SGR în aplicație. SGR este tratat ca o garanție separată de prețul produsului principal, aplicând obligatoriu grupa fiscală D (TVA 0%). S-a decis stocarea tipului de ambalaj (`sgr_enabled`, `sgr_type`) în tabelul `public.products`, iar detaliile despre garanția percepută vor fi stocate ca snapshot în `public.sale_items`. S-a creat blueprint-ul SQL în `database/proposed_sgr_containers_6d60.sql` și documentația completă în `docs/sgr_container_deposit_blueprint_6d60.md` împreună cu raportul oficial `docs/sgr_container_deposit_6d60_report.md`. Nu au fost efectuate modificări în baza de date live sau codul aplicației. Următorul pas: 6D.6.1 SGR SQL Apply Verification.
 - **Etapa 6D.6.1 (SGR SQL Pre-Apply Hardening)**: **Realizat** — PASS. Constrângerile SGR au fost întărite pentru a impune grupa D / 0% și valoarea 0.50 lei pe `sale_items`. Indexurile pentru raportare SGR au fost adăugate în blueprint. `get_sgr_deposit_config()` a fost extins cu monedă și label-uri. SQL-ul nu a fost aplicat live. POS/finalize_sale nu au fost modificate încă. Raport oficial generat în `docs/sgr_sql_preapply_hardening_6d61_report.md`. Următorul pas: 6D.6.2 SGR SQL Apply Verification.
-
-
-
-
-
-
+- **Etapa 6D.6.2 (SGR SQL Apply Verification)**: **Realizat** — PASS.
+  - Coloanele SGR au fost aplicate pe `products` și `sale_items`.
+  - Constraint-urile impun SGR cu grupa D / 0% și garanție 0.50 lei.
+  - Helperul `get_sgr_deposit_config()` este disponibil pentru utilizatori autentificați.
+  - `finalize_sale` și POS nu au fost modificate încă.
+  - Backfill nu a fost rulat.
+  - Raport oficial creat la `docs/sgr_sql_apply_verification_6d62_report.md`.
+  - Următorul pas: **6D.6.3 SGR Product Forms Integration**
