@@ -61,7 +61,10 @@ def login(page, email, password, wait_text="Dashboard"):
     page.locator("input[type='text']").fill(email)
     page.locator("input[type='password']").fill(password)
     page.locator("button[type='submit']").click()
-    page.wait_for_url(f"{APP_URL}/**", timeout=15000)
+    if wait_text:
+        page.locator(f"text={wait_text}").first.wait_for(state="visible", timeout=15000)
+    else:
+        page.wait_for_url(f"{APP_URL}/**", timeout=15000)
 
 def rpc_get_modules(page, store_id):
     return page.evaluate("""async (sid) => {
@@ -122,7 +125,7 @@ def run():
             print("\n=== SETUP: Captare snapshot pre-test ===")
             main_context = browser.new_context(viewport={"width": 1440, "height": 900})
             owner_page = main_context.new_page()
-            login(owner_page, OWNER_EMAIL, OWNER_PASS)
+            login(owner_page, OWNER_EMAIL, OWNER_PASS, wait_text="Consolă Proprietar")
             owner_page.goto(f"{APP_URL}/#/owner")
             owner_page.wait_for_load_state("networkidle")
             owner_page.locator("#owner-tab-overview").wait_for(state="visible", timeout=10000)
@@ -295,6 +298,7 @@ def run():
 
             # ─── D. Route Guard ───────────────────────────────────────
             print("\n=== D. Route Guard ===")
+            admin_ctx = None
             try:
                 # D1: ai_consultant=false → DisabledModulePage
                 rpc_set_module(owner_page, store_id, "ai_consultant", False, "D. Route Guard test")
@@ -302,7 +306,7 @@ def run():
                 # Login admin separat
                 admin_ctx = browser.new_context(viewport={"width": 1440, "height": 900})
                 admin_pg = admin_ctx.new_page()
-                login(admin_pg, ADMIN_EMAIL, ADMIN_PASS)
+                login(admin_pg, ADMIN_EMAIL, ADMIN_PASS, wait_text="Dashboard")
                 admin_pg.wait_for_load_state("networkidle")
 
                 # Acces direct ruta dezactivata
@@ -329,6 +333,10 @@ def run():
 
                 # D3: Activeaza modul si verifica acces
                 rpc_set_module(owner_page, store_id, "ai_consultant", True, "D. Route Guard test enabled")
+                
+                # Navigheaza la dashboard mai intai pentru a permite curatarea rutei active in router state
+                admin_pg.goto(f"{APP_URL}/#/")
+                admin_pg.wait_for_load_state("networkidle")
                 admin_pg.reload()
                 admin_pg.wait_for_load_state("networkidle")
                 admin_pg.wait_for_timeout(2000)
@@ -342,19 +350,21 @@ def run():
                 else:
                     ok("Pagina ai-consultant accesibila cu modul activ")
 
-                admin_ctx.close()
-
-                # Reseteaza la false dupa test
-                rpc_set_module(owner_page, store_id, "ai_consultant", False, "D. Route Guard cleanup")
-
             except PlaywrightTimeout as e:
                 fail(f"Scenariul D: {e}")
+            finally:
+                if admin_ctx:
+                    admin_ctx.close()
+                # Reseteaza intotdeauna starea modului in DB via RPC
+                rpc_set_module(owner_page, store_id, "ai_consultant", False, "D. Route Guard cleanup")
 
             # ─── E. Planned modules ────────────────────────────────────
             print("\n=== E. Planned modules ===")
             try:
                 owner_page.locator("#owner-tab-modules").click()
                 owner_page.wait_for_load_state("networkidle")
+                # Asteapta incarcarea panelului prin asteptarea unui toggle standard
+                owner_page.locator("#toggle-products").wait_for(state="visible", timeout=8000)
 
                 planned_keys = ["offline_sync", "fiscal_bridge"]
                 for key in planned_keys:
@@ -365,7 +375,7 @@ def run():
                         else:
                             fail(f"Toggle {key} ar trebui sa fie disabled!")
                     else:
-                        badge = owner_page.locator(f"[data-module='{key}'] span:has-text('Planificat'), text=Planificat").first
+                        badge = owner_page.locator("span:has-text('Planificat')").first
                         if badge.is_visible():
                             ok(f"Badge 'Planificat' gasit pentru {key}")
                         else:
@@ -445,7 +455,7 @@ def run():
                 try:
                     vp_ctx = browser.new_context(viewport={"width": vp["width"], "height": vp["height"]})
                     vp_pg = vp_ctx.new_page()
-                    login(vp_pg, OWNER_EMAIL, OWNER_PASS)
+                    login(vp_pg, OWNER_EMAIL, OWNER_PASS, wait_text="Consolă Proprietar")
                     vp_pg.goto(f"{APP_URL}/#/owner")
                     vp_pg.wait_for_load_state("networkidle")
 

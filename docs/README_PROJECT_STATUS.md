@@ -188,4 +188,5 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a validat alinierea DOM-ului cu testul E2E `test_owner_module_management_6f16.py`, care rulează acum 100% reproductibil și sigur.
   - Cleanup-ul robust rămâne strict prin RPC-uri și zero DML direct pe baza de date. Nu s-au modificat DB/RLS/RPC-uri.
   - Build-ul Vite/TypeScript de producție a trecut perfect (`npm run build` PASS).
-  - **Următorul pas: Etapa 6F.1.7 — Module Entitlements E2E Hardening / Visual QA**
+- **Etapa 6F.1.7 (Module Entitlements E2E Hardening / Visual QA)**: **Realizat** — PASS. Toate verificările automate de route guards, module planificate/blocate, securitate RPC-only, audit log și accesibilitate a interfeței au fost validate cu succes. S-au salvat capturi de ecran adaptate pe 4 viewports (Desktop, Laptop, Tabletă, Mobil) în `artifacts/6f17/` pentru inspecția vizuală. Raport complet în `docs/module_entitlements_e2e_visual_qa_6f17_report.md`.
+
