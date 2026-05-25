@@ -140,4 +140,21 @@ Blueprint-ul SQL este definit în `database/proposed_sgr_containers_6d60.sql`. A
 > [!NOTE]
 > Proiectarea este completă și conformă cu normele fiscale din România. Datele SGR sunt decuplate de TVA-ul produsului principal și izolate în grupa D (0%).
 
-**Status:** **Ready for 6D.6.1 SGR SQL Pre-Apply / Apply Verification**
+**Status:** **Ready for 6D.6.2 SGR SQL Apply Verification**
+
+---
+
+## 14. Corecție 6D.6.1 — SQL Pre-Apply Hardening
+
+În cadrul etapei 6D.6.1, s-au aplicat măsuri suplimentare de siguranță și optimizare pe scriptul SQL blueprint `database/proposed_sgr_containers_6d60.sql`:
+1.  **Constrângerea `sale_items_sgr_check` Întărită:** S-a specificat clar comportamentul fiscal pentru ambele stări:
+    *   `sgr_enabled = false` => `sgr_type` is NULL, `sgr_deposit_amount` = 0, `sgr_total_amount` = 0, `sgr_vat_group` is NULL, `sgr_vat_rate` = 0.
+    *   `sgr_enabled = true` => `sgr_type` is in ('plastic', 'metal', 'glass'), `sgr_deposit_amount` = 0.50, `sgr_total_amount` >= 0, `sgr_vat_group` = 'D', `sgr_vat_rate` = 0.
+2.  **Indexuri Dedicate pe `sale_items`:** Adăugarea indexului `idx_sale_items_sgr_enabled` pe `(store_id, sgr_enabled)` și a indexului parțial `idx_sale_items_sgr_type` pe `(store_id, sgr_type) WHERE sgr_enabled = true` pentru a asigura performanță optimă la raportarea garanțiilor SGR.
+3.  **Configurație Extinsă `get_sgr_deposit_config()`:** Funcția helper a fost îmbunătățită pentru a include monedele, etichetele de TVA și detalii despre tipul depozitului:
+    *   `currency`: `'RON'`
+    *   `vatLabel`: `'Grupa D — 0%'`
+    *   `depositLabel`: `'Garanție SGR'`
+4.  **Compatibilitate Date Existente:** Definirea valorilor implicite (`sgr_enabled = false`, etc.) permite aplicarea lină a constraint-urilor peste datele din baza de date existentă (bonuri vechi), fără a fi necesar un script de backfill.
+5.  **Status finalize_sale:** Funcția RPC `finalize_sale` rămâne neschimbată în această etapă, urmând a fi patch-uită ulterior în cursul implementării fluxului de POS checkout.
+

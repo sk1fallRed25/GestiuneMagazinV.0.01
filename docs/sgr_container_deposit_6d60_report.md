@@ -19,4 +19,10 @@ A fost generat fișierul `database/proposed_sgr_containers_6d60.sql` care conți
 *   **Nu s-a modificat codul de business/UI:** POS-ul, formularele Quick Add și Product Edit, logica de finalizare a vânzării din `finalize_sale` și istoricul vânzărilor rămân nemodificate în această etapă de blueprinting.
 
 ## 4. Următorul Pas Recomandat
-*   **Etapa 6D.6.1: SGR SQL Apply Verification** pentru aplicarea și testarea în siguranță a migrării bazei de date.
+*   **Etapa 6D.6.2: SGR SQL Apply Verification** pentru aplicarea și testarea în siguranță a migrării bazei de date.
+
+---
+
+**Notă (Etapa 6D.6.1):** 
+Blueprint-ul SQL a fost întărit cu constrângeri stricte de validare pe `sale_items` (garantând TVA 0% / Grupa D și valoare fixă 0.50 lei) și s-au adăugat indecși pentru raportare. SQL-ul nu a fost aplicat live încă; următorul pas este verificarea aplicării.
+
