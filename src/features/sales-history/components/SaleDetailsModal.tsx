@@ -1,5 +1,5 @@
 import { X, Printer, Package, CreditCard, Banknote, Calendar, User, Hash, AlertTriangle, RefreshCw } from 'lucide-react';
-import { SaleDetails, SaleSummary } from '../types';
+import { SaleDetails, SaleSummary, SaleItemDetails } from '../types';
 import { SaleStatusBadge } from './SaleStatusBadge';
 
 interface SaleDetailsModalProps {
@@ -13,6 +13,59 @@ interface SaleDetailsModalProps {
 export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loading, onClose, onVoidClick, onReturnClick }) => {
     if (!sale && !loading) return null;
 
+    const getVatSummary = (items: SaleItemDetails[]) => {
+        let totalBase = 0;
+        let totalVat = 0;
+        let hasSnapshot = false;
+        let hasFallback = false;
+        let missingVatCount = 0;
+
+        const breakdown: Record<string, { rate: number; base: number; vat: number; label: string; isFallback: boolean }> = {};
+
+        items.forEach((item) => {
+            if (item.vatGroup) {
+                const rate = item.vatRate ?? 0;
+                const base = item.totalWithoutVat ?? 0;
+                const vat = item.vatAmount ?? 0;
+
+                totalBase += base;
+                totalVat += vat;
+
+                if (item.vatSnapshotAvailable) {
+                    hasSnapshot = true;
+                } else if (item.vatIsFallback) {
+                    hasFallback = true;
+                }
+
+                const key = `${item.vatGroup}-${rate}`;
+                if (!breakdown[key]) {
+                    breakdown[key] = {
+                        rate,
+                        base: 0,
+                        vat: 0,
+                        label: item.vatGroup,
+                        isFallback: !!item.vatIsFallback
+                    };
+                }
+                breakdown[key].base += base;
+                breakdown[key].vat += vat;
+            } else {
+                missingVatCount++;
+            }
+        });
+
+        return {
+            totalBase,
+            totalVat,
+            hasSnapshot,
+            hasFallback,
+            missingVatCount,
+            breakdownList: Object.values(breakdown)
+        };
+    };
+
+    const vatSum = sale ? getVatSummary(sale.items) : { totalBase: 0, totalVat: 0, hasSnapshot: false, hasFallback: false, missingVatCount: 0, breakdownList: [] };
+
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
@@ -25,7 +78,11 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
                         </div>
                         <p className="text-xs text-gray-400 font-mono">ID: {sale?.id}</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400 hover:text-gray-600">
+                    <button 
+                        onClick={onClose} 
+                        className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400 hover:text-gray-600"
+                        aria-label="Închide detaliile bonului"
+                    >
                         <X size={24} />
                     </button>
                 </div>
@@ -79,6 +136,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
                                             <th className="p-4">Produs</th>
                                             <th className="p-4 text-center">Cant.</th>
                                             <th className="p-4 text-right">Preț Unitar</th>
+                                            <th className="p-4 text-center md:text-left">TVA</th>
                                             <th className="p-4 text-right">Total</th>
                                         </tr>
                                     </thead>
@@ -96,14 +154,90 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
                                                 </td>
                                                 <td className="p-4 text-center font-bold text-gray-600">x{item.quantity}</td>
                                                 <td className="p-4 text-right text-gray-500">{item.unitPrice.toFixed(2)}</td>
+                                                <td className="p-4">
+                                                    {item.vatGroup ? (
+                                                        <div>
+                                                            <div className="flex flex-wrap items-center gap-1">
+                                                                <span className={`inline-block px-1.5 py-0.5 text-[9px] font-extrabold uppercase rounded border ${
+                                                                    item.vatIsFallback 
+                                                                    ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                                                                    : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                                                }`}>
+                                                                    {item.vatGroup} — {item.vatRate}%
+                                                                </span>
+                                                                {item.vatIsFallback && (
+                                                                    <span className="text-[8px] text-amber-600 font-extrabold uppercase tracking-wider">
+                                                                        Estimativ
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {item.vatAmount !== null && item.vatAmount !== undefined && (
+                                                                <div className="text-[9px] text-gray-500 mt-0.5">
+                                                                    TVA inclus: <span className="font-bold">{item.vatAmount.toFixed(2)} lei</span>
+                                                                </div>
+                                                            )}
+                                                            {item.totalWithoutVat !== null && item.totalWithoutVat !== undefined && (
+                                                                <div className="text-[9px] text-gray-400 font-mono">
+                                                                    Bază: {item.totalWithoutVat.toFixed(2)} lei
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="inline-block px-1.5 py-0.5 text-[9px] font-extrabold uppercase bg-red-50 text-red-700 border border-red-200 rounded">
+                                                            TVA indisponibil
+                                                        </span>
+                                                    )}
+                                                </td>
                                                 <td className="p-4 text-right font-black text-gray-900">{item.totalItem.toFixed(2)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
-                                    <tfoot className="bg-gray-900 text-white font-black">
-                                        <tr>
-                                            <td colSpan={3} className="p-5 text-right text-sm uppercase tracking-widest text-gray-400">Total de Plată:</td>
-                                            <td className="p-5 text-right text-2xl">{sale.total.toFixed(2)} <span className="text-xs text-gray-400">LEI</span></td>
+                                    <tfoot className="bg-gray-900 text-white font-black divide-y divide-gray-800">
+                                        {/* VAT Breakdown Rows */}
+                                        {vatSum.breakdownList.length > 0 && vatSum.breakdownList.map((bg, idx) => (
+                                            <tr key={idx} className="text-xs text-gray-400 font-normal">
+                                                <td colSpan={4} className="p-3 text-right">
+                                                    Grupa {bg.label} ({bg.rate}%){bg.isFallback ? ' [Estimativ]' : ''} — Bază: {bg.base.toFixed(2)} LEI | TVA:
+                                                </td>
+                                                <td className="p-3 text-right font-mono text-gray-300">
+                                                    {bg.vat.toFixed(2)} LEI
+                                                </td>
+                                            </tr>
+                                        ))}
+
+                                        {/* VAT Totals */}
+                                        <tr className="text-xs text-gray-400 font-normal">
+                                            <td colSpan={4} className="p-3 text-right uppercase tracking-wider">
+                                                Bază totală (fără TVA):
+                                            </td>
+                                            <td className="p-3 text-right font-mono text-gray-200">
+                                                {vatSum.totalBase.toFixed(2)} LEI
+                                            </td>
+                                        </tr>
+                                        <tr className="text-xs text-gray-400 font-normal">
+                                            <td colSpan={4} className="p-3 text-right uppercase tracking-wider">
+                                                TVA inclus total:
+                                            </td>
+                                            <td className="p-3 text-right font-mono text-gray-200">
+                                                {vatSum.totalVat.toFixed(2)} LEI
+                                            </td>
+                                        </tr>
+
+                                        {/* Warnings */}
+                                        {(vatSum.hasFallback || vatSum.missingVatCount > 0) && (
+                                            <tr className="text-[10px] text-amber-400 font-medium bg-gray-950">
+                                                <td colSpan={5} className="p-2 text-center">
+                                                    {vatSum.missingVatCount > 0 
+                                                        ? `Atenție: Bon legacy. Pentru ${vatSum.missingVatCount} poziții datele TVA sunt indisponibile.` 
+                                                        : 'Atenție: Datele TVA pentru bon legacy sunt estimate pe baza cotelor curente.'}
+                                                </td>
+                                            </tr>
+                                        )}
+
+                                        {/* Total Pay Row */}
+                                        <tr className="bg-gray-950">
+                                            <td colSpan={4} className="p-5 text-right text-sm uppercase tracking-widest text-gray-400">Total de Plată:</td>
+                                            <td className="p-5 text-right text-2xl text-emerald-400">{sale.total.toFixed(2)} <span className="text-xs text-gray-400">LEI</span></td>
                                         </tr>
                                     </tfoot>
                                 </table>

@@ -23,6 +23,16 @@ export interface SaleItemDetails {
     batchNumber: string | null;
     expiryDate: string | null;
     purchasePrice: number | null;
+    // VAT snapshot properties
+    vatGroup?: 'A' | 'B' | 'C' | 'D' | 'E' | null;
+    vatRate?: number | null;
+    priceIncludesVat?: boolean | null;
+    priceWithoutVat?: number | null;
+    vatAmount?: number | null;
+    totalWithoutVat?: number | null;
+    vatSnapshotAvailable?: boolean;
+    vatIsFallback?: boolean;
+    vatDisplayLabel?: string;
 }
 
 export interface SalePaymentDetails {

@@ -47,9 +47,16 @@ interface SaleListRow {
     payments: PaymentJoin[] | null;
 }
 
+interface ProductPriceJoin {
+    store_id: string;
+    vat_group: string | null;
+    vat_percent: number | string | null;
+}
+
 interface ProductJoin {
     name: string | null;
     barcode: string | null;
+    product_prices?: ProductPriceJoin | ProductPriceJoin[] | null;
 }
 
 interface BatchJoin {
@@ -65,6 +72,12 @@ interface SaleItemDetailsRow {
     unit_price: number | string;
     total_item: number | string;
     batch_id: string | null;
+    vat_group: string | null;
+    vat_rate: number | string | null;
+    price_includes_vat: boolean | null;
+    price_without_vat: number | string | null;
+    vat_amount: number | string | null;
+    total_without_vat: number | string | null;
     products: ProductJoin | ProductJoin[] | null;
     stock_batches: BatchJoin | BatchJoin[] | null;
 }
@@ -207,7 +220,21 @@ export const salesHistoryService = {
                 unit_price,
                 total_item,
                 batch_id,
-                products (name, barcode),
+                vat_group,
+                vat_rate,
+                price_includes_vat,
+                price_without_vat,
+                vat_amount,
+                total_without_vat,
+                products (
+                    name, 
+                    barcode,
+                    product_prices (
+                        store_id,
+                        vat_group,
+                        vat_percent
+                    )
+                ),
                 stock_batches (batch_number, expiry_date, purchase_price)
             `)
             .eq('sale_id', saleId)
@@ -220,18 +247,81 @@ export const salesHistoryService = {
             const product = pickFirst(i.products);
             const batch = pickFirst(i.stock_batches);
 
+            const vatGroup = (i.vat_group as 'A' | 'B' | 'C' | 'D' | 'E' | null) || null;
+            const vatRate = i.vat_rate !== null && i.vat_rate !== undefined ? Number(i.vat_rate) : null;
+            const priceIncludesVat = i.price_includes_vat !== null && i.price_includes_vat !== undefined ? Boolean(i.price_includes_vat) : null;
+            const priceWithoutVatRaw = i.price_without_vat !== null && i.price_without_vat !== undefined ? Number(i.price_without_vat) : null;
+            const vatAmountRaw = i.vat_amount !== null && i.vat_amount !== undefined ? Number(i.vat_amount) : null;
+            const totalWithoutVatRaw = i.total_without_vat !== null && i.total_without_vat !== undefined ? Number(i.total_without_vat) : null;
+
+            const hasVatSnapshot = vatGroup !== null && vatRate !== null;
+
+            let finalVatGroup = vatGroup;
+            let finalVatRate = vatRate;
+            let finalPriceIncludesVat = priceIncludesVat;
+            let finalPriceWithoutVat = priceWithoutVatRaw;
+            let finalVatAmount = vatAmountRaw;
+            let finalTotalWithoutVat = totalWithoutVatRaw;
+            let vatSnapshotAvailable = false;
+            let vatIsFallback = false;
+            let vatDisplayLabel = 'TVA indisponibil';
+
+            const unitPrice = toNumberStrict(i.unit_price, 'pret');
+            const totalItem = toNumberStrict(i.total_item, 'total linie');
+
+            if (hasVatSnapshot) {
+                vatSnapshotAvailable = true;
+                vatIsFallback = false;
+                vatDisplayLabel = `${finalVatGroup} — ${finalVatRate}%`;
+            } else {
+                // Legacy fallback: locate current product price configuration for this store
+                const prices = product?.product_prices;
+                const pricesArray = Array.isArray(prices) ? prices : (prices ? [prices] : []);
+                const storePrice = pricesArray.find((p: any) => p.store_id === storeId) || pricesArray[0];
+                const fallbackVatGroup = (storePrice?.vat_group as 'A' | 'B' | 'C' | 'D' | 'E' | null) || null;
+                const fallbackVatRate = storePrice?.vat_percent !== undefined && storePrice?.vat_percent !== null ? Number(storePrice.vat_percent) : null;
+
+                if (fallbackVatGroup !== null && fallbackVatRate !== null) {
+                    vatSnapshotAvailable = false;
+                    vatIsFallback = true;
+                    finalVatGroup = fallbackVatGroup;
+                    finalVatRate = fallbackVatRate;
+                    finalPriceIncludesVat = true; // Legacy sales are assumed price-inclusive
+                    
+                    const rateDivisor = 1 + (fallbackVatRate / 100);
+                    finalTotalWithoutVat = Number((totalItem / rateDivisor).toFixed(2));
+                    finalVatAmount = Number((totalItem - finalTotalWithoutVat).toFixed(2));
+                    finalPriceWithoutVat = Number((unitPrice / rateDivisor).toFixed(2));
+                    vatDisplayLabel = `Estimativ (${fallbackVatGroup} — ${fallbackVatRate}%)`;
+                } else {
+                    vatSnapshotAvailable = false;
+                    vatIsFallback = false;
+                    vatDisplayLabel = 'TVA indisponibil';
+                }
+            }
+
             return {
                 id: i.id,
                 productId: i.product_id,
                 productName: product?.name || 'Produs Șters',
                 barcode: product?.barcode || '',
                 quantity: toNumberStrict(i.quantity, 'cantitate'),
-                unitPrice: toNumberStrict(i.unit_price, 'pret'),
-                totalItem: toNumberStrict(i.total_item, 'total linie'),
+                unitPrice,
+                totalItem,
                 batchId: i.batch_id,
                 batchNumber: batch?.batch_number || null,
                 expiryDate: batch?.expiry_date || null,
-                purchasePrice: batch?.purchase_price ? toNumberStrict(batch.purchase_price, 'achizitie') : null
+                purchasePrice: batch?.purchase_price ? toNumberStrict(batch.purchase_price, 'achizitie') : null,
+                // Extended VAT fields
+                vatGroup: finalVatGroup,
+                vatRate: finalVatRate,
+                priceIncludesVat: finalPriceIncludesVat,
+                priceWithoutVat: finalPriceWithoutVat,
+                vatAmount: finalVatAmount,
+                totalWithoutVat: finalTotalWithoutVat,
+                vatSnapshotAvailable,
+                vatIsFallback,
+                vatDisplayLabel
             };
         });
 
