@@ -135,3 +135,15 @@ Cleanup RPC response: {'success': True, 'error': None}
 - **DML-Zero din UI**: În conformitate cu standardele ridicate de siguranță, UI-ul nu are permisiuni de editare directă pe tabele. Toate acțiunile se fac tranzacțional prin RPC.
 - **Audit-Compliance**: Jurnalul de audit înregistrează corect autorul tranziției, motivul acesteia și starea magazinului, fiind vizibile direct în consolă.
 - **Pregătire Pilot**: Integrarea completă a ciclului de viață finalizează cerințele administrative esențiale pentru gestionarea securizată a clienților pe platformă.
+
+---
+
+## 5. Actualizare Etapa 6F.1.13: Hardening Selectori & Visual QA
+
+În cadrul Etapei 6F.1.13 s-au realizat următoarele acțiuni de hardening peste implementarea inițială:
+1. **Stabilizare Selectori**: Toți selectorii fragili bazate pe text sau pe poziția în tabel au fost înlocuiți cu atribute `data-testid` unice în `StoresTable.tsx`.
+2. **Audit de Accesibilitate**: Adăugat `aria-label="Închide dialog"` pe butoanele de închidere din antetul modalelelor de acțiune și eligibilitate.
+3. **Validare Motiv**: Butonul de confirmare a suspendării/reactivării/arhivării este acum dezactivat dacă lungimea motivului este mai mică de 3 caractere.
+4. **Visual & Responsive QA**: A fost implementat testul `test_store_lifecycle_visual_qa_6f13.py` care testează UI-ul pe 4 rezoluții diferite (Desktop, Laptop, Tabletă, Mobil) și generează capturi de ecran în `artifacts/6f13/`.
+5. **Verificare Finală Stări**: S-a asigurat restaurarea completă și testarea stării finale active a tuturor magazinelor (atât `Magazin Principal` cât și magazinul de test) la sfârșitul fiecărei rulări de test, respectând principiul DML-Zero.
+

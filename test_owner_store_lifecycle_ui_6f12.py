@@ -86,6 +86,16 @@ def run_test():
             raise Exception("Test store 'Magazin Test 12345678 Punct 902' not found in database! Make sure DB is populated.")
         print(f"Test Store ID: {test_store_id}")
 
+        principal_store_id = page.evaluate("""async () => {
+            const supabase = window.supabase;
+            const { data } = await supabase.from('stores').select('id').eq('name', 'Magazin Principal').maybeSingle();
+            return data ? data.id : null;
+        }""")
+        
+        if not principal_store_id:
+            raise Exception("Store 'Magazin Principal' not found in database!")
+        print(f"Principal Store ID: {principal_store_id}")
+
         try:
             # -----------------------------------------------------------------
             # TEST SCENARIO 1: Suspend Store
@@ -93,17 +103,17 @@ def run_test():
             print("\n--- SCENARIO 1: Suspend Store ---")
             
             # Locate the test store row
-            row_selector = "tr:has-text('Magazin Test 12345678 Punct 902')"
+            row_selector = f"[data-testid='store-row-{test_store_id}']"
             page.locator(row_selector).wait_for(state="visible", timeout=10000)
             
             # Click options menu button
             print("Opening lifecycle options menu...")
-            page.locator(f"{row_selector} button[title='Opțiuni ciclu viață']").click()
+            page.locator(f"[data-testid='store-lifecycle-menu-{test_store_id}']").click()
             page.wait_for_timeout(500)
             
             # Click Suspendă magazin
             print("Clicking 'Suspenda magazin'...")
-            page.locator("button:has-text('Suspendă magazin')").click()
+            page.locator(f"[data-testid='store-action-suspend-{test_store_id}']").click()
             
             # Modal check
             print("Verifying StoreLifecycleActionModal is visible...")
@@ -123,7 +133,7 @@ def run_test():
             page.wait_for_timeout(1000)
             
             # Verify status badge is "Suspendat"
-            badge_text = page.locator(f"{row_selector} td").nth(5).inner_text()
+            badge_text = page.locator(f"[data-testid='store-lifecycle-badge-{test_store_id}']").inner_text()
             print(f"Current badge text: '{badge_text}'")
             assert "Suspendat" in badge_text, f"Store status did not transition to Suspendat! Found: '{badge_text}'"
             print("[PASS] Store suspended successfully.")
@@ -134,12 +144,12 @@ def run_test():
             print("\n--- SCENARIO 2: Reactivate Store ---")
             
             # Open menu again
-            page.locator(f"{row_selector} button[title='Opțiuni ciclu viață']").click()
+            page.locator(f"[data-testid='store-lifecycle-menu-{test_store_id}']").click()
             page.wait_for_timeout(500)
             
             # Click Reactivează magazin
             print("Clicking 'Reactiveaza magazin'...")
-            page.locator("button:has-text('Reactivează magazin')").click()
+            page.locator(f"[data-testid='store-action-reactivate-{test_store_id}']").click()
             
             # Modal check
             page.locator("#store-lifecycle-modal").wait_for(state="visible", timeout=5000)
@@ -151,7 +161,7 @@ def run_test():
             page.wait_for_timeout(1000)
             
             # Verify status badge is "Activ"
-            badge_text = page.locator(f"{row_selector} td").nth(5).inner_text()
+            badge_text = page.locator(f"[data-testid='store-lifecycle-badge-{test_store_id}']").inner_text()
             print(f"Current badge text: '{badge_text}'")
             assert "Activ" in badge_text, f"Store status did not transition to Activ! Found: '{badge_text}'"
             print("[PASS] Store reactivated successfully.")
@@ -162,12 +172,12 @@ def run_test():
             print("\n--- SCENARIO 3: Archive Store ---")
             
             # Open menu again
-            page.locator(f"{row_selector} button[title='Opțiuni ciclu viață']").click()
+            page.locator(f"[data-testid='store-lifecycle-menu-{test_store_id}']").click()
             page.wait_for_timeout(500)
             
             # Click Arhivează magazin
             print("Clicking 'Arhiveaza magazin'...")
-            page.locator("button:has-text('Arhivează magazin')").click()
+            page.locator(f"[data-testid='store-action-archive-{test_store_id}']").click()
             
             # Modal check
             page.locator("#store-lifecycle-modal").wait_for(state="visible", timeout=5000)
@@ -179,7 +189,7 @@ def run_test():
             page.wait_for_timeout(1000)
             
             # Verify status badge is "Arhivat"
-            badge_text = page.locator(f"{row_selector} td").nth(5).inner_text()
+            badge_text = page.locator(f"[data-testid='store-lifecycle-badge-{test_store_id}']").inner_text()
             print(f"Current badge text: '{badge_text}'")
             assert "Arhivat" in badge_text, f"Store status did not transition to Arhivat! Found: '{badge_text}'"
             print("[PASS] Store archived successfully.")
@@ -190,12 +200,12 @@ def run_test():
             print("\n--- SCENARIO 4: Reactivate from Archive ---")
             
             # Open menu again
-            page.locator(f"{row_selector} button[title='Opțiuni ciclu viață']").click()
+            page.locator(f"[data-testid='store-lifecycle-menu-{test_store_id}']").click()
             page.wait_for_timeout(500)
             
             # Click Reactivează magazin
             print("Clicking 'Reactiveaza magazin'...")
-            page.locator("button:has-text('Reactivează magazin')").click()
+            page.locator(f"[data-testid='store-action-reactivate-{test_store_id}']").click()
             
             # Modal check
             page.locator("#store-lifecycle-modal").wait_for(state="visible", timeout=5000)
@@ -207,7 +217,7 @@ def run_test():
             page.wait_for_timeout(1000)
             
             # Verify status badge is "Activ"
-            badge_text = page.locator(f"{row_selector} td").nth(5).inner_text()
+            badge_text = page.locator(f"[data-testid='store-lifecycle-badge-{test_store_id}']").inner_text()
             print(f"Current badge text: '{badge_text}'")
             assert "Activ" in badge_text, f"Store status did not transition to Activ! Found: '{badge_text}'"
             print("[PASS] Store reactivated from Archive successfully.")
@@ -218,17 +228,17 @@ def run_test():
             print("\n--- SCENARIO 5: Deletion Eligibility for Magazin Principal ---")
             
             # Locate Magazin Principal row
-            owner_selector = "tr:has-text('Magazin Principal')"
+            owner_selector = f"[data-testid='store-row-{principal_store_id}']"
             page.locator(owner_selector).wait_for(state="visible", timeout=10000)
             
             # Click options menu button
             print("Opening lifecycle options menu on Magazin Principal...")
-            page.locator(f"{owner_selector} button[title='Opțiuni ciclu viață']").click()
+            page.locator(f"[data-testid='store-lifecycle-menu-{principal_store_id}']").click()
             page.wait_for_timeout(500)
             
             # Click Verifică eligibilitate
             print("Clicking 'Verifica eligibilitate'...")
-            page.locator("button:has-text('Verifică eligibilitate')").click()
+            page.locator(f"[data-testid='store-action-check-delete-{principal_store_id}']").click()
             
             # Modal check
             print("Verifying StoreDeletionEligibilityModal is visible...")
@@ -271,15 +281,25 @@ def run_test():
             }""", test_store_id)
             print(f"Cleanup RPC response: {restore_res}")
             
-            # Verify final store active state
-            final_check = page.evaluate("""async (id) => {
+            # Verify final states of both stores
+            final_test_check = page.evaluate("""async (id) => {
                 const supabase = window.supabase;
                 const { data } = await supabase.from('stores').select('lifecycle_status, active').eq('id', id).single();
                 return data;
             }""", test_store_id)
-            print(f"Final test store state check: {final_check}")
-            assert final_check['lifecycle_status'] == 'active', "Cleanup failed: Test store did not restore to active lifecycle state!"
-            assert final_check['active'] == True, "Cleanup failed: Test store did not restore active flag to True!"
+            print(f"Final test store state check: {final_test_check}")
+            
+            final_principal_check = page.evaluate("""async (id) => {
+                const supabase = window.supabase;
+                const { data } = await supabase.from('stores').select('lifecycle_status, active').eq('id', id).single();
+                return data;
+            }""", principal_store_id)
+            print(f"Final principal store state check: {final_principal_check}")
+            
+            assert final_test_check['lifecycle_status'] == 'active', "Cleanup failed: Test store did not restore to active lifecycle state!"
+            assert final_test_check['active'] == True, "Cleanup failed: Test store did not restore active flag to True!"
+            assert final_principal_check['lifecycle_status'] == 'active', "Cleanup failed: Magazin Principal is not active!"
+            assert final_principal_check['active'] == True, "Cleanup failed: Magazin Principal active flag is not True!"
             print("[PASS] Cleanup completed successfully.")
 
         print("\n[SUCCESS] E2E UI Lifecycle Verification Test completed successfully!")

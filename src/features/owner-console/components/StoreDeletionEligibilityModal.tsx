@@ -73,6 +73,7 @@ export const StoreDeletionEligibilityModal: React.FC<StoreDeletionEligibilityMod
           </div>
           <button
             onClick={onClose}
+            aria-label="Închide dialog"
             className="p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <X className="w-5 h-5" />

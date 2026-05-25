@@ -215,3 +215,11 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au integrat modalele în `OwnerConsolePage.tsx` cu mecanism de auto-refresh pe succes.
   - S-a validat E2E prin testul `test_owner_store_lifecycle_ui_6f12.py` (`PASS`) și s-a confirmat lipsa TS build regressions (`npm run build` PASS).
   - Raport complet: `docs/owner_console_store_lifecycle_ui_6f12_report.md`.
+- **Etapa 6F.1.13 (Store Lifecycle E2E Hardening & Visual QA)**: **Realizat** — PASS.
+  - S-au adăugat atribute stabile `data-testid` în `StoresTable.tsx` pentru rândul tabelului, meniul dropdown de opțiuni, badge-ul de stare și acțiunile individuale ale magazinului.
+  - S-au îmbunătățit standardele de accesibilitate ARIA adăugând `aria-label="Închide dialog"` la butoanele X ale modalelelor de acțiune și eligibilitate.
+  - S-a stabilizat testul Playwright existent `test_owner_store_lifecycle_ui_6f12.py` utilizând noii selectori și s-a inclus verificarea finală a stării ambelor magazine (`Magazin Principal` și magazinul de test).
+  - S-a creat și implementat un nou test robust de testare automată vizuală și responsivă `test_store_lifecycle_visual_qa_6f13.py` care validează fluxurile pe 4 rezoluții standardizate (Desktop, Laptop, Tabletă, Mobil) și generează capturile de ecran corespunzătoare în `artifacts/6f13/`.
+  - Toate testele trec cu succes (inclusiv testele de regresie pe lockdown-ul Platform Owner), iar build-ul de producție Vite se finalizează fără erori.
+  - Raport complet generat în `docs/store_lifecycle_e2e_visual_qa_6f13_report.md`.
+
