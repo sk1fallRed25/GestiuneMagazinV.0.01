@@ -79,6 +79,7 @@ export const ProductVatGroupSelector: React.FC<ProductVatGroupSelectorProps> = (
 
             <div className="relative group">
                 <select
+                    name="vatGroup"
                     value={selectValue}
                     onChange={(e) => onChange(e.target.value as VatGroupKey)}
                     disabled={disabled || readOnly}

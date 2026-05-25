@@ -235,4 +235,12 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - `finalize_sale` și POS nu au fost modificate încă.
   - Backfill nu a fost rulat.
   - Raport oficial creat la `docs/sgr_sql_apply_verification_6d62_report.md`.
-  - Următorul pas: **6D.6.3 SGR Product Forms Integration**
+- **Etapa 6D.6.3 (SGR Product Forms Integration)**: **Realizat** — PASS.
+  - S-au integrat câmpurile SGR în formularele de produse (Adăugare Rapidă v2 și Product Edit Modal), utilizând selectorul dedicat `ProductSgrSelector.tsx` cu ID-uri stabile.
+  - S-a menținut blocarea stocului pe produse cu loturi active, asigurând în același timp editabilitatea completă a selectorului SGR din Edit Nomenclator.
+  - S-a adăugat badge-ul SGR (`ProductTable.tsx`) pentru identificarea rapidă a ambalajelor în nomenclator.
+  - S-au actualizat serviciile frontend (`productService.ts` și `fastAddService.ts`) cu mapări și normalizări client-side sigure.
+  - Testul Playwright E2E dedicat (`test_sgr_product_forms_6d63.py`) și testul de regresie VAT (`test_store_settings_product_vat_6d5.py`) au trecut cu succes complet.
+  - Build-ul Vite/TypeScript de producție s-a finalizat fără erori.
+  - Raport oficial creat la `docs/sgr_product_forms_integration_6d63_report.md`.
+

@@ -4,6 +4,7 @@ import { fastAddService } from '../services/fastAddService';
 import { productService, normalizeVatGroupForStore, getStandardVatRate } from '../../products/services/productService';
 import { ProductVatConfig, VatGroupKey } from '../../products/types';
 import { FastAddForm, FastAddProductPayload } from '../types';
+import { payloadFromSgrSelection } from '../../products/utils/sgr';
 import toast from 'react-hot-toast';
 
 const initialForm: FastAddForm = {
@@ -17,7 +18,8 @@ const initialForm: FastAddForm = {
     initialStock: '',
     stockZone: 'magazin',
     batchNumber: '',
-    expiryDate: ''
+    expiryDate: '',
+    sgrSelection: 'none'
 };
 
 const parseNonNegativeNumber = (value: string, fieldLabel: string): number => {
@@ -70,7 +72,8 @@ export const useFastAdd = () => {
         setForm({ 
             ...initialForm, 
             stockZone: form.stockZone, 
-            vatGroup: vatConfig?.defaultVatGroup || 'A' 
+            vatGroup: vatConfig?.defaultVatGroup || 'A',
+            sgrSelection: 'none'
         });
         setError(null);
     };
@@ -115,6 +118,8 @@ export const useFastAdd = () => {
         setSubmitting(true);
         setError(null);
 
+        const sgrPayload = payloadFromSgrSelection(form.sgrSelection);
+
         try {
             const payload: FastAddProductPayload = {
                 storeId: currentStoreId,
@@ -129,7 +134,9 @@ export const useFastAdd = () => {
                 initialStock,
                 stockZone: form.stockZone,
                 batchNumber: form.batchNumber?.trim() || null,
-                expiryDate: form.expiryDate || null
+                expiryDate: form.expiryDate || null,
+                sgrEnabled: sgrPayload.sgrEnabled,
+                sgrType: sgrPayload.sgrType
             };
 
             const result = await fastAddService.createFastProduct(payload);

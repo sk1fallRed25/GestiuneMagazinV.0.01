@@ -9,7 +9,12 @@ import {
 } from '../types';
 
 
-type ProductCoreUpdate = Partial<Pick<ProductDbRow, 'name' | 'barcode' | 'unit' | 'status'>>;
+import { normalizeSgrType, SgrType } from '../utils/sgr';
+
+type ProductCoreUpdate = Partial<Pick<ProductDbRow, 'name' | 'barcode' | 'unit' | 'status'>> & {
+    sgr_enabled?: boolean;
+    sgr_type?: SgrType | null;
+};
 
 export const getStandardVatRate = (group: VatGroupKey): number => {
     const rates: Record<VatGroupKey, number> = {
@@ -211,7 +216,9 @@ export const productService = {
                 active: p.status === 'active',
                 status: p.status,
                 vatGroup: (price?.vat_group as VatGroupKey) || 'A',
-                vatPercent: price?.vat_percent !== undefined ? Number(price.vat_percent) : 21
+                vatPercent: price?.vat_percent !== undefined ? Number(price.vat_percent) : 21,
+                sgrEnabled: !!p.sgr_enabled,
+                sgrType: normalizeSgrType(p.sgr_type)
             };
         });
     },
@@ -229,6 +236,14 @@ export const productService = {
         if (input.um !== undefined) productUpdates.unit = input.um;
         if (input.unitate_masura !== undefined && !input.um) productUpdates.unit = input.unitate_masura;
         if (input.status !== undefined) productUpdates.status = input.status;
+
+        // SGR config logic
+        if (input.sgrEnabled !== undefined || input.sgrType !== undefined) {
+            const normType = normalizeSgrType(input.sgrType);
+            const isEnabled = input.sgrEnabled !== undefined ? !!input.sgrEnabled : !!normType;
+            productUpdates.sgr_enabled = isEnabled && normType !== null;
+            productUpdates.sgr_type = productUpdates.sgr_enabled ? normType : null;
+        }
 
         if (Object.keys(productUpdates).length > 0) {
             const { error: pError } = await supabase

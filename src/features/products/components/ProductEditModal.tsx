@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Save, X } from 'lucide-react';
 import { Product, ProductUpdateInput, ProductVatConfig, VatGroupKey } from '../types';
 import { ProductVatGroupSelector } from './ProductVatGroupSelector';
+import { ProductSgrSelector } from './ProductSgrSelector';
+import { selectionFromSgr, payloadFromSgrSelection, SgrSelection } from '../utils/sgr';
 import { normalizeVatGroupForStore, productService } from '../services/productService';
 import toast from 'react-hot-toast';
 
@@ -24,6 +26,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
         stoc_depozit: string;
         stoc_magazin: string;
         vatGroup: VatGroupKey;
+        sgrSelection: SgrSelection;
     }>({
         nume: '',
         cod_bare: '',
@@ -32,7 +35,8 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
         um: '',
         stoc_depozit: '0',
         stoc_magazin: '0',
-        vatGroup: 'A'
+        vatGroup: 'A',
+        sgrSelection: 'none'
     });
     const [hasRealBatches, setHasRealBatches] = useState(false);
 
@@ -46,7 +50,8 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
                 um: product.um || '',
                 stoc_depozit: (product.stoc_depozit || 0).toString(),
                 stoc_magazin: (product.stoc_magazin || 0).toString(),
-                vatGroup: normalizeVatGroupForStore(product.vatGroup, vatConfig)
+                vatGroup: normalizeVatGroupForStore(product.vatGroup, vatConfig),
+                sgrSelection: selectionFromSgr(product.sgrEnabled, product.sgrType)
             });
             if (storeId) {
                 productService.hasRealBatches(storeId, product.id)
@@ -97,13 +102,17 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
             ? 'E'
             : normalizeVatGroupForStore(localState.vatGroup, vatConfig);
 
+        const sgrPayload = payloadFromSgrSelection(localState.sgrSelection);
+
         const updateData: ProductUpdateInput = {
             nume: localState.nume,
             cod_bare: localState.cod_bare,
             pret_vanzare,
             pret_achizitie,
             um: localState.um,
-            vatGroup: finalVatGroup
+            vatGroup: finalVatGroup,
+            sgrEnabled: sgrPayload.sgrEnabled,
+            sgrType: sgrPayload.sgrType
         };
 
         if (stockWasChanged) {
@@ -181,6 +190,11 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
                         value={localState.vatGroup}
                         onChange={handleVatGroupChange}
                         config={vatConfig}
+                    />
+
+                    <ProductSgrSelector 
+                        value={localState.sgrSelection}
+                        onChange={(val) => setLocalState(prev => ({ ...prev, sgrSelection: val }))}
                     />
 
                     <div>

@@ -39,9 +39,20 @@ const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig }: Produ
                                         <Package size={20} />
                                     </div>
                                     <div>
-                                        <p className="font-bold text-gray-800 leading-tight">{produs.nume}</p>
-                                        <p className="text-[10px] font-mono text-gray-400 mt-1">{produs.cod_bare}</p>
-                                    </div>
+                                         <p className="font-bold text-gray-800 leading-tight">{produs.nume}</p>
+                                         <div className="flex flex-wrap items-center gap-2 mt-1">
+                                             <span className="text-[10px] font-mono text-gray-400">{produs.cod_bare}</span>
+                                             {produs.sgrEnabled && produs.sgrType && (
+                                                 <span 
+                                                     data-testid="product-sgr-badge"
+                                                     className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-tight bg-emerald-50 text-emerald-700 border border-emerald-200/50 cursor-help"
+                                                     title="Garanție 0.50 lei, TVA D — 0%"
+                                                 >
+                                                     SGR - {produs.sgrType.toUpperCase()}
+                                                 </span>
+                                             )}
+                                         </div>
+                                     </div>
                                 </div>
                             </td>
                             <td className="px-6 py-4 font-bold text-gray-700">

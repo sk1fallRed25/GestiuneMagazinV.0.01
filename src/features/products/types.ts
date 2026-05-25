@@ -1,5 +1,10 @@
 export type VatGroupKey = 'A' | 'B' | 'C' | 'D' | 'E';
 
+export type SgrType = 'plastic' | 'metal' | 'glass';
+
+export type ProductSgrSelection = 'none' | SgrType;
+
+
 export interface ProductVatGroup {
   rate: number;
   label: string;
@@ -28,6 +33,8 @@ export interface Product {
   status?: 'active' | 'archived' | 'deleted';
   vatGroup?: VatGroupKey;
   vatPercent?: number;
+  sgrEnabled?: boolean;
+  sgrType?: SgrType | null;
 }
 
 /**
@@ -41,6 +48,8 @@ export interface ProductDbRow {
   barcode: string;
   unit: string;
   status: 'active' | 'archived' | 'deleted';
+  sgr_enabled?: boolean;
+  sgr_type?: SgrType | null;
   created_at: string;
   updated_at: string;
 }
@@ -90,6 +99,8 @@ export interface ProductUpdateInput {
   status?: 'active' | 'archived' | 'deleted';
   vatGroup?: VatGroupKey;
   vatPercent?: number;
+  sgrEnabled?: boolean;
+  sgrType?: SgrType | null;
 }
 
 

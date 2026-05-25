@@ -4,6 +4,7 @@ import { ScanBarcode, ArrowLeft, Package, CheckCircle, AlertTriangle, Save, Load
 import { useFastAdd } from './hooks/useFastAdd';
 import { detecteazaCategorie, formateazaGramaj } from './utils'; // Vom implementa un fișier de utilitare sau le lăsăm aici
 import { ProductVatGroupSelector } from '../products/components/ProductVatGroupSelector';
+import { ProductSgrSelector } from '../products/components/ProductSgrSelector';
 
 export default function FastAddPage() {
     const { form, submitting, error, updateField, submit, resetForm, vatConfig } = useFastAdd();
@@ -195,6 +196,11 @@ export default function FastAddPage() {
                         value={form.vatGroup}
                         onChange={(val) => updateField('vatGroup', val)}
                         config={vatConfig}
+                    />
+
+                    <ProductSgrSelector 
+                        value={form.sgrSelection}
+                        onChange={(val) => updateField('sgrSelection', val)}
                     />
 
                     <div className="grid grid-cols-2 gap-4">

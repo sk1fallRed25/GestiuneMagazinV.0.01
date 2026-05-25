@@ -1,4 +1,4 @@
-import { VatGroupKey } from '../products/types';
+import { VatGroupKey, SgrType, ProductSgrSelection } from '../products/types';
 
 export interface FastAddForm {
     barcode: string;
@@ -12,6 +12,7 @@ export interface FastAddForm {
     stockZone: 'depozit' | 'magazin';
     batchNumber?: string;
     expiryDate?: string;
+    sgrSelection: ProductSgrSelection;
 }
 
 export interface FastAddProductPayload {
@@ -28,6 +29,8 @@ export interface FastAddProductPayload {
     stockZone: 'depozit' | 'magazin';
     batchNumber?: string | null;
     expiryDate?: string | null;
+    sgrEnabled?: boolean;
+    sgrType?: SgrType | null;
 }
 
 export interface FastAddResult {

@@ -43,6 +43,14 @@ export const fastAddService = {
 
         if (existingProduct) {
             productId = existingProduct.id;
+            const { error: updateError } = await supabase
+                .from('products')
+                .update({
+                    sgr_enabled: payload.sgrEnabled ?? false,
+                    sgr_type: payload.sgrType ?? null
+                })
+                .eq('id', productId);
+            if (updateError) throw updateError;
         } else {
             // Inserare produs nou
             const { data: newProduct, error: insertError } = await supabase
@@ -53,7 +61,9 @@ export const fastAddService = {
                     barcode: payload.barcode,
                     unit: unit,
                     status: 'active',
-                    category_id: null
+                    category_id: null,
+                    sgr_enabled: payload.sgrEnabled ?? false,
+                    sgr_type: payload.sgrType ?? null
                 }])
                 .select('id')
                 .single();

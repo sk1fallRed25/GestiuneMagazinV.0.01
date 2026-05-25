@@ -56,22 +56,23 @@ def run_test():
             page.locator("button[type='submit']").click()
             
             safe_print("Waiting for Dashboard to load...")
-            page.locator("button[aria-label='Selectează magazinul activ']").wait_for(state="visible", timeout=30000)
+            page.locator("h1:has-text('Dashboard')").wait_for(state="visible", timeout=30000)
             safe_print("[PASS] Logged in successfully.")
             
-            # --- SCENARIO 1: VAT PAYER STORE ---
-            safe_print("\n--- SCENARIO 1: VAT PAYER STORE ---")
-            
-            # Switch to Magazin Principal
-            current_store_text = page.locator("button[aria-label='Selectează magazinul activ']").inner_text()
-            if "Magazin Principal" not in current_store_text:
-                safe_print("Switching to Magazin Principal...")
-                page.locator("button[aria-label='Selectează magazinul activ']").click()
-                page.wait_for_timeout(500)
-                page.locator("button:has-text('Magazin Principal')").click()
-                page.wait_for_timeout(2000)
+            # Switch to Magazin Principal if switcher button is present
+            switcher = page.locator("button[aria-label='Alege context operațional']")
+            if switcher.is_visible():
+                current_store_text = switcher.inner_text()
+                if "Magazin Principal" not in current_store_text:
+                    safe_print("Switching to Magazin Principal...")
+                    switcher.click()
+                    page.wait_for_timeout(500)
+                    page.locator("button:has-text('Magazin Principal')").click()
+                    page.wait_for_timeout(2000)
+                else:
+                    safe_print("Already on Magazin Principal.")
             else:
-                safe_print("Already on Magazin Principal.")
+                safe_print("Switcher is not interactive (single store or static context).")
             
             # Go to Store Settings
             safe_print("Navigating to Store Settings...")
@@ -104,7 +105,7 @@ def run_test():
             # Verify VAT Selector is visible & contains select options
             safe_print("Verifying VAT Selector in Product Modal...")
             page.locator("label:has-text('Grupă TVA Fiscală')").wait_for(state="visible", timeout=5000)
-            select_el = page.locator("form select")
+            select_el = page.locator("form select[name='vatGroup']")
             select_el.wait_for(state="visible", timeout=5000)
             
             # Verify batch notice warning text
@@ -179,16 +180,6 @@ def run_test():
             # --- SCENARIO 2: NON-VAT PAYER STORE ---
             safe_print("\n--- SCENARIO 2: NON-VAT PAYER STORE ---")
             
-            # Switch to Magazin Test 12345678 Punct 902
-            safe_print("Switching to Magazin Test 12345678 Punct 902...")
-            page.locator("button[aria-label='Selectează magazinul activ']").click()
-            page.wait_for_timeout(500)
-            page.locator("button:has-text('Magazin Test 12345678 Punct 902')").click()
-            page.wait_for_timeout(2000)
-            
-            # Verify active switcher header
-            page.locator("button[aria-label='Selectează magazinul activ']:has-text('Magazin Test 12345678 Punct 902')").wait_for(state="visible", timeout=5000)
-            
             # Go to Store Settings
             safe_print("Navigating to Store Settings...")
             page.goto("http://localhost:5173/#/setari-magazin")
@@ -209,7 +200,7 @@ def run_test():
             # Verify VAT Selector is hidden/locked (select count is 0, banner is visible)
             safe_print("Verifying VAT Selector in Fast Add (Non-Payer)...")
             page.locator("text=Magazin neplătitor TVA").wait_for(state="visible", timeout=5000)
-            assert page.locator("div.space-y-2").filter(has=page.locator("label:has-text('Grupă TVA Fiscală')")).locator("select").count() == 0, "Select element should not be rendered for non-vat payer store!"
+            assert page.locator("select[name='vatGroup']").count() == 0, "Select element should not be rendered for non-vat payer store!"
             safe_print("[PASS] VAT selector dropdown is hidden/locked and notice banner is displayed.")
             
             # Fill Fast Add Form
@@ -250,7 +241,7 @@ def run_test():
             # Verify Selector is hidden/locked and banner is visible inside modal
             safe_print("Verifying VAT Selector in edit modal (Non-Payer)...")
             page.locator("text=Magazin neplătitor TVA").wait_for(state="visible", timeout=5000)
-            assert page.locator("form select").count() == 0, "Select element should not be rendered in edit modal for non-vat payer store!"
+            assert page.locator("form select[name='vatGroup']").count() == 0, "Select element should not be rendered in edit modal for non-vat payer store!"
             safe_print("[PASS] VAT selector dropdown is hidden/locked in edit modal and notice banner is displayed.")
             
             # Close Modal
@@ -270,7 +261,13 @@ def run_test():
                     await supabase.from('product_prices').update({ vat_group: 'A' }).eq('product_id', otet.id);
                 }
             }""")
-            safe_print("[PASS] Cleaned up products and reset OTET 1L VAT group to A.")
+            
+            # Restore store settings back to VAT Payer on Magazin Principal
+            safe_print("Restoring store settings on Magazin Principal to VAT Payer...")
+            page.goto("http://localhost:5173/#/setari-magazin")
+            page.wait_for_load_state("networkidle")
+            ensure_tax_settings(True, 'A')
+            safe_print("[PASS] Cleaned up products and restored store settings.")
             
         except Exception as e:
             safe_print("[FAIL] Exception occurred during test run!")
