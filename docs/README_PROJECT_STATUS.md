@@ -257,13 +257,20 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 - **Etapa 6D.6.8 (SGR Sales History / Receipt Integration)**: **Realizat** — PASS. Detaliile bonului afișează SGR ca sub-linie separată sub produs, cu TVA D / 0%. Sumarul bonului afișează total produse, total SGR și total de plată. Toate testele E2E și testele de regresie trec cu succes. Raport complet disponibil în `docs/sgr_sales_history_receipt_integration_6d68_report.md`.
 - **Etapa 6D.6.9 (SGR Returns Integration Blueprint)**: **Realizat** — PASS. S-a realizat proiectarea completă a fluxului de retururi de produse vândute cu garanție SGR. S-a elaborat blueprint-ul SQL (`database/proposed_sgr_returns_6d69.sql`), documentul de design arhitectural (`docs/sgr_returns_integration_blueprint_6d69.md`) și raportul de etapă (`docs/sgr_returns_integration_6d69_report.md`), definind modelul de calcul, extinderile tabelei `sale_return_items` și impactul pe interfața `ReturnSaleModal` și reconcilierea casieriei. Următorul pas: 6D.6.10 SGR Returns SQL Pre-Apply Hardening.
 - **Etapa 6D.6.10 (SGR Returns SQL Pre-Apply Hardening)**: **Realizat** — PASS. S-a realizat securizarea și hardening-ul blueprint-ului SQL (`database/proposed_sgr_returns_6d69.sql`). S-au adăugat validări stricte pe tipul de date și formatul JSON al argumentelor în funcția `return_sale_items`, normalizarea metodelor de retur, constrângeri clare de CHECK pe `sale_return_items`, tracking separat pentru total SGR returnat în audit log-uri, precum și calcul dinamic al SGR disponibil/returnat în eligibilitate. S-au securizat explicit granturile pentru funcții la nivel de `authenticated` role. Nu s-a aplicat SQL și nu s-a modificat baza de date live. Raport complet în `docs/sgr_returns_sql_preapply_hardening_6d610_report.md`.
-- **Etapa 6D.6.11 (SGR Returns SQL Manual Apply + Verification)**: **Realizat** — PARTIAL PASS (Așteaptă aplicarea Hotfix-ului SQL 6D.6.11.1).
+- **Etapa 6D.6.11 (SGR Returns SQL Manual Apply + Verification)**: **Realizat** — PASS.
   - S-a verificat prin interogări read-only structura tabelelor (coloane SGR, constrângeri de CHECK, indexuri de performanță pe `sale_return_items`) și s-a confirmat conformitatea deplină.
   - S-a verificat protecția RPC-urilor `return_sale_items` și `get_sale_return_eligibility` (revocare grant-uri PUBLIC/anon și permisiuni exclusive pentru rolul `authenticated`).
   - S-au rulat testele de backend automatizate: Scenariile A (eligibilitate), B (retur parțial SGR), C (eligibilitate post-retur), E (capping) și D (retur total) au trecut cu succes complet.
-  - Scenariul F (regresie produs non-SGR) a returnat eșec (FAIL) deoarece codul live din baza de date utilizează `COALESCE(v_sale_item.sgr_vat_group, 'D')` în loc de branching-ul condiționat din `proposed_sgr_returns_6d69.sql` pe disk.
   - S-a salvat scriptul de rollback local la `database/rollback_sgr_returns_before_6d611.sql`.
-  - Raport oficial de verificare: `docs/sgr_returns_sql_apply_verification_6d611_report.md`. Următorul pas recomandat este aplicarea Hotfix-ului 6D.6.11.1.
+  - Raport oficial de verificare: `docs/sgr_returns_sql_apply_verification_6d611_report.md`.
+- **Etapa 6D.6.11.1 (SGR Returns Non-SGR Regression SQL Hotfix)**: **Realizat** — PASS.
+  - S-a creat și aplicat manual hotfix-ul `database/hotfix_sgr_returns_non_sgr_regression_6d6111.sql` în Supabase SQL Editor.
+  - S-a corectat logică de inserare pentru `sale_return_items` eliminând expresia legacy `COALESCE(..., 'D')` și înlocuind-o cu `CASE WHEN sgr_enabled` în funcția `return_sale_items`.
+  - S-au verificat interogările pe cataloage (removed legacy coalesce = true, grants secure to authenticated only, constraint active).
+  - S-au validat toate scenariile backend (A-F) folosind `test_sgr_returns_backend_6d611.py`, Scenario F (retur non-SGR) trecând acum cu succes.
+  - S-au rulat testele de regresie E2E `test_sgr_pos_checkout_e2e_6d67.py` și `test_sgr_sales_history_receipt_6d68.py` cu 100% succes.
+  - Raport oficial de hotfix: `docs/sgr_returns_non_sgr_regression_hotfix_6d6111_report.md`.
+  - Următorul pas: 6D.6.12 SGR Returns Frontend Integration.
 
 
 

@@ -1,16 +1,15 @@
 # Raport Oficial: SGR Returns SQL Manual Apply + Verification — Etapa 6D.6.11
 
 ## 1. Rezumat
-- **Status**: **PARTIAL PASS** (Așteaptă aplicarea Hotfix-ului SQL 6D.6.11.1)
+- **Status**: **PASS** (Promovat de la PARTIAL PASS în urma aplicării Hotfix-ului 6D.6.11.1)
 - **SQL Aplicat**: Manual de către utilizator.
 - **Rollback Salvat**: Da (`database/rollback_sgr_returns_before_6d611.sql`).
 - **Frontend Modificat**: Nu.
 - **Backfill Rulat**: Nu.
 
-Toate scenariile de retur specifice SGR (Scenariile A, B, C, D, E) sunt validate **PASS**. 
-Testul de regresie pentru produse non-SGR (Scenariul F) a returnat **FAIL** din cauza unei neconcordanțe de cod între schema bazei de date și blueprint-ul corectat de pe disc. Funcția live `return_sale_items` din baza de date conține încă expresia legacy `COALESCE(v_sale_item.sgr_vat_group, 'D')` pe linia 364, provocând încălcarea constrângerii de CHECK `sale_return_items_sgr_check` la returnarea produselor simple (non-SGR).
+Toate scenariile de retur specifice SGR (Scenariile A, B, C, D, E) precum și testul de regresie pentru produse non-SGR (Scenariul F) sunt validate **PASS**. 
+În urma aplicării hotfix-ului din etapa 6D.6.11.1, regresia pe produsele simple a fost complet remediată prin înlocuirea expresiei legacy `COALESCE(v_sale_item.sgr_vat_group, 'D')` cu logica de `CASE` condiționat bazată pe indicatorul `sgr_enabled`.
 
-Pentru remediere completă, utilizatorul trebuie să aplice Hotfix-ul SQL furnizat în Secțiunea 5 a acestui raport.
 
 ---
 
@@ -296,7 +295,14 @@ GRANT EXECUTE ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text
 ---
 
 ## 6. Concluzii și pași următori
-Odată aplicat scriptul SQL de hotfix de mai sus:
-1. Toate testele de regresie (inclusiv Scenario F) vor trece cu succes, finalizând complet etapa 6D.6.11.
-2. Niciun impact asupra securității sau structurii de date.
-3. Se menține compatibilitatea integrală în tura deschisă POS și sertarul de numerar.
+În urma aplicării Hotfix-ului 6D.6.11.1:
+1. Toate testele de regresie (inclusiv Scenario F) trec cu succes, promovând etapa la statusul de **PASS**.
+2. Modificarea este securizată la nivel de catalog PostgreSQL (search_path fixat pe public, privilegii revocate de la public/anon).
+3. Se recomandă continuarea cu integrarea frontend.
+
+---
+
+## 7. Actualizare 6D.6.11.1 — Hotfix aplicat
+La data de 2026-05-26, Hotfix-ul `database/hotfix_sgr_returns_non_sgr_regression_6d6111.sql` a fost aplicat manual în Supabase SQL Editor de către utilizator. 
+Toate testele backend au fost rerulate, iar rezultatele arată un succes total (6 scenarii din 6 trecute, inclusiv Scenario F).
+Detalii complete se găsesc în raportul dedicat: [sgr_returns_non_sgr_regression_hotfix_6d6111_report.md](file:///c:/Users/stefan/WebstormProjects/GestiuneMagazinV.0.01/docs/sgr_returns_non_sgr_regression_hotfix_6d6111_report.md).
