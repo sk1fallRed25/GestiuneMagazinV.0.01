@@ -111,6 +111,8 @@ export interface VoidSaleResult {
     returnId: string;
 }
 
+export type SgrType = 'plastic' | 'metal' | 'glass';
+
 export interface ReturnEligibilityItem {
     saleItemId: string;
     productId: string;
@@ -122,6 +124,15 @@ export interface ReturnEligibilityItem {
     quantityAvailableToReturn: number;
     unitPrice: number;
     totalItem: number;
+    // SGR fields from get_sale_return_eligibility
+    sgrEnabled?: boolean;
+    sgrType?: SgrType | null;
+    sgrDepositAmount?: number | null;
+    sgrTotalAmount?: number | null;
+    sgrVatGroup?: 'D' | null;
+    sgrVatRate?: number | null;
+    sgrReturnedAmount?: number | null;
+    sgrAvailableAmount?: number | null;
 }
 
 export interface ReturnPreviousEntry {
@@ -130,6 +141,7 @@ export interface ReturnPreviousEntry {
     totalRefund: number;
     refundMethod: 'cash' | 'card' | 'voucher' | 'mixed';
     reason: string;
+    sgrRefundTotal?: number | null;
 }
 
 export interface ReturnPaymentSummary {

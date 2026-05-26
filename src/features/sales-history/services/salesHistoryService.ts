@@ -15,7 +15,8 @@ import {
     ReturnSaleResult,
     ReturnEligibilityItem,
     ReturnPaymentSummary,
-    ReturnPreviousEntry
+    ReturnPreviousEntry,
+    SgrType
 } from '../types';
 import { normalizeVatGroup, getStandardVatRateForGroup } from '../utils/vatDisplay';
 import { normalizeSgrType } from '../../products/utils/sgr';
@@ -529,6 +530,16 @@ export const salesHistoryService = {
         const rawItems = Array.isArray(record.items) ? record.items : [];
         const items: ReturnEligibilityItem[] = rawItems.map((item: unknown) => {
             const i = item as Record<string, unknown>;
+
+            // Defensive SGR type normalization
+            const rawSgrType = i.sgr_type ? String(i.sgr_type).trim().toLowerCase() : null;
+            const validSgrTypes: SgrType[] = ['plastic', 'metal', 'glass'];
+            const sgrType: SgrType | null = validSgrTypes.includes(rawSgrType as SgrType)
+                ? (rawSgrType as SgrType)
+                : null;
+
+            const sgrEnabled = i.sgr_enabled === true;
+
             return {
                 saleItemId: String(i.sale_item_id || ''),
                 productId: String(i.product_id || ''),
@@ -539,7 +550,16 @@ export const salesHistoryService = {
                 quantityReturned: toNumberSafe(i.quantity_returned, 0),
                 quantityAvailableToReturn: toNumberSafe(i.quantity_available_to_return, 0),
                 unitPrice: toNumberSafe(i.unit_price, 0),
-                totalItem: toNumberSafe(i.total_item, 0)
+                totalItem: toNumberSafe(i.total_item, 0),
+                // SGR fields — parsed defensively
+                sgrEnabled,
+                sgrType: sgrEnabled ? sgrType : null,
+                sgrDepositAmount: sgrEnabled ? toNumberSafe(i.sgr_deposit_amount, 0.50) : null,
+                sgrTotalAmount: sgrEnabled ? toNumberSafe(i.sgr_total_amount, 0) : null,
+                sgrVatGroup: sgrEnabled ? ((i.sgr_vat_group === 'D' ? 'D' : null) ?? 'D') : null,
+                sgrVatRate: sgrEnabled ? toNumberSafe(i.sgr_vat_rate, 0) : null,
+                sgrReturnedAmount: sgrEnabled ? toNumberSafe(i.sgr_returned_amount, 0) : null,
+                sgrAvailableAmount: sgrEnabled ? toNumberSafe(i.sgr_available_amount, 0) : null
             };
         });
 
@@ -559,12 +579,17 @@ export const salesHistoryService = {
         const previousReturns: ReturnPreviousEntry[] = rawPrevReturns.map((r: unknown) => {
             const ret = r as Record<string, unknown>;
             const refundMethod = String(ret.refund_method || 'cash');
+            // sgrRefundTotal — defensive fallback if backend does not yet include it
+            const sgrRefundTotal = ret.sgr_refund_total !== undefined && ret.sgr_refund_total !== null
+                ? toNumberSafe(ret.sgr_refund_total, 0)
+                : null;
             return {
                 id: String(ret.id || ''),
                 createdAt: String(ret.created_at || ''),
                 totalRefund: toNumberSafe(ret.total_refund, 0),
                 refundMethod: (['cash', 'card', 'voucher', 'mixed'].includes(refundMethod) ? refundMethod : 'cash') as 'cash' | 'card' | 'voucher' | 'mixed',
-                reason: String(ret.reason || '')
+                reason: String(ret.reason || ''),
+                sgrRefundTotal
             };
         });
 

@@ -272,6 +272,20 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Raport oficial de hotfix: `docs/sgr_returns_non_sgr_regression_hotfix_6d6111_report.md`.
   - Următorul pas: 6D.6.12 SGR Returns Frontend Integration.
 
+- **Etapa 6D.6.12 (SGR Returns Frontend Integration)**: **Realizat** — PASS.
+  - S-au extins tipurile TypeScript (`ReturnEligibilityItem`, `ReturnPreviousEntry`, `SgrType`) cu câmpurile SGR din `get_sale_return_eligibility`.
+  - S-a actualizat `salesHistoryService.getSaleReturnEligibility()` cu mapare defensivă completă a câmpurilor SGR (`sgr_enabled`, `sgr_type`, `sgr_deposit_amount`, `sgr_total_amount`, `sgr_vat_group`, `sgr_vat_rate`, `sgr_returned_amount`, `sgr_available_amount`) și `sgrRefundTotal` în `previousReturns` (fallback graceful dacă backend nu îl include).
+  - `ReturnSaleModal.tsx` afișează pentru fiecare item cu `sgrEnabled=true`: label garanție SGR (tip plastic/metal/sticlă, 0.50 lei/buc, TVA D 0%), SGR disponibil pentru retur, SGR deja returnat și breakdown estimativ (produs + SGR + total linie).
+  - Footer modal afișează: Total produse returnate, Total garanții SGR returnate, Total de rambursat (cu `data-testid` stabile).
+  - Payload `return_sale_items` trimite strict `{sale_item_id, quantity}` — backend calculează SGR automat din snapshot.
+  - Non-SGR regression: blocul SGR nu apare în modal, totalul = doar produs.
+  - Build de producție Vite/TypeScript PASS (`Exit code: 0`).
+  - Test E2E creat: `test_sgr_returns_frontend_6d612.py` (scenarii A-K, anti-DML guard).
+  - Raport oficial: `docs/sgr_returns_frontend_integration_6d612_report.md`.
+  - **NU s-au modificat:** SQL/RPC live, finalize_sale, POS Checkout, Product Forms, Owner Console, Fiscal Bridge.
+  - **Limitări rămase:** print/fiscal bridge retur SGR, returnare ambalaje fără bon.
+  - **Următorul pas: 6D.6.13 SGR Returns E2E / Visual QA.**
+
 
 
 
