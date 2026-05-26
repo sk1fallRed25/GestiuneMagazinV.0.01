@@ -54,10 +54,10 @@ Rularea testului automatizat a generat următoarele rezultate:
 | **C** | Eligibilitate post-retur parțial | **PASS** | Câmpurile de disponibil recalculate tranzacțional la 1 unitate (0.50 RON). |
 | **E** | Limitare cantitativă retur (capping) | **PASS** | Încercarea de a returna 2 unități când doar 1 este disponibilă a fost respinsă de RPC cu mesajul corespunzător. |
 | **D** | Retur final 1 unitate (totalizare) | **PASS** | Stocul lotului restaurat la 10.00. Statusul vânzării actualizat corect în `returned`. |
-| **F** | Regresie retur produs non-SGR | **FAIL** | Eșuează la inserarea în `sale_return_items` cu eroare de CHECK constraint. |
+| **F** | Regresie retur produs non-SGR | **PASS** | Produsele simple sunt returnate corect cu sgr_enabled=false, sgr_refund_amount=0 și sgr_vat_group=NULL. |
 
-### Cauza eșecului Scenario F
-În baza de date, funcția `return_sale_items` inserează `sgr_vat_group` folosind expresia:
+### Problemă identificată inițial și rezolvată prin 6D.6.11.1
+În timpul verificării inițiale a etapei 6D.6.11, Scenario F (regresie produs non-SGR) a picat. În baza de date live, funcția `return_sale_items` folosea expresia legacy:
 ```sql
 COALESCE(v_sale_item.sgr_vat_group, 'D')
 ```
@@ -65,11 +65,12 @@ Pentru produsele non-SGR, `sgr_vat_group` din `sale_items` este `NULL`. Din cauz
 ```
 new row for relation "sale_return_items" violates check constraint "sale_return_items_sgr_check"
 ```
+Această problemă a fost remediată complet în etapa 6D.6.11.1 prin înlocuirea logicii legacy cu o expresie condiționată `CASE` bazată direct pe statusul `sgr_enabled`.
 
 ---
 
-## 5. Hotfix SQL Recomandat (Etapa 6D.6.11.1)
-Pentru a alinia funcția din baza de date la codul corectat din fișierul `database/proposed_sgr_returns_6d69.sql`, utilizatorul trebuie să execute manual următorul script SQL în **Supabase SQL Editor**:
+## 5. Hotfix SQL Aplicat (Etapa 6D.6.11.1)
+Pentru a alinia funcția din baza de date la codul corectat din fișierul `database/proposed_sgr_returns_6d69.sql`, a fost executat manual următorul script SQL în **Supabase SQL Editor** în cadrul etapei 6D.6.11.1:
 
 ```sql
 CREATE OR REPLACE FUNCTION public.return_sale_items(
@@ -303,6 +304,9 @@ GRANT EXECUTE ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text
 ---
 
 ## 7. Actualizare 6D.6.11.1 — Hotfix aplicat
-La data de 2026-05-26, Hotfix-ul `database/hotfix_sgr_returns_non_sgr_regression_6d6111.sql` a fost aplicat manual în Supabase SQL Editor de către utilizator. 
-Toate testele backend au fost rerulate, iar rezultatele arată un succes total (6 scenarii din 6 trecute, inclusiv Scenario F).
-Detalii complete se găsesc în raportul dedicat: [sgr_returns_non_sgr_regression_hotfix_6d6111_report.md](file:///c:/Users/stefan/WebstormProjects/GestiuneMagazinV.0.01/docs/sgr_returns_non_sgr_regression_hotfix_6d6111_report.md).
+- **Hotfix aplicat manual**: Hotfix-ul SQL `database/hotfix_sgr_returns_non_sgr_regression_6d6111.sql` a fost aplicat manual cu succes în Supabase SQL Editor de către utilizator.
+- **Read-Only Catalog Checks PASS**: Verificarea structurală a funcției a confirmat înlocuirea expresiei `COALESCE` legacy și aplicarea regulilor condiționate `CASE`.
+- **Grants PASS**: Permisiunile de execuție ale funcției au fost revocate pentru rolurile `PUBLIC` și `anon`, fiind acordate în mod exclusiv rolului `authenticated`.
+- **Scenariile A-F PASS**: Toate cele 6 scenarii din `test_sgr_returns_backend_6d611.py` trec cu succes (inclusiv returul non-SGR care genera eroarea de CHECK constraint).
+- **6D.6.11 Status Final**: **PASS**.
+- **Următorul pas**: **Etapa 6D.6.12: SGR Returns Frontend Integration** (integrarea UI a retururilor SGR).
