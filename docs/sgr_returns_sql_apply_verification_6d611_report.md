@@ -1,207 +1,78 @@
--- ============================================================================
--- BLUEPRINT SQL: SGR Returns Integration (Etapa 6D.6.9 / Securizat 6D.6.10)
--- ============================================================================
--- ATENȚIE: ACEST SCRIPT ESTE UN BLUEPRINT DE PROIECTARE ARHITECTURALĂ SECURIZATĂ.
--- AVERTISMENT DE ROLLOUT: NU APLICAȚI ACEST SCRIPT ÎNAINTE DE ETAPA 6D.6.11!
--- FUNCȚIILE LIVE NU SE MODIFICĂ ÎN CADRUL ETAPEI CURENTE (6D.6.10).
--- NU MODIFICĂ BAZA DE DATE LIVE SAU RPC-URILE ACTIVE.
--- ============================================================================
+# Raport Oficial: SGR Returns SQL Manual Apply + Verification — Etapa 6D.6.11
 
--- 1. EXTINDERE STRUCTURĂ TABELĂ: sale_return_items
--- Adăugare coloane pentru snapshot și tracking stornare garanție SGR
-ALTER TABLE public.sale_return_items
-ADD COLUMN IF NOT EXISTS sgr_enabled boolean NOT NULL DEFAULT false,
-ADD COLUMN IF NOT EXISTS sgr_type text NULL,
-ADD COLUMN IF NOT EXISTS sgr_deposit_amount numeric(12,2) NOT NULL DEFAULT 0,
-ADD COLUMN IF NOT EXISTS sgr_refund_amount numeric(12,2) NOT NULL DEFAULT 0,
-ADD COLUMN IF NOT EXISTS sgr_vat_group text NULL,
-ADD COLUMN IF NOT EXISTS sgr_vat_rate numeric(5,2) NOT NULL DEFAULT 0;
+## 1. Rezumat
+- **Status**: **PARTIAL PASS** (Așteaptă aplicarea Hotfix-ului SQL 6D.6.11.1)
+- **SQL Aplicat**: Manual de către utilizator.
+- **Rollback Salvat**: Da (`database/rollback_sgr_returns_before_6d611.sql`).
+- **Frontend Modificat**: Nu.
+- **Backfill Rulat**: Nu.
 
--- 2. CONSTRÂNGERE DE INTEGRITATE DATE (CHECK CONSTRAINT)
--- Garantează corectitudinea datelor SGR stornate
--- sgr_refund_amount = returned_qty * sgr_deposit_amount;
--- Constrângerea nu leagă direct de quantity ca să nu complice migrarea, dar funcția RPC trebuie să calculeze exact.
-ALTER TABLE public.sale_return_items DROP CONSTRAINT IF EXISTS sale_return_items_sgr_check;
-ALTER TABLE public.sale_return_items ADD CONSTRAINT sale_return_items_sgr_check
-CHECK (
-  (
-    sgr_enabled = false
-    AND sgr_type IS NULL
-    AND sgr_deposit_amount = 0
-    AND sgr_refund_amount = 0
-    AND sgr_vat_group IS NULL
-    AND sgr_vat_rate = 0
-  )
-  OR
-  (
-    sgr_enabled = true
-    AND sgr_type IN ('plastic', 'metal', 'glass')
-    AND sgr_deposit_amount = 0.50
-    AND sgr_refund_amount >= 0
-    AND sgr_vat_group = 'D'
-    AND sgr_vat_rate = 0
-  )
-);
+Toate scenariile de retur specifice SGR (Scenariile A, B, C, D, E) sunt validate **PASS**. 
+Testul de regresie pentru produse non-SGR (Scenariul F) a returnat **FAIL** din cauza unei neconcordanțe de cod între schema bazei de date și blueprint-ul corectat de pe disc. Funcția live `return_sale_items` din baza de date conține încă expresia legacy `COALESCE(v_sale_item.sgr_vat_group, 'D')` pe linia 364, provocând încălcarea constrângerii de CHECK `sale_return_items_sgr_check` la returnarea produselor simple (non-SGR).
 
--- 3. INDEXURI RECOMANDATE PENTRU OPTIMIZAREA INTEROGĂRILOR ȘI RECONCILIERILOR
-CREATE INDEX IF NOT EXISTS idx_sale_return_items_sgr_enabled ON public.sale_return_items(sgr_enabled);
-CREATE INDEX IF NOT EXISTS idx_sale_return_items_sgr_type ON public.sale_return_items(sgr_type) WHERE sgr_enabled = true;
-CREATE INDEX IF NOT EXISTS idx_sale_return_items_return_sgr ON public.sale_return_items(return_id, sgr_enabled);
+Pentru remediere completă, utilizatorul trebuie să aplice Hotfix-ul SQL furnizat în Secțiunea 5 a acestui raport.
 
+---
 
--- ============================================================================
--- 4. PROPOSED RPC: get_sale_return_eligibility (V2 cu suport SGR)
--- ============================================================================
-CREATE OR REPLACE FUNCTION public.get_sale_return_eligibility(
-    p_store_id uuid,
-    p_profile_id uuid,
-    p_sale_id uuid
-) RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-    v_has_role boolean;
-    v_sale record;
-    v_items jsonb;
-    v_payments jsonb;
-    v_previous_returns jsonb;
-    v_can_return boolean := true;
-    v_reason_if_not text := NULL;
-    v_returnable_count int := 0;
-BEGIN
-    -- 1. Validare permisiuni: admin, manager sau platform_owner
-    SELECT (public.has_store_role(p_store_id, ARRAY['admin', 'manager']) OR public.is_platform_owner()) INTO v_has_role;
-    IF NOT v_has_role THEN
-        RETURN jsonb_build_object(
-            'sale_id', p_sale_id,
-            'can_return', false,
-            'reason_if_not', 'Acces interzis: Doar managerii sau administratorii pot consulta eligibilitatea returului.'
-        );
-    END IF;
+## 2. Rollback
+- **Fișier local**: `database/rollback_sgr_returns_before_6d611.sql`
+- **Funcții acoperite**:
+  - `public.get_sale_return_eligibility` (definiția dinaintea aplicării etapei 6D.6.11)
+  - `public.return_sale_items` (definiția dinaintea aplicării etapei 6D.6.11)
+- **Instrucțiuni**: Rularea completă a scriptului de rollback va elimina coloanele SGR adăugate în `sale_return_items` și va restaura semnăturile/logica RPC-urilor anterioare.
 
-    -- 2. Citire vânzare
-    SELECT * INTO v_sale FROM public.sales WHERE id = p_sale_id AND store_id = p_store_id;
-    IF v_sale IS NULL THEN
-        RETURN jsonb_build_object(
-            'sale_id', p_sale_id,
-            'can_return', false,
-            'reason_if_not', 'Vânzarea nu există sau nu aparține acestui magazin.'
-        );
-    END IF;
+---
 
-    -- 3. Validare status vânzare
-    IF v_sale.status NOT IN ('finalized', 'partially_returned') THEN
-        v_can_return := false;
-        v_reason_if_not := 'Vânzarea nu este eligibilă pentru retur. Status curent: ' || v_sale.status || '.';
-    END IF;
+## 3. Schema Verification (Verificare Structură Tabele)
+Interogările read-only au confirmat structura corectă a bazei de date:
+- **Coloane noi în `sale_return_items`**: **PASS**
+  - `sgr_enabled` (boolean, default false, not null)
+  - `sgr_type` (text, nullable)
+  - `sgr_deposit_amount` (numeric(12,2), default 0.00, not null)
+  - `sgr_refund_amount` (numeric(12,2), default 0.00, not null)
+  - `sgr_vat_group` (text, nullable)
+  - `sgr_vat_rate` (numeric(5,2), default 0.00, not null)
+- **Constraint**: `sale_return_items_sgr_check` **PASS**
+  - Impune reguli stricte:
+    - Pentru `sgr_enabled = false`: `sgr_type IS NULL`, `sgr_deposit_amount = 0`, `sgr_refund_amount = 0`, `sgr_vat_group IS NULL`, `sgr_vat_rate = 0`.
+    - Pentru `sgr_enabled = true`: `sgr_type` în `('plastic', 'metal', 'glass')`, `sgr_deposit_amount = 0.50`, `sgr_refund_amount >= 0`, `sgr_vat_group = 'D'`, `sgr_vat_rate = 0`.
+- **Indexuri optimizare**: **PASS**
+  - `idx_sale_return_items_sgr_enabled`
+  - `idx_sale_return_items_sgr_type` (index parțial)
+  - `idx_sale_return_items_return_sgr`
+- **Compatibilitate istorică**: **PASS**
+  - Toate înregistrările de retur anterioare au fost verificate ca fiind conforme cu noul constraint (toate stochează default `false`/`null`/`0`).
 
-    -- 4. Citire linii și calcul cantități returnabile (folosind sume grupate din sale_return_items)
-    -- Include informațiile din snapshot-ul SGR salvat în sale_items, plus SGR deja returnat și disponibil
-    SELECT jsonb_agg(jsonb_build_object(
-        'sale_item_id', si.id,
-        'product_id', si.product_id,
-        'product_name', p.name,
-        'barcode', p.barcode,
-        'batch_id', si.batch_id,
-        'quantity_sold', si.quantity,
-        'quantity_returned', COALESCE(ret.qty_ret, 0),
-        'quantity_available_to_return', si.quantity - COALESCE(ret.qty_ret, 0),
-        'unit_price', si.unit_price,
-        'total_item', si.total_item,
-        -- Snapshot SGR din vânzare
-        'sgr_enabled', COALESCE(si.sgr_enabled, false),
-        'sgr_type', si.sgr_type,
-        'sgr_deposit_amount', COALESCE(si.sgr_deposit_amount, 0),
-        'sgr_total_amount', COALESCE(si.sgr_total_amount, 0),
-        'sgr_vat_group', COALESCE(si.sgr_vat_group, 'D'),
-        'sgr_vat_rate', COALESCE(si.sgr_vat_rate, 0),
-        -- Câmpuri de monitorizare stornare SGR
-        'sgr_returned_amount', COALESCE(ret.sgr_refund_ret, 0),
-        'sgr_available_amount',
-          CASE
-            WHEN COALESCE(si.sgr_enabled, false)
-            THEN ROUND((si.quantity - COALESCE(ret.qty_ret, 0)) * COALESCE(si.sgr_deposit_amount, 0.50), 2)
-            ELSE 0.00
-          END
-    )) INTO v_items
-    FROM public.sale_items si
-    LEFT JOIN public.products p ON p.id = si.product_id
-    LEFT JOIN (
-        SELECT sri.original_sale_item_id, 
-               SUM(sri.quantity) as qty_ret,
-               SUM(COALESCE(sri.sgr_refund_amount, 0)) as sgr_refund_ret
-        FROM public.sale_return_items sri
-        JOIN public.sale_returns sr ON sr.id = sri.return_id
-        WHERE sr.status = 'completed'
-        GROUP BY sri.original_sale_item_id
-    ) ret ON ret.original_sale_item_id = si.id
-    WHERE si.sale_id = p_sale_id;
+---
 
-    -- 5. Numărare articole cu cantitate disponibilă pentru retur > 0
-    SELECT COALESCE(COUNT(*), 0) INTO v_returnable_count
-    FROM (
-        SELECT si.quantity - COALESCE(SUM(sri.quantity), 0) as available
-        FROM public.sale_items si
-        LEFT JOIN public.sale_returns sr ON sr.original_sale_id = si.sale_id AND sr.status = 'completed'
-        LEFT JOIN public.sale_return_items sri ON sri.return_id = sr.id AND sri.original_sale_item_id = si.id
-        WHERE si.sale_id = p_sale_id
-        GROUP BY si.id, si.quantity
-    ) sub
-    WHERE sub.available > 0;
+## 4. Rezultate Test Backend (`test_sgr_returns_backend_6d611.py`)
+Rularea testului automatizat a generat următoarele rezultate:
 
-    IF v_can_return AND v_returnable_count = 0 THEN
-        v_can_return := false;
-        v_reason_if_not := 'Nu mai există articole disponibile pentru retur pe acest bon.';
-    END IF;
+| Scenariu | Descriere Scenariu | Rezultat | Detalii/Observații |
+|---|---|---|---|
+| **A** | Evaluare eligibilitate retur bon cu produse SGR | **PASS** | Câmpurile `sgr_enabled`, `sgr_deposit_amount`, `sgr_returned_amount`, `sgr_available_amount` calculate corect. |
+| **B** | Retur parțial 1 unitate produs SGR | **PASS** | Garanție stornată corect (10.00 + 0.50 = 10.50 RON). Stocul lotului crescut de la 8 la 9. Jurnalizare audit `sgr_refund_total = 0.50`. |
+| **C** | Eligibilitate post-retur parțial | **PASS** | Câmpurile de disponibil recalculate tranzacțional la 1 unitate (0.50 RON). |
+| **E** | Limitare cantitativă retur (capping) | **PASS** | Încercarea de a returna 2 unități când doar 1 este disponibilă a fost respinsă de RPC cu mesajul corespunzător. |
+| **D** | Retur final 1 unitate (totalizare) | **PASS** | Stocul lotului restaurat la 10.00. Statusul vânzării actualizat corect în `returned`. |
+| **F** | Regresie retur produs non-SGR | **FAIL** | Eșuează la inserarea în `sale_return_items` cu eroare de CHECK constraint. |
 
-    -- 6. Citire plăți originale
-    SELECT jsonb_agg(jsonb_build_object(
-        'id', pay.id,
-        'method', pay.method,
-        'amount', pay.amount
-    )) INTO v_payments
-    FROM public.payments pay
-    WHERE pay.sale_id = p_sale_id;
+### Cauza eșecului Scenario F
+În baza de date, funcția `return_sale_items` inserează `sgr_vat_group` folosind expresia:
+```sql
+COALESCE(v_sale_item.sgr_vat_group, 'D')
+```
+Pentru produsele non-SGR, `sgr_vat_group` din `sale_items` este `NULL`. Din cauza `COALESCE`, funcția inserează valoarea `'D'`. Însă constraintul `sale_return_items_sgr_check` interzice ca un produs non-SGR (`sgr_enabled = false`) să aibă grupa fiscală `'D'` (trebuie să fie obligatoriu `NULL`), generând eroarea:
+```
+new row for relation "sale_return_items" violates check constraint "sale_return_items_sgr_check"
+```
 
-    -- 7. Citire istoric retururi finalizate
-    SELECT jsonb_agg(jsonb_build_object(
-        'id', sr.id,
-        'created_at', sr.created_at,
-        'total_refund', sr.total_refund,
-        'refund_method', sr.refund_method,
-        'reason', sr.reason
-    )) INTO v_previous_returns
-    FROM public.sale_returns sr
-    WHERE sr.original_sale_id = p_sale_id AND sr.status = 'completed';
+---
 
-    RETURN jsonb_build_object(
-        'sale_id', v_sale.id,
-        'status', v_sale.status,
-        'total', v_sale.total,
-        'payment_method', v_sale.payment_method,
-        'can_return', v_can_return,
-        'reason_if_not', v_reason_if_not,
-        'items', COALESCE(v_items, '[]'::jsonb),
-        'payments', COALESCE(v_payments, '[]'::jsonb),
-        'previous_returns', COALESCE(v_previous_returns, '[]'::jsonb),
-        'allowed_refund_methods', ARRAY['cash', 'card', 'voucher']
-    );
-END;
-$$;
+## 5. Hotfix SQL Recomandat (Etapa 6D.6.11.1)
+Pentru a alinia funcția din baza de date la codul corectat din fișierul `database/proposed_sgr_returns_6d69.sql`, utilizatorul trebuie să execute manual următorul script SQL în **Supabase SQL Editor**:
 
--- Securizare explicită privilegii get_sale_return_eligibility
-REVOKE ALL ON FUNCTION public.get_sale_return_eligibility(uuid, uuid, uuid) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.get_sale_return_eligibility(uuid, uuid, uuid) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.get_sale_return_eligibility(uuid, uuid, uuid) FROM anon;
-REVOKE EXECUTE ON FUNCTION public.get_sale_return_eligibility(uuid, uuid, uuid) FROM authenticated;
-GRANT EXECUTE ON FUNCTION public.get_sale_return_eligibility(uuid, uuid, uuid) TO authenticated;
-
-
--- ============================================================================
--- 5. PROPOSED RPC: return_sale_items (V2 cu suport SGR și Hardening)
--- ============================================================================
+```sql
 CREATE OR REPLACE FUNCTION public.return_sale_items(
     p_store_id uuid,
     p_profile_id uuid,
@@ -414,9 +285,18 @@ BEGIN
 END;
 $$;
 
--- Securizare explicită privilegii return_sale_items
+-- Securizare privilegii
 REVOKE ALL ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text, text, text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text, text, text) FROM PUBLIC;
 REVOKE EXECUTE ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text, text, text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text, text, text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text, text, text) TO authenticated;
+```
+
+---
+
+## 6. Concluzii și pași următori
+Odată aplicat scriptul SQL de hotfix de mai sus:
+1. Toate testele de regresie (inclusiv Scenario F) vor trece cu succes, finalizând complet etapa 6D.6.11.
+2. Niciun impact asupra securității sau structurii de date.
+3. Se menține compatibilitatea integrală în tura deschisă POS și sertarul de numerar.
