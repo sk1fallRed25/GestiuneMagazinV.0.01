@@ -237,4 +237,23 @@ Acesta este un aspect critic din punct de vedere contabil și de audit:
 ## 11. Decizie
 
 **Status recomandat**:
-*   `Ready for 6D.6.10 SGR Returns SQL Pre-Apply Hardening`
+*   `Ready for 6D.6.11 SGR Returns SQL Manual Apply + Verification`
+
+---
+
+## 12. Corecție 6D.6.10 — SQL Pre-Apply Hardening
+
+În cadrul Etapei 6D.6.10, s-a efectuat hardening-ul tehnic al blueprint-ului SQL (`database/proposed_sgr_returns_6d69.sql`) înainte de aplicarea acestuia pe baza de date live (care urmează în 6D.6.11). Modificările implementate în blueprint sunt:
+
+1.  **Hardening Check Constrângere**: S-a validat structura constrângerii `sale_return_items_sgr_check` care impune strict zero-ambivalență între liniile non-SGR (toate câmpurile SGR vide/zero) și liniile SGR (câmpurile populate conform standardului SGR cu TVA D / 0% și deposit 0.50). S-a documentat comportamentul prin comentarii explicite.
+2.  **Securizare Explicită a Drepturilor (Grants/Revokes)**: S-a adăugat revocarea explicită a tuturor permisiunilor de execuție din `PUBLIC`, `anon` și `authenticated`, urmată de acordarea permisiunii de execuție exclusiv către utilizatorii din rolul `authenticated` pentru ambele funcții (`get_sale_return_eligibility` și `return_sale_items`). Acest pas previne breșele de securitate specifice expunerilor API anonime.
+3.  **Validare Robustă Payload JSON**: În funcția `return_sale_items`, s-a adăugat un bloc de validare prealabilă (fail-fast) a structurii argumentului `p_items`. Acesta verifică:
+    *   Că `p_items` este un JSON array valid și nevid.
+    *   Că fiecare element conține cheile obligatorii `sale_item_id` și `quantity`.
+    *   Că tipurile de date sunt valide (UUID formatat corect și cantitate numerică strict mai mare ca 0).
+4.  **Normalizare Input și Prevenire SQL Injection/Malformed Data**: Variabila locală `v_refund_method` normalizează argumentul `p_refund_method` prin aplicarea `lower(trim(p_refund_method))` și este utilizată consistent în toate inserările, validările și auditurile ulterioare. De asemenea, motivul returului este curățat prin `trim()`.
+5.  **Separare Audit SGR**: S-a adăugat variabila locală `v_total_sgr_refund` care acumulează separat taxele SGR returnate din tranzacție, stocând această valoare în `audit_logs.new_data` sub cheia explicită `sgr_refund_total`. Acest lucru facilitează analiza și auditul ulterior al volumelor de garanții returnate.
+6.  **Extindere get_sale_return_eligibility**: Payload-ul returnat pentru fiecare articol include acum direct detaliile despre SGR-ul returnat deja (`sgr_returned_amount`) și cel disponibil pentru retururi parțiale viitoare (`sgr_available_amount`), calculate corect în funcție de cantitățile stornate anterior.
+7.  **Compatibilitate Date Istorice**: Câmpurile noi din tabela `sale_return_items` au fost declarate cu valori default compatibile (false / NULL / 0). Acest lucru asigură că înregistrările istorice anterioare SGR nu vor încălca constrângerea de check nou adăugată.
+
+*Notă*: Nicio modificare nu a fost aplicată pe baza de date live sau pe componentele frontend runtime în această etapă.

@@ -1,8 +1,9 @@
 -- ============================================================================
--- BLUEPRINT SQL: SGR Returns Integration (Etapa 6D.6.9)
+-- BLUEPRINT SQL: SGR Returns Integration (Etapa 6D.6.9 / Securizat 6D.6.10)
 -- ============================================================================
--- ATENȚIE: ACEST SCRIPT ESTE UN BLUEPRINT DE PROIECTARE ARHITECTURALĂ.
--- NU SE APLICĂ AUTOMAT ÎN BAZA DE DATEDE LIVE ÎN ACEASTĂ ETAPĂ!
+-- ATENȚIE: ACEST SCRIPT ESTE UN BLUEPRINT DE PROIECTARE ARHITECTURALĂ SECURIZATĂ.
+-- AVERTISMENT DE ROLLOUT: NU APLICAȚI ACEST SCRIPT ÎNAINTE DE ETAPA 6D.6.11!
+-- FUNCȚIILE LIVE NU SE MODIFICĂ ÎN CADRUL ETAPEI CURENTE (6D.6.10).
 -- NU MODIFICĂ BAZA DE DATE LIVE SAU RPC-URILE ACTIVE.
 -- ============================================================================
 
@@ -18,6 +19,8 @@ ADD COLUMN IF NOT EXISTS sgr_vat_rate numeric(5,2) NOT NULL DEFAULT 0;
 
 -- 2. CONSTRÂNGERE DE INTEGRITATE DATE (CHECK CONSTRAINT)
 -- Garantează corectitudinea datelor SGR stornate
+-- sgr_refund_amount = returned_qty * sgr_deposit_amount;
+-- Constrângerea nu leagă direct de quantity ca să nu complice migrarea, dar funcția RPC trebuie să calculeze exact.
 ALTER TABLE public.sale_return_items DROP CONSTRAINT IF EXISTS sale_return_items_sgr_check;
 ALTER TABLE public.sale_return_items ADD CONSTRAINT sale_return_items_sgr_check
 CHECK (
@@ -95,7 +98,7 @@ BEGIN
     END IF;
 
     -- 4. Citire linii și calcul cantități returnabile (folosind sume grupate din sale_return_items)
-    -- Include informațiile din snapshot-ul SGR salvat în sale_items
+    -- Include informațiile din snapshot-ul SGR salvat în sale_items, plus SGR deja returnat și disponibil
     SELECT jsonb_agg(jsonb_build_object(
         'sale_item_id', si.id,
         'product_id', si.product_id,
@@ -113,12 +116,22 @@ BEGIN
         'sgr_deposit_amount', COALESCE(si.sgr_deposit_amount, 0),
         'sgr_total_amount', COALESCE(si.sgr_total_amount, 0),
         'sgr_vat_group', COALESCE(si.sgr_vat_group, 'D'),
-        'sgr_vat_rate', COALESCE(si.sgr_vat_rate, 0)
+        'sgr_vat_rate', COALESCE(si.sgr_vat_rate, 0),
+        -- Câmpuri de monitorizare stornare SGR
+        'sgr_returned_amount', COALESCE(ret.sgr_refund_ret, 0),
+        'sgr_available_amount',
+          CASE
+            WHEN COALESCE(si.sgr_enabled, false)
+            THEN ROUND((si.quantity - COALESCE(ret.qty_ret, 0)) * COALESCE(si.sgr_deposit_amount, 0.50), 2)
+            ELSE 0.00
+          END
     )) INTO v_items
     FROM public.sale_items si
     LEFT JOIN public.products p ON p.id = si.product_id
     LEFT JOIN (
-        SELECT sri.original_sale_item_id, SUM(sri.quantity) as qty_ret 
+        SELECT sri.original_sale_item_id, 
+               SUM(sri.quantity) as qty_ret,
+               SUM(COALESCE(sri.sgr_refund_amount, 0)) as sgr_refund_ret
         FROM public.sale_return_items sri
         JOIN public.sale_returns sr ON sr.id = sri.return_id
         WHERE sr.status = 'completed'
@@ -178,12 +191,16 @@ BEGIN
 END;
 $$;
 
+-- Securizare explicită privilegii get_sale_return_eligibility
 REVOKE ALL ON FUNCTION public.get_sale_return_eligibility(uuid, uuid, uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_sale_return_eligibility(uuid, uuid, uuid) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_sale_return_eligibility(uuid, uuid, uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.get_sale_return_eligibility(uuid, uuid, uuid) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.get_sale_return_eligibility(uuid, uuid, uuid) TO authenticated;
 
 
 -- ============================================================================
--- 5. PROPOSED RPC: return_sale_items (V2 cu suport SGR)
+-- 5. PROPOSED RPC: return_sale_items (V2 cu suport SGR și Hardening)
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.return_sale_items(
     p_store_id uuid,
@@ -211,8 +228,10 @@ DECLARE
     v_refund_item numeric(12,2);
     v_refund_sgr numeric(12,2) := 0;
     v_total_refund numeric(12,2) := 0;
+    v_total_sgr_refund numeric(12,2) := 0;
     v_all_fully_returned boolean := true;
     v_clean_reason text;
+    v_refund_method text;
 BEGIN
     -- 0. Curățare și validare motiv
     v_clean_reason := trim(p_reason);
@@ -220,8 +239,9 @@ BEGIN
         RAISE EXCEPTION 'Motivul returului este obligatoriu și trebuie să aibă cel puțin 3 caractere.';
     END IF;
 
-    -- Validare refund_method
-    IF p_refund_method NOT IN ('cash', 'card', 'voucher') THEN
+    -- Normalizare și validare refund_method
+    v_refund_method := lower(trim(p_refund_method));
+    IF v_refund_method NOT IN ('cash', 'card', 'voucher') THEN
         RAISE EXCEPTION 'Metodă de rambursare invalidă: %. Metoda trebuie să fie cash, card sau voucher.', p_refund_method;
     END IF;
 
@@ -240,10 +260,33 @@ BEGIN
         RAISE EXCEPTION 'Nu s-a găsit nicio tură POS activă deschisă pentru tine. Deschide o tură înainte de a procesa retururi.';
     END IF;
 
-    -- 3. Validare listă articole
-    IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
-        RAISE EXCEPTION 'Lista de articole returnate este goală.';
+    -- 3. Validare listă articole și structură payload JSON (Hardening)
+    IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+        RAISE EXCEPTION 'Lista de articole returnate este goală sau invalidă.';
     END IF;
+
+    -- Validare sumară a structurii elementelor înainte de începerea modificărilor
+    FOR v_elem IN SELECT * FROM jsonb_array_elements(p_items) LOOP
+        IF NOT (v_elem ? 'sale_item_id') OR NOT (v_elem ? 'quantity') THEN
+            RAISE EXCEPTION 'Fiecare articol returnat trebuie să conțină sale_item_id și quantity.';
+        END IF;
+
+        IF jsonb_typeof(v_elem->'sale_item_id') <> 'string' OR jsonb_typeof(v_elem->'quantity') <> 'number' THEN
+            RAISE EXCEPTION 'Articolul returnat are tipuri de date invalide pentru sale_item_id sau quantity.';
+        END IF;
+
+        -- Validare format UUID pentru sale_item_id (fail-fast)
+        BEGIN
+            PERFORM (v_elem->>'sale_item_id')::uuid;
+        EXCEPTION WHEN others THEN
+            RAISE EXCEPTION 'UUID invalid pentru sale_item_id: %', v_elem->>'sale_item_id';
+        END;
+
+        -- Validare cantitate pozitivă
+        IF (v_elem->>'quantity')::numeric(12,3) <= 0 THEN
+            RAISE EXCEPTION 'Cantitatea returnată trebuie să fie strict mai mare ca 0.';
+        END IF;
+    END LOOP;
 
     -- 4. Blocare și selectare vânzare originală FOR UPDATE
     SELECT * INTO v_sale FROM public.sales 
@@ -262,17 +305,13 @@ BEGIN
     INSERT INTO public.sale_returns (
         store_id, original_sale_id, shift_id, profile_id, type, status, reason, total_refund, refund_method, notes
     ) VALUES (
-        p_store_id, p_sale_id, v_shift_id, p_profile_id, 'return', 'completed', v_clean_reason, 0, p_refund_method, p_notes
+        p_store_id, p_sale_id, v_shift_id, p_profile_id, 'return', 'completed', v_clean_reason, 0, v_refund_method, p_notes
     ) RETURNING id INTO v_return_id;
 
     -- 6. Procesare fiecare element din p_items tranzacțional
     FOR v_elem IN SELECT * FROM jsonb_array_elements(p_items) LOOP
         v_item_id := (v_elem->>'sale_item_id')::uuid;
         v_ret_qty := (v_elem->>'quantity')::numeric(12,3);
-
-        IF v_ret_qty <= 0 THEN
-            RAISE EXCEPTION 'Cantitatea returnată trebuie să fie strict mai mare ca 0.';
-        END IF;
 
         -- Selectare linie bon originală și blocare FOR UPDATE
         SELECT * INTO v_sale_item FROM public.sale_items WHERE id = v_item_id AND sale_id = p_sale_id FOR UPDATE;
@@ -305,6 +344,9 @@ BEGIN
         ELSE
             v_refund_sgr := 0.00;
         END IF;
+
+        -- Actualizare total returnat SGR pe bon
+        v_total_sgr_refund := v_total_sgr_refund + v_refund_sgr;
 
         -- Actualizare total returnat pe bon (produs + SGR)
         v_total_refund := v_total_refund + v_refund_item + v_refund_sgr;
@@ -357,12 +399,13 @@ BEGIN
         UPDATE public.sales SET status = 'partially_returned' WHERE id = p_sale_id;
     END IF;
 
-    -- 9. Înregistrare în audit logs
+    -- 9. Înregistrare în audit logs (Hardening: stocare explicită sgr_refund_total)
     INSERT INTO public.audit_logs (store_id, profile_id, action, entity_type, entity_id, new_data)
     VALUES (p_store_id, p_profile_id, 'sale.return', 'sale_returns', v_return_id, jsonb_build_object(
         'sale_id', p_sale_id,
         'total_refund', v_total_refund,
-        'refund_method', p_refund_method,
+        'sgr_refund_total', v_total_sgr_refund,
+        'refund_method', v_refund_method,
         'reason', v_clean_reason,
         'items', p_items
     ));
@@ -371,5 +414,9 @@ BEGIN
 END;
 $$;
 
+-- Securizare explicită privilegii return_sale_items
 REVOKE ALL ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text, text, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text, text, text) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text, text, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text, text, text) FROM authenticated;
 GRANT EXECUTE ON FUNCTION public.return_sale_items(uuid, uuid, uuid, jsonb, text, text, text) TO authenticated;

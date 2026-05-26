@@ -39,4 +39,4 @@ A fost propusă o constrângere de integritate CHECK pe aceste coloane și 3 ind
 *   Nu s-au rulat scripturi de backfill.
 
 ## 7. Următorul Pas
-*   Trecerea la etapa **6D.6.10: SGR Returns SQL Pre-Apply Hardening**, dedicată creării testelor unitare backend pe baza de date locală de test, înainte de aplicarea efectivă a migrației.
+*   Trecerea la etapa **6D.6.10: SGR Returns SQL Pre-Apply Hardening** (Finalizată). Blueprint-ul SQL a fost întărit cu validări pe argumentul JSON, normalizări de input, câmpuri de urmărire extinse pe eligibility și log de audit dedicat pentru SGR. Nu s-a aplicat SQL și nu s-a modificat baza de date live. Pasul următor este **6D.6.11 SGR Returns SQL Manual Apply + Verification**.
