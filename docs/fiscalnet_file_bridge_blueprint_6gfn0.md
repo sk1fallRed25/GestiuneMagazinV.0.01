@@ -164,5 +164,16 @@ Pentru a testa sistemul în siguranță:
 
 ## 12. Următorul pas
 Următoarele etape propuse după implementarea modelului dry-run sunt:
-- **`6G.FN.1 FiscalNet Local Export Button / Manual Test`**: Adăugarea unui buton de export manual în interfața de istoric vânzări pentru tranzacțiile finalizate.
+- **`6G.FN.2 FiscalNet Real Folder Controlled Pilot`**: Integrarea unui canal IPC securizat în Electron pentru a permite scrierea directă și asincronă în folderele fizice monitorizate de FiscalNet.
 - **`6G.0 FiscalBridge Discovery & Integration Blueprint`**: Proiectarea modulului unificat de bridge pentru a suporta atât FiscalNet, cât și soluții directe (e.g. Datecs, Custom).
+
+---
+
+## 13. Actualizare 6G.FN.1 — Manual Export UI
+În cadrul etapei 6G.FN.1, am adăugat suportul grafic pentru interacțiunea cu utilizatorul în regim manual:
+- **Butonul manual**: Adăugat în modalul de detalii din Istoric Vânzări (afișat exclusiv pentru bonurile cu status finalized sau partially_returned).
+- **Avertisment**: Utilizatorului i se comunică clar că descărcarea fișierului text nu declanșează listarea automată, iar fișierul `.txt` generat trebuie depus manual în folderul monitorizat.
+- **Câmp CIF**: S-a inclus posibilitatea de a introduce codul fiscal al firmei cumpărătoare în UI, generând dinamic linia `CF^RO...`.
+- **Pre-vizualizare**: O zonă cu aspect premium în modal afișează conținutul exact al fișierului, oferind opțiuni rapide de copiere text și descărcare fișier (`saleId.txt`).
+- **Parser de Răspuns integrat**: Interfață text în care se poate lipi conținutul fișierului din folderul `Raspuns`, interpretând automat rezultatul (`BONOK=1` / `BONOK=0`) și afișând starea sub formă de badges vizuale (succes cu număr bon fiscal vs. eroare cu detalii).
+- **Validare**: Orice export este condiționat de validarea totalurilor. În cazul în care datele înregistrate au nepotriviri sau lipsesc grupe de TVA ori detalii de plată, interfața afișează o eroare de securitate și blochează descărcarea.

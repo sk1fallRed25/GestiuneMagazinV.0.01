@@ -80,3 +80,24 @@ export async function exportFiscalNetDryRun(payload: FiscalNetReceiptPayload): P
     };
   }
 }
+
+/**
+ * Initiates a browser download of a text file with the generated FiscalNet receipt content.
+ * Bypasses filesystem access restrictions by utilizing Blobs and client-side download links.
+ */
+export function downloadFiscalNetReceiptFile(filename: string, content: string): void {
+  // Use Blob with UTF-8 encoding
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  
+  document.body.appendChild(a);
+  a.click();
+  
+  // Cleanup
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

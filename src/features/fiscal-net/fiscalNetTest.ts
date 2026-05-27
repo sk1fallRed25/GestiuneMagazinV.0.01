@@ -217,6 +217,19 @@ export async function runAllTests() {
   assertEquals(parsedError.errorCode, '103', 'ErrorCode 103 should be parsed');
   assertEquals(parsedError.errorMessage, 'Cota TVA inexistenta la casa de marcat', 'ErrorMessage should be extracted');
 
+  // Test unstructured line success: BONOK=1\n12345
+  const rawSuccessResponse = 'BONOK=1\r\n12345\r\n';
+  const parsedRawSuccess = parseFiscalNetResponse(rawSuccessResponse);
+  assertEquals(parsedRawSuccess.success, true, 'BONOK=1 raw success should parse as success');
+  assertEquals(parsedRawSuccess.receiptNumber, '12345', 'Raw number should be treated as receipt number');
+
+  // Test unstructured line error: BONOK=0\nE01\nHartie lipsa
+  const rawErrorResponse = 'BONOK=0\r\nE01\r\nHartie lipsa\r\n';
+  const parsedRawError = parseFiscalNetResponse(rawErrorResponse);
+  assertEquals(parsedRawError.success, false, 'BONOK=0 raw error should parse as error');
+  assertEquals(parsedRawError.errorCode, 'E01', 'Raw error code should be parsed');
+  assertEquals(parsedRawError.errorMessage, 'Hartie lipsa', 'Raw error message should be parsed');
+
   // 10. Dry-run export test
   console.log('Running dry-run export file test...');
   const exportRes = await exportFiscalNetDryRun(payload2);

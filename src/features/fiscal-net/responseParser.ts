@@ -53,17 +53,47 @@ export function parseFiscalNetResponse(text: string): FiscalNetResponse {
     result.success = true;
     // Extract receipt number
     result.receiptNumber = map['NUMARBON'] || map['NRBON'] || undefined;
+    if (!result.receiptNumber) {
+      // Fallback: look for a line that is a pure integer
+      const pureIntLine = lines.find(l => /^\d+$/.test(l));
+      if (pureIntLine) {
+        result.receiptNumber = pureIntLine;
+      }
+    }
   } else if (map['BONOK'] === '0') {
     result.success = false;
-    const errorMsg = map['EROARE'] || map['ERROR'] || 'Eroare necunoscuta raportata de FiscalNet.';
+    let errorMsg = map['EROARE'] || map['ERROR'] || '';
     
-    // Parse error code if present (e.g. "103 - Message" or "103: Message")
-    const match = errorMsg.match(/^(\d+)\s*[-:]\s*(.*)$/);
-    if (match) {
-      result.errorCode = match[1];
-      result.errorMessage = match[2];
+    if (!errorMsg) {
+      // Fallback: extract from other lines if no key=val EROARE line exists
+      const otherLines = lines.filter(l => !l.toUpperCase().startsWith('BONOK'));
+      if (otherLines.length > 0) {
+        const firstOther = otherLines[0];
+        if (otherLines.length > 1) {
+          result.errorCode = firstOther;
+          result.errorMessage = otherLines.slice(1).join(' ');
+        } else {
+          // If only 1 line, see if it starts with an alphanumeric code
+          const match = firstOther.match(/^([A-Za-z0-9]+)\s+([A-Za-z0-9].*)$/);
+          if (match) {
+            result.errorCode = match[1];
+            result.errorMessage = match[2];
+          } else {
+            result.errorMessage = firstOther;
+          }
+        }
+      } else {
+        result.errorMessage = 'Eroare necunoscuta raportata de FiscalNet.';
+      }
     } else {
-      result.errorMessage = errorMsg;
+      // Parse error code if present in the EROARE string (e.g. "103 - Message")
+      const match = errorMsg.match(/^([A-Za-z0-9]+)\s*[-:]\s*(.*)$/);
+      if (match) {
+        result.errorCode = match[1];
+        result.errorMessage = match[2];
+      } else {
+        result.errorMessage = errorMsg;
+      }
     }
   } else {
     // If BONOK is missing, fallback to generic parsing of error/success indicators

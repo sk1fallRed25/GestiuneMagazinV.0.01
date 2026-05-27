@@ -3,3 +3,4 @@ export * from './fiscalNetMappings';
 export * from './fiscalNetFormatter';
 export * from './fiscalNetExportService';
 export * from './responseParser';
+export * from './salesHistoryToFiscalNet';

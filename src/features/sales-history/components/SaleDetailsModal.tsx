@@ -3,6 +3,13 @@ import { X, Printer, Package, CreditCard, Banknote, Calendar, User, Hash, AlertT
 import { SaleDetails, SaleSummary, SaleItemDetails } from '../types';
 import { SaleStatusBadge } from './SaleStatusBadge';
 import { formatSgrReceiptLabel, summarizeSgr } from '../utils/sgrDisplay';
+import { toast } from 'react-hot-toast';
+import { 
+  mapSaleDetailsToFiscalNetPayload, 
+  formatFiscalNetReceipt, 
+  downloadFiscalNetReceiptFile, 
+  parseFiscalNetResponse 
+} from '../../fiscal-net';
 
 interface SaleDetailsModalProps {
     sale: SaleDetails | null;
@@ -14,6 +21,56 @@ interface SaleDetailsModalProps {
 
 export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loading, onClose, onVoidClick, onReturnClick }) => {
     if (!sale && !loading) return null;
+
+    const [fiscalCode, setFiscalCode] = React.useState<string>('');
+    const [exportPreview, setExportPreview] = React.useState<string | null>(null);
+    const [responseInput, setResponseInput] = React.useState<string>('');
+    const [parsedResponse, setParsedResponse] = React.useState<any | null>(null);
+
+    const handleFiscalNetExportClick = () => {
+        if (!sale) return;
+        try {
+            const payload = mapSaleDetailsToFiscalNetPayload(sale, {
+                fiscalCode: fiscalCode.trim() || null
+            });
+            const text = formatFiscalNetReceipt(payload);
+            setExportPreview(text);
+            toast.success("Preview FiscalNet generat!");
+        } catch (err: any) {
+            console.error("Export generation failed:", err);
+            toast.error(err.message || "Eroare la generarea formatului.");
+        }
+    };
+
+    const handleCopyToClipboard = () => {
+        if (!exportPreview) return;
+        navigator.clipboard.writeText(exportPreview);
+        toast.success("Conținut copiat în clipboard!");
+    };
+
+    const handleDownloadTxtFile = () => {
+        if (!sale || !exportPreview) return;
+        downloadFiscalNetReceiptFile(`${sale.id}.txt`, exportPreview);
+        toast.success(`Fișierul ${sale.id}.txt a fost descărcat!`);
+    };
+
+    const handleParseResponse = () => {
+        if (!responseInput.trim()) {
+            toast.error("Vă rugăm să introduceți răspunsul FiscalNet.");
+            return;
+        }
+        try {
+            const result = parseFiscalNetResponse(responseInput);
+            setParsedResponse(result);
+            if (result.success) {
+                toast.success("Răspuns procesat cu succes!");
+            } else {
+                toast.error(`Eroare raportată: ${result.errorMessage}`);
+            }
+        } catch (err: any) {
+            toast.error("Eroare la procesarea răspunsului.");
+        }
+    };
 
     const getVatSummary = (items: SaleItemDetails[]) => {
         let totalBase = 0;
@@ -333,6 +390,125 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
                                 ))}
                             </div>
                         </div>
+
+                        {/* FiscalNet Manual Export Section */}
+                        {sale && (sale.status === 'finalized' || sale.status === 'partially_returned') && (
+                            <div className="px-8 pb-12 border-t border-gray-100 pt-6">
+                                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                                    <div>
+                                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">INTEGRARE FISCALNET (MANUAL)</h4>
+                                        <p className="text-xs text-gray-400">Generează fișierul de comenzi text în format Caret-separated pentru testarea casei de marcat.</p>
+                                    </div>
+                                    <button
+                                        data-testid="fiscalnet-export-button"
+                                        className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all duration-155 flex items-center gap-2"
+                                        onClick={handleFiscalNetExportClick}
+                                    >
+                                        <Printer size={14} /> EXPORT FISCALNET
+                                    </button>
+                                </div>
+
+                                {/* Warning Banner */}
+                                <div data-testid="fiscalnet-export-warning" className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-xs text-amber-800 flex items-start gap-3">
+                                    <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-600" />
+                                    <div>
+                                        <span className="font-extrabold uppercase tracking-wide block mb-0.5 text-amber-900">Atenție — Export Manual:</span>
+                                        Această acțiune nu emite bon fiscal automat în casa de marcat fizică. Fișierul descărcat trebuie copiat manual în directorul de test <code className="bg-amber-100/80 px-1.5 py-0.5 rounded font-mono font-bold text-amber-900">FiscalNet\Bonuri</code> pentru simulare.
+                                    </div>
+                                </div>
+
+                                {/* Optional CIF Input */}
+                                <div className="mb-6 max-w-xs">
+                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1.5">CIF / CUI Client (Opțional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ex: RO12345678"
+                                        value={fiscalCode}
+                                        onChange={(e) => setFiscalCode(e.target.value)}
+                                        className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono"
+                                    />
+                                </div>
+
+                                {/* Preview & Action Panel */}
+                                {exportPreview !== null && (
+                                    <div className="bg-gray-900 rounded-3xl p-5 text-white font-mono text-xs mb-8 relative border border-gray-800 shadow-inner">
+                                        <div className="flex justify-between items-center mb-3 border-b border-gray-850 pb-3 text-[10px] text-gray-400 uppercase tracking-widest font-sans font-bold">
+                                            <span data-testid="fiscalnet-download-filename" className="text-gray-300 font-mono font-normal normal-case">{sale.id}.txt</span>
+                                            <div className="flex gap-3">
+                                                <button
+                                                    onClick={handleCopyToClipboard}
+                                                    className="hover:text-white transition-colors flex items-center gap-1 font-bold text-gray-400"
+                                                >
+                                                    Copiază conținut
+                                                </button>
+                                                <span className="text-gray-700">|</span>
+                                                <button
+                                                    onClick={handleDownloadTxtFile}
+                                                    className="hover:text-indigo-300 transition-colors flex items-center gap-1 font-black text-indigo-400"
+                                                >
+                                                    Descarcă .txt
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <pre data-testid="fiscalnet-export-preview" className="overflow-x-auto whitespace-pre-wrap max-h-48 leading-relaxed font-mono select-all scrollbar-thin text-indigo-100">{exportPreview}</pre>
+                                    </div>
+                                )}
+
+                                {/* Response Parser Section */}
+                                <div className="border-t border-dashed border-gray-200 pt-6">
+                                    <h5 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">PARSARE RĂSPUNS FISCALNET</h5>
+                                    <p className="text-xs text-gray-400 mb-4">Lipește conținutul fișierului text returnat în folderul <code className="bg-gray-100 px-1 rounded font-mono">Raspuns</code> pentru a valida rezultatul.</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="flex flex-col gap-2">
+                                            <textarea
+                                                data-testid="fiscalnet-response-input"
+                                                rows={3}
+                                                placeholder="Lipește conținutul (de ex: BONOK=1\r\nNUMARBON=1024)"
+                                                value={responseInput}
+                                                onChange={(e) => setResponseInput(e.target.value)}
+                                                className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono placeholder:text-gray-300"
+                                            />
+                                            <button
+                                                data-testid="fiscalnet-response-parse-button"
+                                                onClick={handleParseResponse}
+                                                className="w-full py-2.5 bg-gray-800 hover:bg-gray-900 text-white rounded-xl text-xs font-black tracking-wider transition-colors uppercase shadow-sm"
+                                            >
+                                                PARSEAZĂ RĂSPUNS
+                                            </button>
+                                        </div>
+
+                                        {parsedResponse && (
+                                            <div data-testid="fiscalnet-response-result" className={`p-5 rounded-2xl border text-xs flex flex-col justify-center ${
+                                                parsedResponse.success 
+                                                    ? 'bg-emerald-50/50 border-emerald-100 text-emerald-800' 
+                                                    : 'bg-red-50/50 border-red-100 text-red-800'
+                                            }`}>
+                                                {parsedResponse.success ? (
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                            <span className="font-black text-emerald-950 uppercase tracking-widest text-[10px]">EMIS CU SUCCES</span>
+                                                        </div>
+                                                        <p className="text-gray-600 mb-1">Bonul fiscal a fost tipărit corect.</p>
+                                                        <p className="font-bold text-sm text-emerald-950">Număr Bon Fiscal: <span className="font-mono font-black">{parsedResponse.receiptNumber || 'N/A'}</span></p>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                                                            <span className="font-black text-red-950 uppercase tracking-widest text-[10px]">ERORI SEMNALATE</span>
+                                                        </div>
+                                                        <p className="text-gray-600 mb-2">S-a detectat o eroare la generare.</p>
+                                                        {parsedResponse.errorCode && <p className="mb-1 text-red-900">Cod eroare: <span className="font-mono font-bold bg-red-100/50 px-1.5 py-0.5 rounded">{parsedResponse.errorCode}</span></p>}
+                                                        <p className="font-extrabold text-red-950">Detalii: <span className="font-medium text-red-900">{parsedResponse.errorMessage || 'Eroare necunoscută'}</span></p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : null}
 
