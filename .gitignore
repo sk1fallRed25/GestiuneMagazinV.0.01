@@ -13,3 +13,7 @@ mobile/web-build/
 .idea/
 .vscode/
 *.log
+
+# Temporary and local test outputs
+scratch/
+artifacts/
