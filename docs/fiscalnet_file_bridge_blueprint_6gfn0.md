@@ -177,3 +177,20 @@ Următoarele etape propuse după implementarea modelului dry-run sunt:
 - **Pre-vizualizare**: O zonă cu aspect premium în modal afișează conținutul exact al fișierului, oferind opțiuni rapide de copiere text și descărcare fișier (`saleId.txt`).
 - **Parser de Răspuns integrat**: Interfață text în care se poate lipi conținutul fișierului din folderul `Raspuns`, interpretând automat rezultatul (`BONOK=1` / `BONOK=0`) și afișând starea sub formă de badges vizuale (succes cu număr bon fiscal vs. eroare cu detalii).
 - **Validare**: Orice export este condiționat de validarea totalurilor. În cazul în care datele înregistrate au nepotriviri sau lipsesc grupe de TVA ori detalii de plată, interfața afișează o eroare de securitate și blochează descărcarea.
+
+---
+
+## 14. Actualizare 6G.FN.2 — Controlled Real Folder Pilot
+În cadrul etapei 6G.FN.2, s-a implementat pilotul controlat cu scriere în directoare locale fizice:
+- **Preload Script**: S-a definit `electron-preload.js` securizat pentru expunerea IPC-ului în context-isolation.
+- **Canale IPC în electron-main.js**:
+  - `write-fiscal-net-file`: scrie atomic (`.tmp` -> `.txt`) după sanitizarea numelui (blocare path traversal, extensie `.txt`). Verifică existența fișierului pentru a asigura **idempotentizarea** la nivel local (nu permite rescrierea unui fișier existent).
+  - `read-fiscal-net-response`: citește răspunsul de pe disc pentru a permite analiza rapidă.
+- **Interfață Utilizator în POS**:
+  - Panou dedicat pentru pilot: configurarea căilor Bonuri/Răspuns (salvate în localStorage), activarea manuală a checkbox-ului de pilot și buton de validare a configurării.
+  - Dialog de dublă confirmare obligatorie (`fiscalnet-real-write-confirm-dialog`) care solicită scrierea textului exact `SCRIE BON FISCALNET`.
+  - Buton dedicat de citire a răspunsului direct de pe disc (`fiscalnet-read-response-button`), afișând dinamic rezultatul parsat.
+- **Fallback Browser**: Dacă aplicația este accesată din browser, funcționalitatea de scriere/citire automată locală este dezactivată complet prin fallback runtime, fiind marcată ca `"Browser Sandbox (Scriere dezactivată)"` cu butoanele aferente dezactivate.
+- **Idempotentizare**: Interfața reține fișierele scrise local și blochează rescrierea directă. De asemenea, IPC-ul din Electron blochează scrierea dacă fișierul există deja în folder.
+- **Status**: **PASS**.
+

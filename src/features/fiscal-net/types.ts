@@ -40,3 +40,12 @@ export interface FiscalNetReceiptPayload {
   };
   noteLines?: string[];
 }
+
+export interface FiscalNetConfig {
+  enabled: boolean;
+  bonuriPath: string;
+  raspunsPath: string;
+  realWriteEnabled: boolean;
+  requireConfirmation: boolean;
+  lastValidatedAt?: string;
+}

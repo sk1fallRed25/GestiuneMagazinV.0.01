@@ -71,5 +71,14 @@ Scenarii verificate și trecute cu succes:
 
 ## 8. Decizie
 Modulul este pe deplin funcțional în regim dry-run/manual. 
-Recomandăm trecerea la etapa:
-**`Ready for 6G.FN.2 FiscalNet Real Folder Controlled Pilot`** (unde vom implementa un canal de scriere controlată pe bază de IPC Electron către folderele reale de Bonuri și Raspuns).
+
+---
+
+## Actualizare 6G.FN.2 — Controlled Real Folder Pilot
+În cadrul Etapei 6G.FN.2, s-a implementat pilotul controlat pentru scriere în directoare locale.
+- **Detecție Runtime**: UI-ul afișează dinamic modul de operare (Sandbox vs Electron Bridge).
+- **Siguranță sporită**: S-au adăugat avertismente specifice pilotului, o cale configurabilă salvată în local storage și un dialog de dublă confirmare cu text obligatoriu `SCRIE BON FISCALNET`.
+- **Scriere atomică**: Pentru Electron s-a configurat scrierea atomică `.tmp` -> `.txt`.
+- **Response Reader**: S-a adăugat posibilitatea citirii semi-automate a fișierului de răspuns direct din folderul configurat.
+- **Teste**: S-au scris teste Playwright cuprinzătoare care confirmă ambele cazuri (Browser/Sandbox dezactivat și Electron/IPC activ prin mock-are).
+- **Status**: **PASS**. Recomandăm trecerea la **6G.0 FiscalBridge Discovery & Integration Blueprint**.

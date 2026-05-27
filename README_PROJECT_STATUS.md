@@ -20,7 +20,17 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
     - Nu s-a emis bon real.
     - Logica de checkout POS și finalize_sale rămâne complet neschimbată (fără fiscalizare automată).
 
+- **Etapa 6G.FN.2 (FiscalNet Real Folder Controlled Pilot)**: **PASS**
+  - S-a implementat detecția runtime a capabilităților Electron/Browser.
+  - S-a adăugat configurarea locală a folderelor de intrare/ieșire persistată în `localStorage` și avertismentul dinamic asociat.
+  - S-a securizat scrierea locală printr-un dialog de dublă confirmare care cere introducerea textului exact `SCRIE BON FISCALNET`.
+  - S-a integrat scrierea atomică locală `.tmp` -> `.txt` securizată prin IPC (în mediul Electron) și stubbing în browser sandbox.
+  - S-a adăugat citirea răspunsului de pe disc (`fiscalnet-read-response-button`) și afișarea rezultatului.
+  - S-au scris teste Playwright cuprinzătoare în `test_fiscalnet_real_folder_pilot_6gfn2.py` care acoperă toate scenariile.
+  - Nu s-a emis bon real automat la checkout și nu s-a actualizat baza de date.
+
 ### Următorul pas recomandat:
-- **`6G.FN.2 FiscalNet Real Folder Controlled Pilot`** (Integrarea unui canal IPC securizat în Electron pentru a permite scrierea directă și asincronă în folderele fizice monitorizate de FiscalNet)
-sau
 - **`6G.0 FiscalBridge Discovery & Integration Blueprint`** (Proiectarea arhitecturii unificate a bridge-ului fiscal)
+  sau
+- **`6G.FN.3 FiscalNet Hardware Smoke Test Manual Run`** (Rularea manuală a pilotului pe hardware fizic)
+
