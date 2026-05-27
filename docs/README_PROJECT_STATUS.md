@@ -286,7 +286,11 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - **Limitări rămase:** print/fiscal bridge retur SGR, returnare ambalaje fără bon.
   - **Următorul pas: 6D.6.13 SGR Returns E2E / Visual QA.**
 
-
-
-
-
+- **Etapa 6D.6.13 (SGR Returns E2E / Visual QA)**: **Realizat** — PASS.
+  - S-a verificat și corectat alinierea selectorilor `data-testid` în `ReturnSaleModal.tsx` (mutând `return-grand-refund-total` pe `grandRefundTotal` și adăugând `return-total-product-refund`).
+  - S-au adăugat atribute de accesibilitate ARIA (`aria-label`) pe butoanele X ale modalelelor, input-urile de cantitate și butoanele plus/minus.
+  - S-a implementat testul complet de Visual QA Playwright (`test_sgr_returns_visual_qa_6d613.py`) care a validat fluxul E2E de retur SGR (retur parțial, final, capping, previous returns, non-SGR regression, legacy safety).
+  - S-au capturat screenshot-urile adaptate pe 4 viewports (Desktop, Laptop, Tabletă, Mobil) în `artifacts/6d613/` confirmând că interfața este complet utilizabilă și nu iese din ecran.
+  - S-a rulat cu succes întreaga suită de teste de regresie: `6d613`, `6d612` (remediat), `6d611`, `6b33`, `6d67`, `6d68` și `npm run build` (PASS).
+  - Raport oficial creat la `docs/sgr_returns_e2e_visual_qa_6d613_report.md`.
+  - **Următorul pas: 6G.0 FiscalBridge Discovery & Integration Blueprint.**

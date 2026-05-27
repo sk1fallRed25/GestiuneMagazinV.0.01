@@ -127,7 +127,7 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
                             <p className="text-xs text-gray-400 font-mono">ID Bon: {sale.id.slice(0, 8)}...</p>
                         </div>
                     </div>
-                    <button onClick={onClose} disabled={actionLoading} className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400 hover:text-gray-600 disabled:opacity-50">
+                    <button onClick={onClose} disabled={actionLoading} aria-label="Închide dialog" className="p-2 hover:bg-gray-200 rounded-full transition-colors text-gray-400 hover:text-gray-600 disabled:opacity-50">
                         <X size={20} />
                     </button>
                 </div>
@@ -271,9 +271,9 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
                                                                     <td className="p-3">
                                                                         {maxQty > 0 ? (
                                                                             <div className="flex items-center justify-center gap-1.5">
-                                                                                <button type="button" onClick={() => handleQtyChange(item.saleItemId, currentQty - 1, maxQty)} disabled={currentQty <= 0} className="w-7 h-7 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 rounded-lg flex items-center justify-center transition-colors"><Minus size={12} /></button>
-                                                                                <input type="number" value={currentQty || ''} onChange={(e) => handleQtyChange(item.saleItemId, Number(e.target.value), maxQty)} placeholder="0" className="w-12 text-center py-1 border border-gray-200 rounded-lg font-black text-gray-800" />
-                                                                                <button type="button" onClick={() => handleQtyChange(item.saleItemId, currentQty + 1, maxQty)} disabled={currentQty >= maxQty} className="w-7 h-7 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 rounded-lg flex items-center justify-center transition-colors"><Plus size={12} /></button>
+                                                                                <button type="button" onClick={() => handleQtyChange(item.saleItemId, currentQty - 1, maxQty)} disabled={currentQty <= 0} aria-label={`Scade cantitatea pentru ${item.productName}`} className="w-7 h-7 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 rounded-lg flex items-center justify-center transition-colors"><Minus size={12} /></button>
+                                                                                <input type="number" value={currentQty || ''} onChange={(e) => handleQtyChange(item.saleItemId, Number(e.target.value), maxQty)} placeholder="0" aria-label={`Cantitate retur pentru ${item.productName}`} className="w-12 text-center py-1 border border-gray-200 rounded-lg font-black text-gray-800" />
+                                                                                <button type="button" onClick={() => handleQtyChange(item.saleItemId, currentQty + 1, maxQty)} disabled={currentQty >= maxQty} aria-label={`Crește cantitatea pentru ${item.productName}`} className="w-7 h-7 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-600 rounded-lg flex items-center justify-center transition-colors"><Plus size={12} /></button>
                                                                             </div>
                                                                         ) : (
                                                                             <div className="text-center text-[10px] font-black text-red-500 uppercase">Fără unități</div>
@@ -324,7 +324,7 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
                                                     <Package className="text-indigo-400" size={14} />
                                                     <span className="font-medium uppercase tracking-wider">Total produse returnate:</span>
                                                 </div>
-                                                <span data-testid="return-grand-refund-total" className="font-black text-gray-800">{totalProductRefund.toFixed(2)} LEI</span>
+                                                <span data-testid="return-total-product-refund" className="font-black text-gray-800">{totalProductRefund.toFixed(2)} LEI</span>
                                             </div>
                                             {(hasSgrItems && totalSgrRefund > 0) && (
                                                 <div className="flex justify-between items-center text-xs text-emerald-700">
@@ -337,7 +337,7 @@ export const ReturnSaleModal: React.FC<ReturnSaleModalProps> = ({
                                             )}
                                             <div className="border-t border-indigo-200 pt-2 flex justify-between items-center text-indigo-900">
                                                 <span className="text-xs font-bold uppercase tracking-wider">Total de rambursat:</span>
-                                                <span className="text-lg font-black text-indigo-700">{grandRefundTotal.toFixed(2)} LEI</span>
+                                                <span data-testid="return-grand-refund-total" className="text-lg font-black text-indigo-700">{grandRefundTotal.toFixed(2)} LEI</span>
                                             </div>
                                         </div>
                                     )}

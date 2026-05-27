@@ -153,3 +153,12 @@ Limitare: `get_sale_return_eligibility` `previous_returns` nu include `sgr_refun
 ## 10. Decizie
 
 > **Ready for 6D.6.13 SGR Returns E2E / Visual QA**
+
+---
+
+## 11. Actualizare 6D.6.13 — Visual QA
+
+În cadrul etapei **6D.6.13**, s-au realizat următoarele verificări și corecții suplimentare pe baza integrării realizate în 6D.6.12:
+- **DOM/Test-ID Alignment**: S-a verificat și corectat alinierea selectorilor din `ReturnSaleModal.tsx`.
+- **Hotfix data-testid**: Selectorul `data-testid="return-grand-refund-total"` a fost mutat corect de pe valoarea `totalProductRefund` (care reprezenta doar subtotalul produselor) pe valoarea `grandRefundTotal` (totalul de rambursat final, incluzând SGR). S-a adăugat `data-testid="return-total-product-refund"` pentru subtotalul produselor.
+- **Raport complet**: Detaliile complete despre scenarii, accesibilitate, viewports și screenshots se găsesc în [Raportul oficial E2E / Visual QA 6D.6.13](file:///c:/Users/Stefan/WebstormProjects/GestiuneMagazinV.0.01-1/docs/sgr_returns_e2e_visual_qa_6d613_report.md).

@@ -263,17 +263,21 @@ def run_test():
                     p_store_id: '{store_id}', p_profile_id: '{profile_id}', p_sale_id: saleData.sale_id
                 }});
                 const item = elig && elig.items && elig.items[0];
-                await supabase.from('products').delete().eq('id', product.id);
+                await supabase.from('products').update({{ status: 'inactive' }}).eq('id', product.id);
                 return {{ saleItemId: si.id, sgrEnabled: item ? item.sgr_enabled : null, productId: product.id }};
             }}""")
             assert 'error' not in regression_res, f"Regression seed failed: {regression_res.get('error')}"
             assert regression_res['sgrEnabled'] == False, f"Expected sgrEnabled=False for non-SGR item, got: {regression_res['sgrEnabled']}"
             safe_print("[PASS] Non-SGR regression: eligibility correctly returns sgrEnabled=False.")
 
-            # Verify UI doesn't show SGR block for non-SGR items
+            # Force clean navigation to clear modals and refresh sales list
+            page.goto("http://localhost:5173/#/")
+            page.wait_for_load_state("networkidle")
+            page.wait_for_timeout(1000)
             page.goto("http://localhost:5173/#/istoric-vanzari")
             page.wait_for_load_state("networkidle")
-            page.wait_for_timeout(2000)
+            page.wait_for_timeout(2500)
+
             page.locator("button[title='Detalii Bon']").first.click()
             page.locator("h3:has-text('DETALII BON')").wait_for(state="visible", timeout=8000)
             ret_btn_nosgr = page.locator("button:has-text('RETUR PRODUSE')")
@@ -291,7 +295,7 @@ def run_test():
             safe_print("\nCleaning up SGR test product...")
             page.evaluate(f"""async () => {{
                 const supabase = window.supabase;
-                await supabase.from('products').delete().eq('id', '{product_id}');
+                await supabase.from('products').update({{ status: 'inactive' }}).eq('id', '{product_id}');
             }}""")
             safe_print("[PASS] Cleanup done.")
 
