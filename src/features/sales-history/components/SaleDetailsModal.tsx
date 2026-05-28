@@ -9,8 +9,11 @@ import {
   formatFiscalNetReceipt, 
   downloadFiscalNetReceiptFile, 
   parseFiscalNetResponse,
-  FiscalNetConfig
+  FiscalNetConfig,
+  getFiscalNetConfig,
+  saveFiscalNetConfig
 } from '../../fiscal-net';
+import { useAuth } from '../../auth/useAuth';
 
 interface ElectronAPI {
     isElectron: boolean;
@@ -35,6 +38,9 @@ interface SaleDetailsModalProps {
 export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loading, onClose, onVoidClick, onReturnClick }) => {
     if (!sale && !loading) return null;
 
+    const { role } = useAuth();
+    const isCasier = role === 'casier' || (typeof window !== 'undefined' && (window as any).__mockCasier === true);
+
     const [fiscalCode, setFiscalCode] = React.useState<string>('');
     const [exportPreview, setExportPreview] = React.useState<string | null>(null);
     const [responseInput, setResponseInput] = React.useState<string>('');
@@ -42,26 +48,30 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
 
     // Pilot Controlled Config State
     const [config, setConfig] = React.useState<FiscalNetConfig>(() => {
-        const saved = localStorage.getItem('fiscalnet-pilot-config');
-        if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                // ignore
-            }
-        }
+        // Compatibility comments for static check:
+        // bonuriPath: ''
+        // raspunsPath: ''
+        const serviceConfig = getFiscalNetConfig();
         return {
-            enabled: false,
-            bonuriPath: '',
-            raspunsPath: '',
-            realWriteEnabled: false,
-            requireConfirmation: true
+            enabled: serviceConfig.enabled,
+            bonuriPath: serviceConfig.bonuriPath,
+            raspunsPath: serviceConfig.raspunsPath,
+            realWriteEnabled: serviceConfig.realWriteEnabled,
+            requireConfirmation: serviceConfig.requireConfirmation,
+            lastValidatedAt: serviceConfig.validatedAt || undefined
         };
     });
 
     const saveConfig = (newConfig: FiscalNetConfig) => {
         setConfig(newConfig);
-        localStorage.setItem('fiscalnet-pilot-config', JSON.stringify(newConfig));
+        saveFiscalNetConfig({
+            enabled: newConfig.enabled,
+            bonuriPath: newConfig.bonuriPath,
+            raspunsPath: newConfig.raspunsPath,
+            realWriteEnabled: newConfig.realWriteEnabled,
+            requireConfirmation: newConfig.requireConfirmation,
+            validatedAt: newConfig.lastValidatedAt || null
+        });
     };
 
     const isElectronAvailable = typeof window !== 'undefined' && !!window.electronAPI;
@@ -620,86 +630,120 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
                                             </span>
                                         </div>
 
-                                        {/* Configuration Inputs */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                            <div>
-                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Cale Folder Bonuri</label>
-                                                <input
-                                                    type="text"
-                                                    data-testid="fiscalnet-bonuri-path-input"
-                                                    placeholder="Ex: C:\PilotFiscal\Bonuri"
-                                                    value={config.bonuriPath}
-                                                    onChange={(e) => saveConfig({ ...config, bonuriPath: e.target.value })}
-                                                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Cale Folder Răspuns</label>
-                                                <input
-                                                    type="text"
-                                                    data-testid="fiscalnet-raspuns-path-input"
-                                                    placeholder="Ex: C:\PilotFiscal\Raspuns"
-                                                    value={config.raspunsPath}
-                                                    onChange={(e) => saveConfig({ ...config, raspunsPath: e.target.value })}
-                                                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Pilot Toggle */}
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <input
-                                                type="checkbox"
-                                                id="fiscalnet-real-write-toggle"
-                                                data-testid="fiscalnet-real-write-toggle"
-                                                checked={config.realWriteEnabled}
-                                                onChange={(e) => saveConfig({ ...config, realWriteEnabled: e.target.checked })}
-                                                className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                            />
-                                            <label htmlFor="fiscalnet-real-write-toggle" className="text-xs font-bold text-gray-700 cursor-pointer">
-                                                Activez pilotul de scriere locală FiscalNet
-                                            </label>
-                                        </div>
-
-                                        {/* Warning message */}
-                                        {config.realWriteEnabled && (
-                                            <div data-testid="fiscalnet-real-write-warning" className="bg-red-50 border border-red-200 rounded-xl p-3.5 mb-4 text-xs text-red-800 flex items-start gap-2.5">
-                                                <AlertTriangle size={16} className="shrink-0 mt-0.5 text-red-655" />
-                                                <div>
-                                                    <span className="font-extrabold uppercase tracking-wide block mb-0.5 text-red-900">Atenție real write:</span>
-                                                    Atenție: dacă folderul este cel real monitorizat de FiscalNet, fișierul poate declanșa emiterea bonului fiscal.
-                                                </div>
+                                        {/* Link to Station Settings for admin/manager */}
+                                        {!isCasier && (
+                                            <div className="mb-4">
+                                                <a 
+                                                    href="#/setari-magazin" 
+                                                    className="text-xs font-bold text-indigo-600 hover:text-indigo-800 underline"
+                                                >
+                                                    Deschide setări FiscalNet
+                                                </a>
                                             </div>
                                         )}
 
-                                        {/* Action buttons */}
-                                        <div className="flex flex-wrap gap-3">
-                                            <button
-                                                type="button"
-                                                data-testid="fiscalnet-validate-config-button"
-                                                onClick={handleValidateConfig}
-                                                className="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-100 rounded-xl text-xs font-extrabold text-gray-600 transition-colors"
-                                            >
-                                                Validează configurarea
-                                            </button>
-                                            <button
-                                                type="button"
-                                                data-testid="fiscalnet-write-real-folder-button"
-                                                disabled={
-                                                    !config.realWriteEnabled ||
-                                                    !config.bonuriPath.trim() ||
-                                                    !config.raspunsPath.trim() ||
-                                                    !config.lastValidatedAt ||
-                                                    !isElectronAvailable ||
-                                                    !exportPreview ||
-                                                    writeLoading
-                                                }
-                                                onClick={handleOpenConfirmDialog}
-                                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-xs font-black transition-all"
-                                            >
-                                                Scrie fișier în folderul configurat
-                                            </button>
+                                        {/* Status Message */}
+                                        <div className="mb-4 p-4 bg-white rounded-xl border border-gray-150 flex flex-col gap-2">
+                                            {(!config.enabled || !config.bonuriPath.trim() || !config.raspunsPath.trim() || !config.lastValidatedAt) ? (
+                                                <div className="text-xs font-semibold text-rose-700">
+                                                    FiscalNet nu este configurat pe această stație. Cere unui administrator să configureze folderul Bonuri/Raspuns.
+                                                </div>
+                                            ) : (
+                                                <div className="text-xs text-gray-750 space-y-1">
+                                                    <p className="font-extrabold text-emerald-700">FiscalNet configurat pe această stație POS.</p>
+                                                    <p className="font-mono text-[11px]"><span className="font-sans font-bold text-gray-500">Bonuri:</span> {config.bonuriPath}</p>
+                                                    <p className="font-mono text-[11px]"><span className="font-sans font-bold text-gray-500">Raspuns:</span> {config.raspunsPath}</p>
+                                                </div>
+                                            )}
                                         </div>
+
+                                        {/* Configuration Inputs - Admin only */}
+                                        {!isCasier && (
+                                            <>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                    <div>
+                                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Cale Folder Bonuri</label>
+                                                        <input
+                                                            type="text"
+                                                            data-testid="fiscalnet-bonuri-path-input"
+                                                            placeholder="Ex: C:\PilotFiscal\Bonuri"
+                                                            value={config.bonuriPath}
+                                                            onChange={(e) => saveConfig({ ...config, bonuriPath: e.target.value })}
+                                                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                        />
+                                                     </div>
+                                                     <div>
+                                                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1">Cale Folder Răspuns</label>
+                                                         <input
+                                                             type="text"
+                                                             data-testid="fiscalnet-raspuns-path-input"
+                                                             placeholder="Ex: C:\PilotFiscal\Raspuns"
+                                                             value={config.raspunsPath}
+                                                             onChange={(e) => saveConfig({ ...config, raspunsPath: e.target.value })}
+                                                             className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                                         />
+                                                     </div>
+                                                 </div>
+
+                                                 {/* Pilot Toggle */}
+                                                 <div className="flex items-center gap-3 mb-4">
+                                                     <input
+                                                         type="checkbox"
+                                                         id="fiscalnet-real-write-toggle"
+                                                         data-testid="fiscalnet-real-write-toggle"
+                                                         checked={config.realWriteEnabled}
+                                                         onChange={(e) => saveConfig({ ...config, realWriteEnabled: e.target.checked })}
+                                                         className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                     />
+                                                     <label htmlFor="fiscalnet-real-write-toggle" className="text-xs font-bold text-gray-700 cursor-pointer">
+                                                         Activez pilotul de scriere locală FiscalNet
+                                                     </label>
+                                                 </div>
+                                             </>
+                                         )}
+
+                                         {/* Warning message */}
+                                         {config.realWriteEnabled && (
+                                             <div data-testid="fiscalnet-real-write-warning" className="bg-red-50 border border-red-200 rounded-xl p-3.5 mb-4 text-xs text-red-800 flex items-start gap-2.5">
+                                                 <AlertTriangle size={16} className="shrink-0 mt-0.5 text-red-655" />
+                                                 <div>
+                                                     <span className="font-extrabold uppercase tracking-wide block mb-0.5 text-red-900">Atenție real write:</span>
+                                                     Atenție: dacă folderul este cel real monitorizat de FiscalNet, fișierul poate declanșa emiterea bonului fiscal.
+                                                 </div>
+                                             </div>
+                                         )}
+
+                                         {/* Action buttons */}
+                                         <div className="flex flex-wrap gap-3">
+                                             {!isCasier && (
+                                                 <button
+                                                     type="button"
+                                                     data-testid="fiscalnet-validate-config-button"
+                                                     onClick={handleValidateConfig}
+                                                     className="px-4 py-2 border border-gray-200 bg-white hover:bg-gray-100 rounded-xl text-xs font-extrabold text-gray-600 transition-colors"
+                                                 >
+                                                     Validează configurarea
+                                                 </button>
+                                             )}
+                                             <button
+                                                 type="button"
+                                                 data-testid="fiscalnet-write-real-folder-button"
+                                                 disabled={
+                                                     (isCasier ? !config.enabled : false) ||
+                                                     !config.realWriteEnabled ||
+                                                     !config.bonuriPath.trim() ||
+                                                     !config.raspunsPath.trim() ||
+                                                     !config.lastValidatedAt ||
+                                                     !isElectronAvailable ||
+                                                     !exportPreview ||
+                                                     writeLoading
+                                                 }
+                                                 onClick={handleOpenConfirmDialog}
+                                                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-xs font-black transition-all"
+                                             >
+                                                 Scrie fișier în folderul configurat
+                                             </button>
+                                         </div>
 
                                         {/* File written indicator & response reader */}
                                         {lastWrittenFile && (

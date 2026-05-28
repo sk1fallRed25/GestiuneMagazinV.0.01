@@ -10,6 +10,7 @@ import { StoreSettingsSaveBar } from './components/StoreSettingsSaveBar';
 import { StoreSettings } from './types';
 import { Settings, RefreshCw, AlertTriangle, BrainCircuit, ShieldAlert, Store } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
+import { FiscalNetStationSettings } from '../fiscal-net';
 
 export const StoreSettingsPage: React.FC = () => {
   const { role } = useAuth();
@@ -162,6 +163,8 @@ export const StoreSettingsPage: React.FC = () => {
           onChangeReports={(v) => updateSection('reports', v)}
           onChangeAlerts={(v) => updateSection('alerts', v)}
         />
+
+        <FiscalNetStationSettings disabled={!canView} />
       </div>
 
       {/* Save bar */}

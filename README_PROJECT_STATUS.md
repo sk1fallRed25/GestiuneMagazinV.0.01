@@ -37,6 +37,13 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - S-a montat un component `<Toaster />` local în `SaleDetailsModal.tsx` pentru a asigura randarea robustă a mesajelor în toate circumstanțele.
   - Toate criteriile au fost verificate automat și trecute cu succes în suita `test_fiscalnet_ipc_security_6gfn21.py`.
 
+- **Etapa 6G.FN.2.2 (FiscalNet Admin Station Settings)**: **PASS**
+  - S-a implementat componenta unificată de configurare `FiscalNetStationSettings` plasată în ecranul de setări magazin (`StoreSettingsPage.tsx`).
+  - S-au mutat setările din detaliile bonului într-o stocare persistentă exclusiv locală pe browser / calculator POS.
+  - S-a securizat vizibilitatea datelor: casierul vede doar statusul și căile active sub formă read-only în mod de detalii bon (câmpurile de input și setarea de scriere sunt complet ascunse pentru acest rol).
+  - Casierul poate scrie bonuri local folosind configurarea pre-validată de administrator prin dublă confirmare, fără a trebui să introducă calea manual de fiecare dată.
+  - Toate criteriile au fost validate automat prin testul Playwright `test_fiscalnet_station_settings_6gfn22.py`.
+
 ### Următorul pas recomandat:
 - **`6G.FN.3 FiscalNet Hardware Smoke Test Manual Run`** (Rularea manuală a pilotului pe hardware fizic în mediul Electron securizat)
 - **`6G.0 FiscalBridge Discovery & Integration Blueprint`** (Proiectarea arhitecturii unificate a bridge-ului fiscal)
