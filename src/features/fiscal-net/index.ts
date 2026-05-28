@@ -7,4 +7,5 @@ export * from './salesHistoryToFiscalNet';
 export * from './fiscalNetConfigService';
 export * from './components/FiscalNetStationSettings';
 export * from './fiscalNetPostCheckoutService';
+export * from './fiscalNetRuntime';
 

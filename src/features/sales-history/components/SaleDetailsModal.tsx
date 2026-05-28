@@ -11,21 +11,12 @@ import {
   parseFiscalNetResponse,
   FiscalNetConfig,
   getFiscalNetConfig,
-  saveFiscalNetConfig
+  saveFiscalNetConfig,
+  isFiscalNetDesktopRuntime
 } from '../../fiscal-net';
 import { useAuth } from '../../auth/useAuth';
 
-interface ElectronAPI {
-    isElectron: boolean;
-    writeFiscalNetFile: (args: { bonuriPath: string; filename: string; content: string; raspunsPath?: string }) => Promise<{ success: boolean; filePath?: string; error?: string }>;
-    readFiscalNetResponse: (args: { raspunsPath: string; filename: string }) => Promise<{ success: boolean; content?: string; error?: string }>;
-}
-
-declare global {
-    interface Window {
-        electronAPI?: ElectronAPI;
-    }
-}
+// ElectronAPI type is declared globally in src/types/electron.d.ts
 
 interface SaleDetailsModalProps {
     sale: SaleDetails | null;
@@ -74,8 +65,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
         });
     };
 
-    const isElectronAvailable = typeof window !== 'undefined' && !!window.electronAPI;
-    console.log("isElectronAvailable:", isElectronAvailable, "window.electronAPI:", window.electronAPI);
+    const isElectronAvailable = isFiscalNetDesktopRuntime();
 
     // Double confirmation dialog state
     const [showConfirmDialog, setShowConfirmDialog] = React.useState(false);

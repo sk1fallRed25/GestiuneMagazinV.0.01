@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../auth/useAuth';
 import { posService } from '../services/posService';
 import { PosProduct, CartItem, PaymentMethod, ActiveShift, CashRegister } from '../types';
-import { tryWriteFiscalNetAfterCheckout } from '../../fiscal-net';
+import { tryWriteFiscalNetAfterCheckout, isFiscalNetDesktopRuntime } from '../../fiscal-net';
 
 
 export const usePos = () => {
@@ -433,9 +433,7 @@ export const usePos = () => {
                 if (printResult.success) {
                     toast.success("Vânzarea a fost înregistrată și fișierul FiscalNet a fost scris în Bonuri.");
                 } else if (printResult.skipped) {
-                    const win = typeof window !== 'undefined' ? (window as any) : null;
-                    const isElectronAvailable = win && win.electronAPI && win.electronAPI.isElectron === true;
-                    if (!isElectronAvailable) {
+                    if (!isFiscalNetDesktopRuntime()) {
                         toast.success("Vânzarea a fost înregistrată. Scrierea FiscalNet este disponibilă doar în aplicația desktop.");
                     } else {
                         toast.success("Vânzarea a fost înregistrată. FiscalNet nu este configurat pe această stație. Bonul poate fi exportat ulterior din Istoric Vânzări.");

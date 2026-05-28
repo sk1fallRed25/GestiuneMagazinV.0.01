@@ -1,4 +1,5 @@
 import { getFiscalNetConfig } from './fiscalNetConfigService';
+import { isFiscalNetDesktopRuntime } from './fiscalNetRuntime';
 import { salesHistoryService } from '../sales-history/services/salesHistoryService';
 import { mapSaleDetailsToFiscalNetPayload } from './salesHistoryToFiscalNet';
 import { formatFiscalNetReceipt } from './fiscalNetFormatter';
@@ -29,9 +30,7 @@ export async function tryWriteFiscalNetAfterCheckout(params: {
   }
 
   // 1. Check if application runs in Electron
-  const win = typeof window !== 'undefined' ? (window as any) : null;
-  const isElectronAvailable = win && win.electronAPI && win.electronAPI.isElectron === true;
-  if (!isElectronAvailable) {
+  if (!isFiscalNetDesktopRuntime()) {
     return {
       success: false,
       skipped: true,
@@ -82,7 +81,7 @@ export async function tryWriteFiscalNetAfterCheckout(params: {
 
     // 5. Write file via IPC
     const filename = `${saleId}.txt`;
-    const result = await win.electronAPI.writeFiscalNetFile({
+    const result = await window.electronAPI!.writeFiscalNetFile({
       bonuriPath: config.bonuriPath,
       filename,
       content,

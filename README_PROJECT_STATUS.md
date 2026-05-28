@@ -51,6 +51,16 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - S-a validat automat generarea și structura formatului FiscalNet pentru produse standard, garanții SGR multiple și plăți mixte.
   - Toate testele au fost implementate și trecute cu succes în suita `test_fiscalnet_pos_auto_write_6gfn3.py`.
 
+- **Etapa 6G.FN.3.2 (FiscalNet Electron Runtime Detection Hotfix)**: **PASS**
+  - **ROOT CAUSE**: `electron-preload.js` lipsea din `build.files` din `package.json`, ceea ce cauza ca preload-ul să nu fie inclus în `.exe`-ul generat de Electron Builder → `window.electronAPI` nu era niciodată expus.
+  - S-a adăugat `electron-preload.js` în `build.files` pentru includerea corectă în build-ul packaged.
+  - S-a creat helper-ul centralizat `fiscalNetRuntime.ts` cu `isFiscalNetDesktopRuntime()` (detecție defensivă boolean + funcție legacy) și `getFiscalNetRuntimeDiagnostics()`.
+  - S-a unificat detecția runtime în toate cele 4 fișiere UI care o foloseau (`FiscalNetStationSettings`, `SaleDetailsModal`, `fiscalNetPostCheckoutService`, `usePos`).
+  - S-a adăugat panoul de diagnostic vizibil în setările FiscalNet cu 4 indicatoare (isElectron, hasElectronAPI, hasWriteAPI, hasReadAPI) și `data-testid`-uri dedicate.
+  - S-a creat tipul global `src/types/electron.d.ts` pentru `window.electronAPI`.
+  - Toate testele trec: `test_fiscalnet_electron_runtime_detection_6gfn32.py` (32/32), build OK, auto-write E2E OK.
+  - Raport detaliat: `docs/fiscalnet_electron_runtime_detection_6gfn32_report.md`.
+
 ### Următorul pas recomandat:
 - **`6G.FN.4 FiscalNet Hardware Smoke Test Manual Run`** (Rularea manuală a întregului flux pe hardware fizic în mediul Electron securizat).
 - **`6G.0 FiscalBridge Discovery & Integration Blueprint`** (Proiectarea arhitecturii unificate a bridge-ului fiscal).

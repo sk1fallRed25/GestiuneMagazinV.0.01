@@ -7,6 +7,7 @@ import {
   isFiscalNetConfigReady,
   FiscalNetLocalConfig 
 } from '../fiscalNetConfigService';
+import { isFiscalNetDesktopRuntime, getFiscalNetRuntimeDiagnostics } from '../fiscalNetRuntime';
 import { toast } from 'react-hot-toast';
 
 interface Props {
@@ -21,7 +22,8 @@ export const FiscalNetStationSettings: React.FC<Props> = ({ disabled = false }) 
     setIsReady(isFiscalNetConfigReady(config));
   }, [config]);
 
-  const isElectronAvailable = typeof window !== 'undefined' && !!window.electronAPI;
+  const isElectronAvailable = isFiscalNetDesktopRuntime();
+  const diagnostics = getFiscalNetRuntimeDiagnostics();
 
   const handleValidate = () => {
     if (!config.bonuriPath.trim() || !config.raspunsPath.trim()) {
@@ -110,6 +112,65 @@ export const FiscalNetStationSettings: React.FC<Props> = ({ disabled = false }) 
             >
               {isReady ? 'Configurată & Validată' : 'Neconfigurată / Invalidă'}
             </span>
+          </div>
+        </div>
+
+        {/* Runtime Diagnostics Panel */}
+        <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Diagnosticare Runtime Electron</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Runtime:</span>
+              <span
+                data-testid="fiscalnet-runtime-is-electron"
+                className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase text-center ${
+                  diagnostics.isElectron
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-rose-100 text-rose-800'
+                }`}
+              >
+                {diagnostics.isElectron ? 'Desktop/Electron detectat' : 'Browser Sandbox'}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Preload:</span>
+              <span
+                data-testid="fiscalnet-runtime-has-electron-api"
+                className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase text-center ${
+                  diagnostics.hasElectronAPI
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-rose-100 text-rose-800'
+                }`}
+              >
+                electronAPI prezent: {diagnostics.hasElectronAPI ? 'DA' : 'NU'}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">writeFiscalNetFile:</span>
+              <span
+                data-testid="fiscalnet-runtime-has-write-api"
+                className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase text-center ${
+                  diagnostics.hasWriteAPI
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-rose-100 text-rose-800'
+                }`}
+              >
+                disponibil: {diagnostics.hasWriteAPI ? 'DA' : 'NU'}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">readFiscalNetResponse:</span>
+              <span
+                data-testid="fiscalnet-runtime-has-read-api"
+                className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase text-center ${
+                  diagnostics.hasReadAPI
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-rose-100 text-rose-800'
+                }`}
+              >
+                disponibil: {diagnostics.hasReadAPI ? 'DA' : 'NU'}
+              </span>
+            </div>
           </div>
         </div>
 
