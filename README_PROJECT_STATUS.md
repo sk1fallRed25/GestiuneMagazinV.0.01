@@ -29,8 +29,15 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - S-au scris teste Playwright cuprinzătoare în `test_fiscalnet_real_folder_pilot_6gfn2.py` care acoperă toate scenariile.
   - Nu s-a emis bon real automat la checkout și nu s-a actualizat baza de date.
 
+- **Etapa 6G.FN.2.1 (FiscalNet IPC Security & Path Hardening)**: **PASS**
+  - S-au adăugat helper-e de securitate în `electron-main.js` pentru validarea numelor de fișier (`isSafeTxtFilename`), validarea directoarelor locale (`assertDirectoryExists`) și prevenirea atacurilor de tip *Path Traversal* (`resolveInside`).
+  - S-a securizat scrierea fișierelor de comenzi prin blocarea fișierelor `.tmp` paralele și redenumirea atomică securizată cu cleanup automat în caz de eroare.
+  - S-a securizat citirea fișierelor de răspuns prin impunerea unei limite maxime de dimensiune de **10 KB** pentru a preveni atacurile DoS și epuizarea memoriei.
+  - S-a asigurat securitatea la nivel de interfață în sandbox (browser) prin blocarea completă și afișarea unui toast corespunzător.
+  - S-a montat un component `<Toaster />` local în `SaleDetailsModal.tsx` pentru a asigura randarea robustă a mesajelor în toate circumstanțele.
+  - Toate criteriile au fost verificate automat și trecute cu succes în suita `test_fiscalnet_ipc_security_6gfn21.py`.
+
 ### Următorul pas recomandat:
+- **`6G.FN.3 FiscalNet Hardware Smoke Test Manual Run`** (Rularea manuală a pilotului pe hardware fizic în mediul Electron securizat)
 - **`6G.0 FiscalBridge Discovery & Integration Blueprint`** (Proiectarea arhitecturii unificate a bridge-ului fiscal)
-  sau
-- **`6G.FN.3 FiscalNet Hardware Smoke Test Manual Run`** (Rularea manuală a pilotului pe hardware fizic)
 

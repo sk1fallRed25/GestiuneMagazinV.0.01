@@ -40,39 +40,108 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
 
+function isSafeTxtFilename(filename) {
+    if (typeof filename !== 'string') return false;
+    if (!filename.endsWith('.txt')) return false;
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\') || filename.includes(':')) {
+        return false;
+    }
+    // Block control characters
+    for (let i = 0; i < filename.length; i++) {
+        const code = filename.charCodeAt(i);
+        if (code < 32 || code === 127) return false;
+    }
+    // Strict regex validation: only alphanumeric, dot, underscore, hyphen
+    const regex = /^[a-zA-Z0-9._-]+\.txt$/;
+    return regex.test(filename);
+}
+
+function assertDirectoryExists(dirPath, label) {
+    if (!dirPath || typeof dirPath !== 'string' || !dirPath.trim()) {
+        throw new Error(`Calea pentru folderul ${label} nu poate fi goala.`);
+    }
+    try {
+        if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+            throw new Error();
+        }
+    } catch (e) {
+        throw new Error(`Folderul ${label} nu exista sau nu este director.`);
+    }
+}
+
+function resolveInside(baseDir, filename) {
+    const resolvedBase = path.resolve(baseDir);
+    const resolvedPath = path.resolve(baseDir, filename);
+    
+    const isWindows = process.platform === 'win32';
+    const baseCompare = isWindows ? resolvedBase.toLowerCase() : resolvedBase;
+    const pathCompare = isWindows ? resolvedPath.toLowerCase() : resolvedPath;
+    
+    const expectedPrefix = baseCompare + (baseCompare.endsWith(path.sep) ? '' : path.sep);
+    if (!pathCompare.startsWith(expectedPrefix)) {
+        throw new Error('Securitate: fisierul rezultat iese din folderul configurat.');
+    }
+    return resolvedPath;
+}
+
+function serializeError(err) {
+    if (err instanceof Error || (err && typeof err === 'object' && 'message' in err)) return err.message;
+    return String(err || 'Eroare necunoscută.');
+}
+
 // Handlers IPC securizate pentru Pilotul Controlat FiscalNet
-ipcMain.handle('write-fiscal-net-file', async (event, { bonuriPath, filename, content }) => {
+ipcMain.handle('write-fiscal-net-file', async (event, { bonuriPath, filename, content, raspunsPath }) => {
+    let tempPath = null;
+    let tempWritten = false;
     try {
         if (!bonuriPath || !filename || !content) {
             return { success: false, error: 'Path, filename sau continut lipsa.' };
         }
-        if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-            return { success: false, error: 'Securitate: Cale invalida in filename.' };
-        }
-        if (!filename.endsWith('.txt')) {
-            return { success: false, error: 'Extensie invalida. Doar .txt este permis.' };
+        if (!isSafeTxtFilename(filename)) {
+            return { success: false, error: 'Securitate: Cale sau nume fisier invalid.' };
         }
 
-        if (!fs.existsSync(bonuriPath)) {
-            return { success: false, error: `Folderul de bonuri nu exista la calea specificata: ${bonuriPath}` };
-        }
+        assertDirectoryExists(bonuriPath, 'Bonuri');
 
-        const finalPath = path.join(bonuriPath, filename);
+        const finalPath = resolveInside(bonuriPath, filename);
 
+        // Anti-duplicate checks
         if (fs.existsSync(finalPath)) {
             return { success: false, error: `Fisierul ${filename} exista deja. Nu rescriem pentru a evita dublarea bonului.` };
         }
 
-        const tempPath = path.join(bonuriPath, filename.replace('.txt', '.tmp'));
+        if (raspunsPath) {
+            assertDirectoryExists(raspunsPath, 'Răspuns');
+            const finalResponsePath = resolveInside(raspunsPath, filename);
+            if (fs.existsSync(finalResponsePath)) {
+                return { success: false, error: 'Există deja răspuns pentru această vânzare. Nu rescriem bonul pentru a evita dublarea fiscalizării.' };
+            }
+        }
+
+        const basenameWithoutTxt = filename.slice(0, -4);
+        const tempFilename = `${basenameWithoutTxt}.tmp`;
+        tempPath = resolveInside(bonuriPath, tempFilename);
+
+        if (fs.existsSync(tempPath)) {
+            return { success: false, error: 'Există deja un fișier temporar pentru acest bon. Verifică manual folderul.' };
+        }
 
         fs.writeFileSync(tempPath, content, 'utf8');
+        tempWritten = true;
         fs.renameSync(tempPath, finalPath);
 
         console.log(`[FiscalNet Pilot] Scris bon in folder: ${finalPath}`);
         return { success: true, filePath: finalPath };
     } catch (err) {
         console.error('[FiscalNet Pilot] Eroare scriere bon:', err);
-        return { success: false, error: err.message || String(err) };
+        if (tempWritten && tempPath) {
+            try {
+                fs.unlinkSync(tempPath);
+            } catch (unlinkErr) {
+                // ignore
+            }
+        }
+        return { success: false, error: serializeError(err) };
     }
 });
 
@@ -81,23 +150,28 @@ ipcMain.handle('read-fiscal-net-response', async (event, { raspunsPath, filename
         if (!raspunsPath || !filename) {
             return { success: false, error: 'Cale sau filename lipsa.' };
         }
-        if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-            return { success: false, error: 'Securitate: Cale invalida in filename.' };
-        }
-        if (!filename.endsWith('.txt')) {
-            return { success: false, error: 'Extensie invalida. Doar .txt este permis.' };
+        if (!isSafeTxtFilename(filename)) {
+            return { success: false, error: 'Securitate: Cale sau nume fisier invalid.' };
         }
 
-        const filePath = path.join(raspunsPath, filename);
+        assertDirectoryExists(raspunsPath, 'Răspuns');
+
+        const filePath = resolveInside(raspunsPath, filename);
 
         if (!fs.existsSync(filePath)) {
             return { success: false, error: `Fisierul de raspuns nu a fost gasit: ${filename}` };
+        }
+
+        const stat = fs.statSync(filePath);
+        const MAX_SIZE = 64 * 1024; // 64 KB
+        if (stat.size > MAX_SIZE) {
+            return { success: false, error: 'Fișierul de răspuns este prea mare pentru parsare.' };
         }
 
         const content = fs.readFileSync(filePath, 'utf8');
         return { success: true, content };
     } catch (err) {
         console.error('[FiscalNet Pilot] Eroare citire raspuns:', err);
-        return { success: false, error: err.message || String(err) };
+        return { success: false, error: serializeError(err) };
     }
 });

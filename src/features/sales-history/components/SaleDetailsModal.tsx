@@ -3,7 +3,7 @@ import { X, Printer, Package, CreditCard, Banknote, Calendar, User, Hash, AlertT
 import { SaleDetails, SaleSummary, SaleItemDetails } from '../types';
 import { SaleStatusBadge } from './SaleStatusBadge';
 import { formatSgrReceiptLabel, summarizeSgr } from '../utils/sgrDisplay';
-import { toast } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
 import { 
   mapSaleDetailsToFiscalNetPayload, 
   formatFiscalNetReceipt, 
@@ -14,7 +14,7 @@ import {
 
 interface ElectronAPI {
     isElectron: boolean;
-    writeFiscalNetFile: (args: { bonuriPath: string; filename: string; content: string }) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+    writeFiscalNetFile: (args: { bonuriPath: string; filename: string; content: string; raspunsPath?: string }) => Promise<{ success: boolean; filePath?: string; error?: string }>;
     readFiscalNetResponse: (args: { raspunsPath: string; filename: string }) => Promise<{ success: boolean; content?: string; error?: string }>;
 }
 
@@ -65,6 +65,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
     };
 
     const isElectronAvailable = typeof window !== 'undefined' && !!window.electronAPI;
+    console.log("isElectronAvailable:", isElectronAvailable, "window.electronAPI:", window.electronAPI);
 
     // Double confirmation dialog state
     const [showConfirmDialog, setShowConfirmDialog] = React.useState(false);
@@ -145,6 +146,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
     };
 
     const handleConfirmWrite = async () => {
+        console.log("handleConfirmWrite triggered!", "confirmInput:", confirmInput, "isElectronAvailable:", isElectronAvailable);
         if (confirmInput !== 'SCRIE BON FISCALNET') {
             toast.error("Textul de confirmare nu este corect.");
             return;
@@ -156,7 +158,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
             const filename = `${sale.id}.txt`;
             
             if (!isElectronAvailable) {
-                toast.error("Scrierea directă în folder este disponibilă doar în aplicația desktop/local bridge.");
+                toast.error("Scrierea directă este disponibilă doar în aplicația desktop.");
                 setWriteLoading(false);
                 setShowConfirmDialog(false);
                 return;
@@ -165,7 +167,8 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
             const result = await window.electronAPI!.writeFiscalNetFile({
                 bonuriPath: config.bonuriPath,
                 filename,
-                content: exportPreview
+                content: exportPreview,
+                raspunsPath: config.raspunsPath
             });
 
             if (result.success) {
@@ -273,6 +276,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <Toaster position="top-right" />
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
@@ -865,6 +869,7 @@ export const SaleDetailsModal: React.FC<SaleDetailsModalProps> = ({ sale, loadin
                         <div className="flex gap-3 justify-end">
                             <button
                                 type="button"
+                                data-testid="fiscalnet-real-write-confirm-cancel-button"
                                 onClick={() => setShowConfirmDialog(false)}
                                 className="px-4 py-2 border border-gray-200 hover:bg-gray-100 rounded-xl text-xs font-bold text-gray-500 transition-colors"
                             >
