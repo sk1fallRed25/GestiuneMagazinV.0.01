@@ -3,6 +3,8 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../auth/useAuth';
 import { posService } from '../services/posService';
 import { PosProduct, CartItem, PaymentMethod, ActiveShift, CashRegister } from '../types';
+import { tryWriteFiscalNetAfterCheckout } from '../../fiscal-net';
+
 
 export const usePos = () => {
     const { user, currentStoreId } = useAuth();
@@ -411,7 +413,7 @@ export const usePos = () => {
 
         setSubmitting(true);
         try {
-            await posService.createSale({
+            const saleId = await posService.createSale({
                 storeId: currentStoreId,
                 profileId: user.id,
                 items: cart,
@@ -421,7 +423,31 @@ export const usePos = () => {
                 shiftId: activeShift.shiftId
             });
 
-            toast.success("Vânzare finalizată cu succes!");
+            // Post-checkout FiscalNet Print
+            try {
+                const printResult = await tryWriteFiscalNetAfterCheckout({
+                    saleId,
+                    storeId: currentStoreId
+                });
+                
+                if (printResult.success) {
+                    toast.success("Vânzarea a fost înregistrată și fișierul FiscalNet a fost scris în Bonuri.");
+                } else if (printResult.skipped) {
+                    const win = typeof window !== 'undefined' ? (window as any) : null;
+                    const isElectronAvailable = win && win.electronAPI && win.electronAPI.isElectron === true;
+                    if (!isElectronAvailable) {
+                        toast.success("Vânzarea a fost înregistrată. Scrierea FiscalNet este disponibilă doar în aplicația desktop.");
+                    } else {
+                        toast.success("Vânzarea a fost înregistrată. FiscalNet nu este configurat pe această stație. Bonul poate fi exportat ulterior din Istoric Vânzări.");
+                    }
+                } else {
+                    toast.error("Vânzarea a fost înregistrată, dar fișierul FiscalNet nu a fost scris. Reîncearcă din Istoric Vânzări.");
+                }
+            } catch (printErr: any) {
+                console.error("Eroare post-checkout FiscalNet:", printErr);
+                toast.error("Vânzarea a fost înregistrată, dar fișierul FiscalNet nu a fost scris. Reîncearcă din Istoric Vânzări.");
+            }
+
             clearCart();
             setQuery('');
             setSearchResults([]);

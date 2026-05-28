@@ -44,7 +44,15 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Casierul poate scrie bonuri local folosind configurarea pre-validată de administrator prin dublă confirmare, fără a trebui să introducă calea manual de fiecare dată.
   - Toate criteriile au fost validate automat prin testul Playwright `test_fiscalnet_station_settings_6gfn22.py`.
 
+- **Etapa 6G.FN.3 (FiscalNet Auto Print on POS Checkout)**: **PASS**
+  - S-a implementat tipărirea automată post-checkout (serviciul `fiscalNetPostCheckoutService.ts` integrat asincron în `usePos.ts`).
+  - Fluxul de checkout nu este blocat de eșecul tipăririi, oferind casierului o tratare elegantă a erorilor de scriere pe disc.
+  - Detecția automată a mediului web/sandbox dezactivează scrierea locală și previne apelurile eronate ale interfeței Electron IPC în browser.
+  - S-a validat automat generarea și structura formatului FiscalNet pentru produse standard, garanții SGR multiple și plăți mixte.
+  - Toate testele au fost implementate și trecute cu succes în suita `test_fiscalnet_pos_auto_write_6gfn3.py`.
+
 ### Următorul pas recomandat:
-- **`6G.FN.3 FiscalNet Hardware Smoke Test Manual Run`** (Rularea manuală a pilotului pe hardware fizic în mediul Electron securizat)
-- **`6G.0 FiscalBridge Discovery & Integration Blueprint`** (Proiectarea arhitecturii unificate a bridge-ului fiscal)
+- **`6G.FN.4 FiscalNet Hardware Smoke Test Manual Run`** (Rularea manuală a întregului flux pe hardware fizic în mediul Electron securizat).
+- **`6G.0 FiscalBridge Discovery & Integration Blueprint`** (Proiectarea arhitecturii unificate a bridge-ului fiscal).
+
 

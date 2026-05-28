@@ -68,7 +68,8 @@ export const posService = {
 
             const sgrType = normalizeSgrType(p.sgr_type);
             const sgrEnabled = !!(p.sgr_enabled && sgrType !== null);
-            console.log("searchProducts mapped item:", { name: p.name, sgr_enabled: p.sgr_enabled, sgr_type: p.sgr_type, sgrEnabled, sgrType });
+            console.log("searchProducts mapped item:", { name: p.name, sgr_enabled: p.sgr_enabled, sgr_type: p.sgr_type, sgrEnabled, sgrType, stockMagazin });
+            console.log("DEBUG STOCK FOR PRODUCT:", p.name, "IS:", stockMagazin);
 
             return {
                 id: p.id,

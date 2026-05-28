@@ -6,3 +6,5 @@ export * from './responseParser';
 export * from './salesHistoryToFiscalNet';
 export * from './fiscalNetConfigService';
 export * from './components/FiscalNetStationSettings';
+export * from './fiscalNetPostCheckoutService';
+
