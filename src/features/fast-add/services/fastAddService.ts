@@ -1,12 +1,54 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
 import { FastAddProductPayload, FastAddResult } from '../types';
 import { VatGroupKey } from '../../products/types';
+import { generateInternalBarcodeCandidate, isValidEan13 } from '../../products/utils/barcodeGenerator';
 
 const assertFiniteNonNegative = (value: number, fieldLabel: string) => {
     if (!Number.isFinite(value) || value < 0) {
         throw new Error(`${fieldLabel} trebuie să fie un număr valid, mai mare sau egal cu 0.`);
     }
 };
+
+/**
+ * Verifică dacă există deja un produs activ cu barcode-ul dat în magazin.
+ * Read-only — nu modifică DB.
+ */
+export async function barcodeExists(storeId: string, barcode: string): Promise<boolean> {
+    if (!storeId || !barcode) return false;
+    const { data, error } = await supabase
+        .from('products')
+        .select('id')
+        .eq('store_id', storeId)
+        .eq('barcode', barcode)
+        .neq('status', 'deleted')
+        .maybeSingle();
+    if (error) {
+        console.error('barcodeExists error:', error);
+        return false; // fail-open: nu blocăm generarea
+    }
+    return data !== null;
+}
+
+/**
+ * Generează un cod de bare intern EAN-13 unic în magazin, cu retry.
+ * Încearcă de max `maxRetries` ori, aruncând eroare dacă nu reușește.
+ */
+export async function generateUniqueInternalBarcode(
+    storeId: string,
+    maxRetries: number = 5
+): Promise<string> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const candidate = generateInternalBarcodeCandidate(attempt);
+        if (!isValidEan13(candidate)) continue;
+        const conflict = await barcodeExists(storeId, candidate);
+        if (!conflict) return candidate;
+        // Mică pauză între retry-uri pentru diversitate timestamp
+        await new Promise(res => setTimeout(res, 2));
+    }
+    throw new Error('Nu s-a putut genera un cod unic. Încearcă din nou.');
+}
+
+
 
 export const fastAddService = {
     async createFastProduct(payload: FastAddProductPayload): Promise<FastAddResult> {

@@ -293,4 +293,12 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au capturat screenshot-urile adaptate pe 4 viewports (Desktop, Laptop, Tabletă, Mobil) în `artifacts/6d613/` confirmând că interfața este complet utilizabilă și nu iese din ecran.
   - S-a rulat cu succes întreaga suită de teste de regresie: `6d613`, `6d612` (remediat), `6d611`, `6b33`, `6d67`, `6d68` și `npm run build` (PASS).
   - Raport oficial creat la `docs/sgr_returns_e2e_visual_qa_6d613_report.md`.
-  - **Următorul pas: 6G.0 FiscalBridge Discovery & Integration Blueprint.**
+  - **Etapa 6G.POS.3 (Internal Barcode Generation for Products Without Barcode)**: **Realizat** — PASS.
+  - S-a implementat generarea codurilor de bare interne în format standardizat **EAN-13** cu prefixul `29` (GS1 restricted circulation).
+  - Câmpul de cod de bare din Adăugare Rapidă (v2) are butonul `Gen. Cod` (`data-testid="quick-add-generate-barcode-button"`).
+  - Include avertizare/confirmare la înlocuirea unui cod existent, detecție automată a codului intern la tastare și badge `Cod intern generat` (`data-testid="quick-add-generated-barcode-badge"`).
+  - Se efectuează verificarea unicității în baza de date cu până la 5 încercări (retry cu offset de timestamp).
+  - Scanarea în POS funcționează perfect prin maparea în câmpul existent `barcode` (fără a schimba schema DB/RLS).
+  - S-au validat testele E2E Playwright/static (`test_internal_barcode_generation_6gpos3.py` PASS) și build-ul Vite de producție.
+  - Raport oficial creat la `docs/internal_barcode_generation_6gpos3_report.md`.
+  - **Următorul pas: 6G.POS.4 Barcode Label Printing sau 6G.TEST.0 Manual Aggressive POS Testing.**

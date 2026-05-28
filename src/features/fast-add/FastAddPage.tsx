@@ -1,8 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
     ScanBarcode, ArrowLeft, Package, CheckCircle, AlertTriangle,
-    Save, Loader2, DollarSign, Plus, X, FolderOpen, Tag
+    Save, Loader2, DollarSign, Plus, X, FolderOpen, Tag, Barcode, RefreshCw
 } from 'lucide-react';
 import { useFastAdd } from './hooks/useFastAdd';
 import { formateazaGramaj } from './utils';
@@ -10,6 +10,8 @@ import { ProductVatGroupSelector } from '../products/components/ProductVatGroupS
 import { ProductSgrSelector } from '../products/components/ProductSgrSelector';
 import { useCategories } from '../catalog/useCategories';
 import { useAuth } from '../auth/useAuth';
+import { generateUniqueInternalBarcode } from './services/fastAddService';
+import { isInternalBarcode, isValidEan13 } from '../products/utils/barcodeGenerator';
 
 // ─── Mini Modal reutilizabil ────────────────────────────────────────────
 interface MiniModalProps {
@@ -92,6 +94,11 @@ export default function FastAddPage() {
     const [status, setStatus] = useState({ msg: '', type: '' });
     const [loadingAPI, setLoadingAPI] = useState(false);
 
+    // ── State cod intern ──────────────────────────────────────────────────
+    const [generatingBarcode, setGeneratingBarcode] = useState(false);
+    const [isInternalCode, setIsInternalCode] = useState(false);
+    const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
+
     // Categorii
     const {
         rootCategories,
@@ -120,6 +127,43 @@ export default function FastAddPage() {
     const handleSubcategoryChange = (subId: string) => {
         selectSubcategory(subId);
         updateField('subcategoryId', subId);
+    };
+
+    // ── Handler generare cod intern ────────────────────────────────────────
+    const doGenerateBarcode = useCallback(async () => {
+        if (!currentStoreId) {
+            setStatus({ msg: 'Selectează mai întâi un magazin.', type: 'warning' });
+            return;
+        }
+        setGeneratingBarcode(true);
+        setStatus({ msg: 'Se generează cod intern...', type: 'info' });
+        try {
+            const code = await generateUniqueInternalBarcode(currentStoreId);
+            updateField('barcode', code);
+            setIsInternalCode(true);
+            setStatus({ msg: 'Cod intern generat. Poți imprima sau nota acest cod pentru scanare.', type: 'success' });
+        } catch (e) {
+            setStatus({ msg: e instanceof Error ? e.message : 'Eroare la generare cod.', type: 'error' });
+        } finally {
+            setGeneratingBarcode(false);
+            setShowReplaceConfirm(false);
+        }
+    }, [currentStoreId, updateField]);
+
+    const handleGenerateBarcode = () => {
+        if (form.barcode.trim()) {
+            // Există deja un cod — cerem confirmare
+            setShowReplaceConfirm(true);
+        } else {
+            doGenerateBarcode();
+        }
+    };
+
+    // Detectează dacă barcode-ul curent e intern (la tastare manuală, resetăm badge-ul)
+    const handleBarcodeChange = (val: string) => {
+        updateField('barcode', val);
+        setIsInternalCode(isInternalBarcode(val));
+        if (showReplaceConfirm) setShowReplaceConfirm(false);
     };
 
     // Cautare online
@@ -174,8 +218,10 @@ export default function FastAddPage() {
         e.preventDefault();
         const success = await submit();
         if (success) {
-            setStatus({ msg: `✅ Adăugat/Actualizat cu succes!`, type: 'success' });
+            setStatus({ msg: `Adaugat/Actualizat cu succes!`, type: 'success' });
             resetCategorySelection();
+            setIsInternalCode(false);
+            setShowReplaceConfirm(false);
             barcodeRef.current?.focus();
             setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
         }
@@ -184,6 +230,8 @@ export default function FastAddPage() {
     const handleReset = () => {
         resetForm();
         resetCategorySelection();
+        setIsInternalCode(false);
+        setShowReplaceConfirm(false);
         barcodeRef.current?.focus();
     };
 
@@ -239,23 +287,110 @@ export default function FastAddPage() {
 
                 {/* ── STÂNGA: Scanare, Denumire, Categorie ── */}
                 <div className="flex-1 space-y-6">
-                    {/* 1. Barcode */}
-                    <div className="relative group">
-                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">1. Scanează Cod Bare (Apasă Enter)</label>
-                        <input
-                            ref={barcodeRef}
-                            type="text"
-                            className="w-full text-3xl font-mono font-black border-2 border-gray-200 rounded-2xl p-4 focus:border-blue-500 outline-none text-center tracking-[0.1em] text-gray-800 placeholder-gray-200 transition-all group-hover:border-gray-300"
-                            placeholder="||||||||||||"
-                            value={form.barcode}
-                            onChange={e => updateField('barcode', e.target.value)}
-                            onKeyDown={handleScan}
-                            autoFocus
-                            disabled={submitting}
-                        />
-                        <div className="absolute right-4 top-[3.2rem] text-gray-300 pointer-events-none transition-colors">
-                            <ScanBarcode size={24} />
+                    {/* 1. Barcode + Generate button */}
+                    <div className="space-y-2">
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                            1. Scanează Cod Bare (Apasă Enter)
+                        </label>
+
+                        {/* Input + Generate button pe același rând */}
+                        <div className="flex gap-2 items-stretch">
+                            <div className="relative flex-1 group">
+                                <input
+                                    ref={barcodeRef}
+                                    data-testid="quick-add-barcode-input"
+                                    type="text"
+                                    className={`w-full text-2xl font-mono font-black border-2 rounded-2xl p-4 focus:border-blue-500 outline-none text-center tracking-[0.1em] placeholder-gray-200 transition-all group-hover:border-gray-300 ${
+                                        isInternalCode
+                                            ? 'border-emerald-400 text-emerald-700 bg-emerald-50'
+                                            : 'border-gray-200 text-gray-800 bg-white'
+                                    }`}
+                                    placeholder="||||||||||||"
+                                    value={form.barcode}
+                                    onChange={e => handleBarcodeChange(e.target.value)}
+                                    onKeyDown={handleScan}
+                                    autoFocus
+                                    disabled={submitting || generatingBarcode}
+                                />
+                                <div className="absolute right-3 top-4 text-gray-300 pointer-events-none">
+                                    <ScanBarcode size={22} />
+                                </div>
+                            </div>
+
+                            {/* Buton Generează cod */}
+                            <button
+                                type="button"
+                                data-testid="quick-add-generate-barcode-button"
+                                onClick={handleGenerateBarcode}
+                                disabled={submitting || generatingBarcode}
+                                title="Generează cod intern EAN-13 pentru produse fără cod de bare"
+                                className="flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-[72px] bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-200 hover:border-emerald-400 text-emerald-700 font-black rounded-2xl transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed text-[10px] uppercase tracking-wide shrink-0"
+                            >
+                                {generatingBarcode
+                                    ? <Loader2 size={18} className="animate-spin" />
+                                    : <Barcode size={18} />}
+                                <span>{generatingBarcode ? 'Generez...' : 'Gen. Cod'}</span>
+                            </button>
                         </div>
+
+                        {/* Confirmare înlocuire cod existent */}
+                        {showReplaceConfirm && (
+                            <div className="flex flex-col gap-2 p-3 bg-amber-50 border-2 border-amber-200 rounded-xl animate-in fade-in">
+                                <p className="text-xs font-bold text-amber-800">
+                                    Există deja un cod de bare. Vrei să îl înlocuiești cu un cod intern generat?
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={doGenerateBarcode}
+                                        disabled={generatingBarcode}
+                                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs py-2 rounded-lg transition-all active:scale-95 flex items-center justify-center gap-1"
+                                    >
+                                        {generatingBarcode
+                                            ? <Loader2 size={12} className="animate-spin" />
+                                            : <RefreshCw size={12} />}
+                                        Înlocuiește
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowReplaceConfirm(false)}
+                                        className="flex-1 bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 font-black text-xs py-2 rounded-lg transition-all active:scale-95"
+                                    >
+                                        Păstrează codul
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Badge cod intern generat */}
+                        {isInternalCode && form.barcode && (
+                            <div
+                                data-testid="quick-add-generated-barcode-badge"
+                                className="flex items-center justify-between gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl animate-in fade-in"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <Barcode size={14} className="text-emerald-600 shrink-0" />
+                                    <span className="text-xs font-black text-emerald-700">Cod intern generat</span>
+                                    <span className="text-xs text-emerald-500 font-mono">{form.barcode}</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => navigator.clipboard?.writeText(form.barcode)}
+                                    className="text-[10px] text-emerald-600 hover:text-emerald-800 font-bold underline underline-offset-2 transition-colors"
+                                    title="Copiază codul"
+                                >
+                                    Copiază
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Badge EAN-13 valid (pentru coduri reale introduse manual) */}
+                        {!isInternalCode && form.barcode && isValidEan13(form.barcode) && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-xl">
+                                <CheckCircle size={12} className="text-blue-500 shrink-0" />
+                                <span className="text-[10px] font-bold text-blue-600">EAN-13 valid</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Status / Eroare */}
