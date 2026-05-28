@@ -61,7 +61,7 @@ export const fastAddService = {
                     barcode: payload.barcode,
                     unit: unit,
                     status: 'active',
-                    category_id: null,
+                    category_id: payload.categoryId ?? null,
                     sgr_enabled: payload.sgrEnabled ?? false,
                     sgr_type: payload.sgrType ?? null
                 }])

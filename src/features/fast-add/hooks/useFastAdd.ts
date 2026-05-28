@@ -7,6 +7,7 @@ import { FastAddForm, FastAddProductPayload } from '../types';
 import { payloadFromSgrSelection } from '../../products/utils/sgr';
 import toast from 'react-hot-toast';
 
+
 const initialForm: FastAddForm = {
     barcode: '',
     name: '',
@@ -39,6 +40,10 @@ export const useFastAdd = () => {
     const [error, setError] = useState<string | null>(null);
     const [vatConfig, setVatConfig] = useState<ProductVatConfig | null>(null);
     const [vatLoading, setVatLoading] = useState(false);
+
+    // Categorii — state extern gestionat de FastAddPage via useCategories
+    // useFastAdd primește categoryId / subcategoryId ca param în submit
+
 
     const loadVatConfig = useCallback(async () => {
         if (!currentStoreId) {
@@ -73,10 +78,13 @@ export const useFastAdd = () => {
             ...initialForm, 
             stockZone: form.stockZone, 
             vatGroup: vatConfig?.defaultVatGroup || 'A',
-            sgrSelection: 'none'
+            sgrSelection: 'none',
+            categoryId: undefined,
+            subcategoryId: undefined
         });
         setError(null);
     };
+
 
     const submit = async () => {
         if (!currentStoreId) {
@@ -120,6 +128,9 @@ export const useFastAdd = () => {
 
         const sgrPayload = payloadFromSgrSelection(form.sgrSelection);
 
+        // Logica categorie: subcategoryId are prioritate față de categoryId
+        const effectiveCategoryId = form.subcategoryId || form.categoryId || null;
+
         try {
             const payload: FastAddProductPayload = {
                 storeId: currentStoreId,
@@ -136,8 +147,10 @@ export const useFastAdd = () => {
                 batchNumber: form.batchNumber?.trim() || null,
                 expiryDate: form.expiryDate || null,
                 sgrEnabled: sgrPayload.sgrEnabled,
-                sgrType: sgrPayload.sgrType
+                sgrType: sgrPayload.sgrType,
+                categoryId: effectiveCategoryId
             };
+
 
             const result = await fastAddService.createFastProduct(payload);
 

@@ -8,6 +8,8 @@ export interface PosProduct {
     stockMagazin: number;
     sgrEnabled?: boolean;
     sgrType?: 'plastic' | 'metal' | 'glass' | null;
+    /** ID categorie (poate fi root sau subcategorie — corespunde cu categories.id) */
+    categoryId?: string | null;
 }
 
 export interface CartItem {

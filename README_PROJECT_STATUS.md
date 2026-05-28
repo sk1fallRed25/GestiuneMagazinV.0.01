@@ -66,3 +66,20 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
 - **`6G.0 FiscalBridge Discovery & Integration Blueprint`** (Proiectarea arhitecturii unificate a bridge-ului fiscal).
 
 
+---
+
+## Stadiu POS & Catalog
+
+- **Etapa 6G.POS.2 (Category/Subcategory Management for Quick Add & POS)**: **PASS**
+  - Schema auditata: tabel `categories` exista cu `parent_id` self-referential (root + subcategorii).
+  - Nu a fost necesara nicio migrare SQL.
+  - Nou serviciu `categoryService.ts`: listare, creare categorii principale si subcategorii cu validare duplicate.
+  - Nou hook `useCategories.ts`: state management categorii pentru Quick Add.
+  - `FastAddPage.tsx`: inlocuit blocul static "Categorie (Auto): General" cu selecturi interactive + modals creare.
+  - `fastAddService.ts`: transmite `category_id` la inserarea produselor.
+  - POS: `PosCategoryBrowser.tsx` + `usePosCategories.ts` pentru navigare ierarhica categorii/subcategorii/produse.
+  - Build: 0 erori TypeScript, 2556 module.
+  - Teste: 26 PASS, 0 FAIL.
+
+### Urmatorul pas recomandat:
+- **`6G.POS.3 Internal Codes / Generated Barcodes`** (Produse fara barcode, coduri interne auto-generate)

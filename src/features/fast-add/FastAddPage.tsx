@@ -1,17 +1,126 @@
 import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ScanBarcode, ArrowLeft, Package, CheckCircle, AlertTriangle, Save, Loader2, DollarSign, Percent, Calendar } from 'lucide-react';
+import {
+    ScanBarcode, ArrowLeft, Package, CheckCircle, AlertTriangle,
+    Save, Loader2, DollarSign, Plus, X, FolderOpen, Tag
+} from 'lucide-react';
 import { useFastAdd } from './hooks/useFastAdd';
-import { detecteazaCategorie, formateazaGramaj } from './utils'; // Vom implementa un fișier de utilitare sau le lăsăm aici
+import { formateazaGramaj } from './utils';
 import { ProductVatGroupSelector } from '../products/components/ProductVatGroupSelector';
 import { ProductSgrSelector } from '../products/components/ProductSgrSelector';
+import { useCategories } from '../catalog/useCategories';
+import { useAuth } from '../auth/useAuth';
 
+// ─── Mini Modal reutilizabil ────────────────────────────────────────────
+interface MiniModalProps {
+    title: string;
+    placeholder: string;
+    subtitle?: string;
+    onConfirm: (value: string) => Promise<void>;
+    onClose: () => void;
+    dataTestid?: string;
+}
+
+const MiniModal: React.FC<MiniModalProps> = ({ title, placeholder, subtitle, onConfirm, onClose, dataTestid }) => {
+    const [value, setValue] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [err, setErr] = useState('');
+
+    const handleSubmit = async () => {
+        if (value.trim().length < 2) {
+            setErr('Minim 2 caractere.');
+            return;
+        }
+        setLoading(true);
+        setErr('');
+        try {
+            await onConfirm(value.trim());
+            onClose();
+        } catch (e) {
+            setErr(e instanceof Error ? e.message : 'Eroare.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in"
+            data-testid={dataTestid}
+        >
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4 border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-black text-gray-800 text-lg">{title}</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+                {subtitle && (
+                    <p className="text-xs text-gray-500 mb-3 bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
+                        {subtitle}
+                    </p>
+                )}
+                <input
+                    autoFocus
+                    type="text"
+                    className="w-full border-2 border-gray-200 rounded-xl p-3 text-sm font-bold focus:border-blue-500 outline-none transition-all"
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={e => { setValue(e.target.value); setErr(''); }}
+                    onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                />
+                {err && <p className="text-red-600 text-xs font-bold mt-2">{err}</p>}
+                <button
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-70"
+                >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                    {loading ? 'Se creează...' : 'Creează'}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// ─── FastAddPage ────────────────────────────────────────────────────────
 export default function FastAddPage() {
+    const { currentStoreId } = useAuth();
     const { form, submitting, error, updateField, submit, resetForm, vatConfig } = useFastAdd();
     const barcodeRef = useRef<HTMLInputElement>(null);
     const nameRef = useRef<HTMLInputElement>(null);
     const [status, setStatus] = useState({ msg: '', type: '' });
     const [loadingAPI, setLoadingAPI] = useState(false);
+
+    // Categorii
+    const {
+        rootCategories,
+        subcategories,
+        selectedCategoryId,
+        selectedSubcategoryId,
+        loadingCategories,
+        loadingSubcategories,
+        selectCategory,
+        selectSubcategory,
+        createRootCategory,
+        createSubcategory,
+        resetCategorySelection
+    } = useCategories({ storeId: currentStoreId });
+
+    const [showCategoryModal, setShowCategoryModal] = useState(false);
+    const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
+
+    // Sincronizăm categoryId/subcategoryId în form
+    const handleCategoryChange = (catId: string) => {
+        selectCategory(catId);
+        updateField('categoryId', catId);
+        updateField('subcategoryId', '');
+    };
+
+    const handleSubcategoryChange = (subId: string) => {
+        selectSubcategory(subId);
+        updateField('subcategoryId', subId);
+    };
 
     // Cautare online
     const cautaOnline = async (cod: string) => {
@@ -66,13 +175,54 @@ export default function FastAddPage() {
         const success = await submit();
         if (success) {
             setStatus({ msg: `✅ Adăugat/Actualizat cu succes!`, type: 'success' });
+            resetCategorySelection();
             barcodeRef.current?.focus();
             setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
         }
     };
 
+    const handleReset = () => {
+        resetForm();
+        resetCategorySelection();
+        barcodeRef.current?.focus();
+    };
+
+    // Hint text categorie
+    const categoryHint = (() => {
+        if (!selectedCategoryId) return null;
+        const catName = rootCategories.find(c => c.id === selectedCategoryId)?.name;
+        if (catName === 'General') return '⚠️ Categoria General este recomandată doar temporar.';
+        if (selectedCategoryId && !selectedSubcategoryId && subcategories.length > 0) {
+            return 'ℹ️ Produsul va fi salvat doar în categoria principală.';
+        }
+        return null;
+    })();
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-6 font-sans">
+            {/* Modals */}
+            {showCategoryModal && (
+                <MiniModal
+                    title="Categorie Nouă"
+                    placeholder="Ex: Băuturi, Panificație..."
+                    onConfirm={async (name) => { await createRootCategory(name); }}
+                    onClose={() => setShowCategoryModal(false)}
+                    dataTestid="quick-add-category-modal"
+                />
+            )}
+            {showSubcategoryModal && (
+                <MiniModal
+                    title="Subcategorie Nouă"
+                    placeholder="Ex: Sucuri, Bere, Pâine..."
+                    subtitle={selectedCategoryId
+                        ? `Categorie principală: ${rootCategories.find(c => c.id === selectedCategoryId)?.name ?? '—'}`
+                        : undefined}
+                    onConfirm={async (name) => { await createSubcategory(name); }}
+                    onClose={() => setShowSubcategoryModal(false)}
+                    dataTestid="quick-add-subcategory-modal"
+                />
+            )}
+
             <div className="w-full max-w-4xl flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-black text-gray-800 flex items-center gap-3 tracking-tight">
                     <span className="bg-blue-600 p-2.5 rounded-2xl text-white shadow-lg shadow-blue-200">
@@ -86,9 +236,10 @@ export default function FastAddPage() {
             </div>
 
             <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-4xl border border-gray-100 flex flex-col md:flex-row gap-8">
-                
-                {/* Partea Stangă - Scanare și Nume */}
+
+                {/* ── STÂNGA: Scanare, Denumire, Categorie ── */}
                 <div className="flex-1 space-y-6">
+                    {/* 1. Barcode */}
                     <div className="relative group">
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">1. Scanează Cod Bare (Apasă Enter)</label>
                         <input
@@ -107,6 +258,7 @@ export default function FastAddPage() {
                         </div>
                     </div>
 
+                    {/* Status / Eroare */}
                     {(status.msg || error) && (
                         <div className={`p-4 rounded-xl flex items-center gap-3 font-bold text-sm transition-all animate-in fade-in zoom-in ${
                             error ? 'bg-red-50 text-red-700 border border-red-100' :
@@ -122,6 +274,7 @@ export default function FastAddPage() {
                         </div>
                     )}
 
+                    {/* 2. Denumire */}
                     <div>
                         <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">2. Denumire Produs</label>
                         <input
@@ -135,28 +288,121 @@ export default function FastAddPage() {
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Unitate Măsură</label>
-                            <input
-                                type="text"
-                                className="w-full text-base font-bold border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 outline-none transition-all text-gray-700"
-                                value={form.unit}
-                                onChange={e => updateField('unit', e.target.value)}
-                                placeholder="buc, kg, L..."
-                                disabled={submitting}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Categorie (Auto)</label>
-                            <div className="w-full text-sm font-bold bg-gray-50 border-2 border-gray-100 rounded-xl p-3 text-gray-500 flex items-center gap-2">
-                                <Package size={16} /> {detecteazaCategorie(form.name).cat}
+                    {/* 3. Unitate Măsură */}
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Unitate Măsură</label>
+                        <input
+                            type="text"
+                            className="w-full text-base font-bold border-2 border-gray-200 rounded-xl p-3 focus:border-blue-500 outline-none transition-all text-gray-700"
+                            value={form.unit}
+                            onChange={e => updateField('unit', e.target.value)}
+                            placeholder="buc, kg, L..."
+                            disabled={submitting}
+                        />
+                    </div>
+
+                    {/* 4. Categorie Principală */}
+                    <div>
+                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">
+                            Categorie Principală
+                        </label>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <FolderOpen size={16} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" />
+                                <select
+                                    data-testid="quick-add-category-select"
+                                    className="w-full text-sm font-bold border-2 border-gray-200 rounded-xl pl-9 pr-3 py-3 focus:border-blue-500 outline-none transition-all text-gray-700 bg-white appearance-none disabled:opacity-60"
+                                    value={selectedCategoryId}
+                                    onChange={e => handleCategoryChange(e.target.value)}
+                                    disabled={submitting || loadingCategories}
+                                >
+                                    <option value="">
+                                        {loadingCategories ? 'Se încarcă...' : 'Alege categoria'}
+                                    </option>
+                                    {rootCategories.map(cat => (
+                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                    ))}
+                                </select>
                             </div>
+                            <button
+                                type="button"
+                                data-testid="quick-add-create-category-button"
+                                onClick={() => setShowCategoryModal(true)}
+                                disabled={submitting}
+                                title="Creează categorie nouă"
+                                className="flex items-center gap-1 px-3 py-2 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-blue-700 font-black rounded-xl transition-all text-xs active:scale-95 disabled:opacity-60 shrink-0"
+                            >
+                                <Plus size={14} /> Cat.
+                            </button>
                         </div>
+                    </div>
+
+                    {/* 5. Subcategorie */}
+                    <div>
+                        <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 ml-1 ${selectedCategoryId ? 'text-gray-400' : 'text-gray-200'}`}>
+                            Subcategorie
+                        </label>
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Tag size={16} className="absolute left-3 top-3.5 text-gray-400 pointer-events-none" />
+                                <select
+                                    data-testid="quick-add-subcategory-select"
+                                    className="w-full text-sm font-bold border-2 border-gray-200 rounded-xl pl-9 pr-3 py-3 focus:border-purple-500 outline-none transition-all text-gray-700 bg-white appearance-none disabled:opacity-40 disabled:cursor-not-allowed"
+                                    value={selectedSubcategoryId}
+                                    onChange={e => handleSubcategoryChange(e.target.value)}
+                                    disabled={!selectedCategoryId || submitting || loadingSubcategories}
+                                >
+                                    <option value="">
+                                        {!selectedCategoryId
+                                            ? 'Alege întâi categoria'
+                                            : loadingSubcategories
+                                                ? 'Se încarcă...'
+                                                : subcategories.length === 0
+                                                    ? 'Fără subcategorii'
+                                                    : 'Alege subcategoria'}
+                                    </option>
+                                    {subcategories.map(sub => (
+                                        <option key={sub.id} value={sub.id}>{sub.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <button
+                                type="button"
+                                data-testid="quick-add-create-subcategory-button"
+                                onClick={() => {
+                                    if (!selectedCategoryId) {
+                                        setStatus({ msg: 'Selectează mai întâi o categorie principală.', type: 'warning' });
+                                        return;
+                                    }
+                                    setShowSubcategoryModal(true);
+                                }}
+                                disabled={submitting || !selectedCategoryId}
+                                title="Creează subcategorie nouă"
+                                className="flex items-center gap-1 px-3 py-2 bg-purple-50 hover:bg-purple-100 border-2 border-purple-200 text-purple-700 font-black rounded-xl transition-all text-xs active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                            >
+                                <Plus size={14} /> Sub.
+                            </button>
+                        </div>
+
+                        {/* Hint text */}
+                        {categoryHint && (
+                            <p className="text-[11px] text-amber-600 font-semibold mt-1.5 ml-1">{categoryHint}</p>
+                        )}
+                        {selectedCategoryId && (
+                            <p className="text-[11px] text-gray-400 mt-1 ml-1 flex items-center gap-1">
+                                <Package size={10} />
+                                {rootCategories.find(c => c.id === selectedCategoryId)?.name}
+                                {selectedSubcategoryId && subcategories.length > 0 && (
+                                    <span className="text-purple-400">
+                                        {' → '}{subcategories.find(s => s.id === selectedSubcategoryId)?.name}
+                                    </span>
+                                )}
+                            </p>
+                        )}
                     </div>
                 </div>
 
-                {/* Partea Dreaptă - Prețuri și Stoc */}
+                {/* ── DREAPTA: Prețuri, TVA, SGR, Stoc ── */}
                 <div className="flex-1 bg-gray-50/50 p-6 rounded-2xl border border-gray-100 space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
@@ -192,13 +438,13 @@ export default function FastAddPage() {
                         </div>
                     </div>
 
-                    <ProductVatGroupSelector 
+                    <ProductVatGroupSelector
                         value={form.vatGroup}
                         onChange={(val) => updateField('vatGroup', val)}
                         config={vatConfig}
                     />
 
-                    <ProductSgrSelector 
+                    <ProductSgrSelector
                         value={form.sgrSelection}
                         onChange={(val) => updateField('sgrSelection', val)}
                     />
@@ -244,15 +490,13 @@ export default function FastAddPage() {
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Dată Expirare</label>
-                            <div className="relative">
-                                <input
-                                    type="date"
-                                    className="w-full text-sm font-bold border-2 border-gray-200 rounded-xl p-3 focus:border-red-500 outline-none transition-all text-gray-700 bg-white"
-                                    value={form.expiryDate || ''}
-                                    onChange={e => updateField('expiryDate', e.target.value)}
-                                    disabled={submitting}
-                                />
-                            </div>
+                            <input
+                                type="date"
+                                className="w-full text-sm font-bold border-2 border-gray-200 rounded-xl p-3 focus:border-red-500 outline-none transition-all text-gray-700 bg-white"
+                                value={form.expiryDate || ''}
+                                onChange={e => updateField('expiryDate', e.target.value)}
+                                disabled={submitting}
+                            />
                         </div>
                     </div>
 
@@ -264,11 +508,11 @@ export default function FastAddPage() {
                         {submitting ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
                         {submitting ? 'SE SALVEAZĂ...' : 'SALVEAZĂ PRODUS'}
                     </button>
-                    
+
                     <div className="text-center">
                         <button
                             type="button"
-                            onClick={() => { resetForm(); barcodeRef.current?.focus(); }}
+                            onClick={handleReset}
                             disabled={submitting}
                             className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors"
                         >

@@ -1,17 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { usePos } from './hooks/usePos';
+import { usePosCategories } from './hooks/usePosCategories';
 import { PosHeader } from './components/PosHeader';
 import { PosSearchBar } from './components/PosSearchBar';
 import { PosProductResults } from './components/PosProductResults';
+import { PosCategoryBrowser } from './components/PosCategoryBrowser';
 import { PosCart } from './components/PosCart';
 import { PosPaymentPanel } from './components/PosPaymentPanel';
 import { ShiftOpenModal } from './components/ShiftOpenModal';
 import { ShiftCloseModal } from './components/ShiftCloseModal';
 import { PosLockScreen } from './components/PosLockScreen';
+import { posService } from './services/posService';
+import { useAuth } from '../auth/useAuth';
+import { PosProduct } from './types';
 
 const PosPage: React.FC = () => {
+    const { currentStoreId } = useAuth();
     const {
         query,
         setQuery,
@@ -45,13 +51,58 @@ const PosPage: React.FC = () => {
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
 
+    // Toate produsele pentru browser categorii
+    const [allProducts, setAllProducts] = useState<PosProduct[]>([]);
+    const [loadingAllProducts, setLoadingAllProducts] = useState(false);
+
+    const loadAllProducts = useCallback(async () => {
+        if (!currentStoreId) return;
+        setLoadingAllProducts(true);
+        try {
+            const prods = await posService.listAllProducts(currentStoreId);
+            setAllProducts(prods);
+        } catch (err) {
+            console.error('PosPage.loadAllProducts error:', err);
+        } finally {
+            setLoadingAllProducts(false);
+        }
+    }, [currentStoreId]);
+
+    useEffect(() => {
+        loadAllProducts();
+    }, [loadAllProducts]);
+
+    // Hook categorii pentru browser
+    const {
+        categoriesTree,
+        activeSubcategories,
+        browseProducts,
+        activeCategoryId,
+        activeSubcategoryId,
+        loadingCategories,
+        selectCategory,
+        selectSubcategory,
+        resetBrowse
+    } = usePosCategories({ storeId: currentStoreId, allProducts });
+
+    // Când userul tastează, resetăm browse-ul
+    const handleQueryChange = (q: string) => {
+        setQuery(q);
+        if (q && activeCategoryId) {
+            resetBrowse();
+        }
+    };
+
+    // Dacă query e gol, afișăm browser; altfel rezultatele de căutare
+    const showBrowser = !query.trim();
+
     return (
         <div className="flex h-screen bg-gray-100 overflow-hidden font-sans relative">
             {/* Ecran de blocare obligatoriu cand nu exista tura activa */}
             {!activeShift && !shiftLoading && (
-                <PosLockScreen 
-                    onOpenShiftClick={() => setIsOpenModalOpen(true)} 
-                    loading={shiftLoading} 
+                <PosLockScreen
+                    onOpenShiftClick={() => setIsOpenModalOpen(true)}
+                    loading={shiftLoading}
                 />
             )}
 
@@ -74,9 +125,9 @@ const PosPage: React.FC = () => {
 
             {/* Buton Ieșire Global (z-50 pentru a fi accesibil si peste lock screen) */}
             <div className="absolute top-6 right-6 z-50">
-                <Link 
-                    to="/" 
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white rounded-xl shadow-lg border border-slate-700 transition-all transform hover:scale-105 active:scale-95 text-sm font-bold" 
+                <Link
+                    to="/"
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white rounded-xl shadow-lg border border-slate-700 transition-all transform hover:scale-105 active:scale-95 text-sm font-bold"
                     title="Ieșire spre Dashboard"
                 >
                     <LogOut size={18} className="text-rose-400" />
@@ -86,10 +137,10 @@ const PosPage: React.FC = () => {
 
             {/* --- STANGA: CATALOG --- */}
             <div className="w-3/5 p-6 flex flex-col gap-2 pt-20 md:pt-6">
-                <PosHeader 
-                    isOnline={navigator.onLine} 
-                    syncStatus={shiftLoading ? "Verificare tură..." : (loadingSearch ? "Căutare în curs..." : "Sistem Pregătit (v2)")} 
-                    loading={loadingSearch || shiftLoading} 
+                <PosHeader
+                    isOnline={navigator.onLine}
+                    syncStatus={shiftLoading ? "Verificare tură..." : (loadingSearch ? "Căutare în curs..." : "Sistem Pregătit (v2)")}
+                    loading={loadingSearch || shiftLoading}
                     activeShift={activeShift}
                     onOpenClick={() => setIsOpenModalOpen(true)}
                     onCloseClick={() => setIsCloseModalOpen(true)}
@@ -97,31 +148,45 @@ const PosPage: React.FC = () => {
                     shiftLoading={shiftLoading}
                 />
 
-                <PosSearchBar 
-                    query={query} 
-                    onQueryChange={setQuery} 
+                <PosSearchBar
+                    query={query}
+                    onQueryChange={handleQueryChange}
                 />
 
                 <div className="flex-1 overflow-y-auto pr-2">
-                    <PosProductResults 
-                        products={searchResults} 
-                        onProductSelect={addToCart} 
-                    />
+                    {showBrowser ? (
+                        <PosCategoryBrowser
+                            categoriesTree={categoriesTree}
+                            activeSubcategories={activeSubcategories}
+                            browseProducts={browseProducts}
+                            activeCategoryId={activeCategoryId}
+                            activeSubcategoryId={activeSubcategoryId}
+                            loadingCategories={loadingCategories || loadingAllProducts}
+                            onSelectCategory={selectCategory}
+                            onSelectSubcategory={selectSubcategory}
+                            onSelectProduct={addToCart}
+                        />
+                    ) : (
+                        <PosProductResults
+                            products={searchResults}
+                            onProductSelect={addToCart}
+                        />
+                    )}
                 </div>
             </div>
 
             {/* --- DREAPTA: BON --- */}
             <div className="w-2/5 bg-white border-l border-gray-200 flex flex-col shadow-2xl z-10 relative pt-20 md:pt-0">
                 <div className="flex-1 overflow-hidden flex flex-col pt-6 md:pt-0">
-                    <PosCart 
-                        items={cart} 
-                        onUpdateQuantity={updateQuantity} 
-                        onRemoveItem={removeFromCart} 
+                    <PosCart
+                        items={cart}
+                        onUpdateQuantity={updateQuantity}
+                        onRemoveItem={removeFromCart}
                     />
                 </div>
 
                 {isSgrBlocked && (
-                    <div 
+                    <div
                         className="bg-amber-50 border-y border-amber-200 p-4 text-xs text-amber-800 flex flex-col gap-1 animate-in fade-in duration-300"
                         data-testid="pos-sgr-preflight-banner"
                     >
@@ -134,7 +199,7 @@ const PosPage: React.FC = () => {
                     </div>
                 )}
 
-                <PosPaymentPanel 
+                <PosPaymentPanel
                     total={totalBon}
                     paymentMethod={paymentMethod}
                     onPaymentMethodChange={setPaymentMethod}
