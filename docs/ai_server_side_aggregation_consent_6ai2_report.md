@@ -35,7 +35,7 @@ Datele de antrenament sunt izolate complet de datele operaționale de zi cu zi:
 
 | Risc Identificat | Nivel Risc | Strategie de Atenuare (Mitigation) |
 | :--- | :--- | :--- |
-| **Scurgerea de date brute între magazine (Multi-tenant breach)** | **CRITIC** | Izolare prin politici stricte de Row Level Security (RLS) pe tabelele `store_ai_snapshots` și `store_ai_consent`. Fiecare magazin își poate accesa doar propriile înregistrări (`current_user_store_id()`). |
+| **Scurgerea de date brute între magazine (Multi-tenant breach)** | **CRITIC** | Izolare prin politici stricte de Row Level Security (RLS) pe tabelele `store_ai_snapshots` și `store_ai_consent`. Fiecare magazin își poate accesa doar propriile înregistrări (`current_user_store_ids()`). |
 | **Procesarea neautorizată a datelor de către platform_owner** | **MEDIU** | Funcția `create_training_snapshot_if_consented` verifică explicit dacă `allow_model_improvement = TRUE` și `revoked_at IS NULL` înainte de a efectua inserarea. Orice încercare neautorizată returnează `NULL`. |
 | **Injectarea de cod sau modificarea setărilor de către casieri** | **MEDIU** | RPC-ul `update_store_ai_consent` verifică în mod direct rolul utilizatorului folosind `has_store_role(p_store_id, ARRAY['admin'])`. Utilizatorii cu rol de casier sau manager primesc erori de acces. |
 | **Scurgerea datelor prin funcții neprotejate** | **MEDIU** | Toate cele 5 funcții RPC au clauza `REVOKE ALL FROM PUBLIC, anon` aplicată în mod explicit. Drepturile de rulare sunt acordate numai rolului `authenticated`. |

@@ -45,7 +45,7 @@ graph TD
 | `updated_at` | TIMESTAMPTZ| DEFAULT now() | Data ultimei actualizări. |
 
 > [!NOTE]
-> **Check Constraint**: `CONSTRAINT chk_model_improvement_consent CHECK (NOT allow_model_improvement OR (accepted_at IS NOT NULL AND accepted_by_profile_id IS NOT NULL))` previne activarea contribution fără semnătură de audit validă.
+> **Check Constraint**: `CONSTRAINT chk_consent_signature CHECK ((NOT allow_model_improvement AND NOT allow_external_ai_processing) OR (accepted_at IS NOT NULL AND accepted_by_profile_id IS NOT NULL))` previne activarea contribution/external processing fără semnătură de audit validă.
 
 ### B. Tabela: `public.store_ai_snapshots`
 | Nume Coloană | Tip Date | Descriere |

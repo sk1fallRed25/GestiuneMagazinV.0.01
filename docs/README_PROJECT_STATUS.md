@@ -319,3 +319,37 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a creat și integrat testul Playwright E2E `test_ai_consultant_load_6ai0.py` care validează scenariile de încărcare, redirecționarea rutei și cleanup-ul prin RPC-uri, utilizând contexte de browser izolate.
   - Raport oficial creat la `docs/ai_consultant_load_failure_audit_6ai0_report.md`.
 
+- **Etapa 6AI.1 (AI Consultant UI/UX Dashboard Polish)**: **Realizat** — PASS.
+  - S-a reconstruit interfața grafică AI Consultant ca un dashboard operațional complet cu header interactiv, butoane de reîmprospătare a analizei și loader animat.
+  - S-a implementat un grid adaptiv cu 6 KPI cards (Produse active, Valoare stoc, Vânzări, Stoc zero, Stoc scăzut, Risc expirare).
+  - S-au adăugat secțiuni dedicate cu recomandări prioritizate prin coduri de culori bazate pe severitate (Critic, Warning, Info) și tabele de insight-uri detaliate.
+  - S-a asigurat responsivitatea fluidă a designului pe rezoluții diverse (de la telefoane mobile la ecrane desktop 1920x1080) prin adaptarea automată a tabelelor în liste de carduri compacte.
+  - Teste E2E validate prin suita `test_ai_consultant_ui_6ai1.py` și screenshot-uri Visual QA salvate în `artifacts/6ai1/`.
+  - Raport oficial generat la `docs/ai_consultant_ui_dashboard_6ai1_report.md`.
+
+- **Etapa 6AI.1.1 (AI Consultant Fullscreen Layout & Action Clarity Hotfix)**: **Realizat** — PASS.
+  - S-a extins lățimea containerului principal la `max-w-[1600px]` pentru optimizare pe ecrane mari/fullscreen.
+  - S-a eliminat truncarea textului din KPI cards utilizând `whitespace-normal break-words` și s-au adăugat tooltip-uri native.
+  - S-a adăugat claritate recomandărilor prioritare prin secțiuni explicite de impact operațional și acțiuni recomandate concrete.
+  - S-au înlocuit acțiunile generice cu butoane de explorare contextuală (e.g. `Vezi produse epuizate` navigând cu filtre pre-setate la `/produse`).
+  - S-au optimizat panelurile laterale din coloana dreaptă sub formă de liste compacte flexibile când lățimea disponibilă este redusă (`isSidebar={true}`), eliminând complet scrollbar-urile orizontale.
+  - S-au validat testele prin `test_ai_consultant_layout_clarity_6ai11.py` cu screenshot-uri pe 4 rezoluții salvate în `artifacts/6ai11/`.
+  - Raport oficial generat la `docs/ai_consultant_layout_clarity_hotfix_6ai11_report.md`.
+
+- **Etapa 6AI.2 (AI Server-Side Aggregation, Consent & ML Contribution Blueprint)**: **Realizat** — PASS.
+  - S-a creat blueprint-ul de design pentru stocarea consimțământului granular, stocarea snapshot-urilor operaționale și a exporturilor ML.
+  - S-a documentat schema bazei de date cu cinci indicatori independenți de consimțământ (UI visibility, data preparation, model improvement, benchmarking, external processing), toți fiind implicit `FALSE`.
+  - S-a conceput un mecanism securizat de generare a dataset-urilor fără date cu caracter personal (PII-free whitelist).
+  - S-a implementat testul static de audit `test_ai_server_side_aggregation_consent_6ai2.py`.
+  - Blueprint-ul bazei de date salvat la `database/proposed_ai_server_side_aggregation_consent_6ai2.sql` și rapoartele la `docs/ai_server_side_aggregation_consent_blueprint_6ai2.md` și `docs/ai_server_side_aggregation_consent_6ai2_report.md`.
+
+- **Etapa 6AI.3 (AI Server-Side Aggregation & Consent SQL Pre-Apply Hardening)**: **Realizat** — PASS.
+  - S-a efectuat auditul de compatibilitate cu schema live și s-a corectat helperul RLS la varianta plurală corectă `public.current_user_store_ids()`.
+  - S-au adăugat constrângeri stricte de tip `CHECK` (semnătură consimțământ, perioadă validă, limite valori non-negative, structuri de tip JSONB object/array).
+  - S-au securizat funcțiile RPC folosind `SECURITY DEFINER` și `SET search_path = public` și s-au revocat privilegiile implicite pentru `PUBLIC` și `anon`.
+  - S-a implementat validarea strictă a parametrilor și a patch-ului JSONB în `update_store_ai_consent` (rejectarea cheilor necunoscute).
+  - S-a creat scriptul de rollback idempotent `database/rollback_ai_server_side_aggregation_consent_6ai3.sql`.
+  - S-a creat scriptul de verificare statică `test_ai_server_side_aggregation_sql_hardening_6ai3.py` care a trecut cu succes (100% PASS).
+  - Niciun script SQL nu a fost executat live pe baza de date de producție în această etapă, acestea fiind pregătite ca blueprint-uri sigure de instalare.
+  - Raport oficial generat la `docs/ai_server_side_aggregation_sql_hardening_6ai3_report.md`.
+

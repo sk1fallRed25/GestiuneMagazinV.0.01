@@ -1,5 +1,5 @@
 -- =###########################################################################
--- BLUEPRINT TEHNIC - ETAPA 6AI.2: AI SERVER-SIDE AGGREGATION, CONSENT & ML
+-- BLUEPRINT TEHNIC HARDENED - ETAPA 6AI.3: AI SERVER-SIDE AGGREGATION & CONSENT
 -- IMPORTANT: ACEST FIȘIER ESTE UN BLUEPRINT DE PROIECTARE ȘI NU TREBUIE APLICAT
 -- DIRECT PE BAZA DE DATE LIVE ÎN ACEASTĂ ETAPĂ.
 -- =###########################################################################
@@ -39,11 +39,16 @@ CREATE TABLE IF NOT EXISTS public.store_ai_consent (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    -- Constrângere de validare: dacă allow_model_improvement este TRUE,
-    -- trebuie completat profilul care a acceptat și data acceptării.
-    CONSTRAINT chk_model_improvement_consent CHECK (
-        NOT allow_model_improvement OR 
+    -- Constrângere 1: Dacă îmbunătățirea modelului sau procesarea externă sunt active,
+    -- este obligatoriu să avem semnătură (accepted_at și accepted_by_profile_id populate).
+    CONSTRAINT chk_consent_signature CHECK (
+        (NOT allow_model_improvement AND NOT allow_external_ai_processing) OR 
         (accepted_at IS NOT NULL AND accepted_by_profile_id IS NOT NULL)
+    ),
+
+    -- Constrângere 2: Îmbunătățirea activă a modelului exclude posibilitatea ca revocarea să fie activă simultan.
+    CONSTRAINT chk_model_improvement_active CHECK (
+        NOT allow_model_improvement OR revoked_at IS NULL
     )
 );
 
@@ -73,10 +78,26 @@ CREATE TABLE IF NOT EXISTS public.store_ai_snapshots (
     recommendations JSONB NOT NULL,
     
     created_by TEXT NOT NULL DEFAULT 'system',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constrângeri de validare date numerice și periodice
+    CONSTRAINT chk_period_days CHECK (period_days > 0 AND period_days <= 365),
+    CONSTRAINT chk_active_products_count CHECK (active_products_count >= 0),
+    CONSTRAINT chk_total_stock_value CHECK (total_stock_value >= 0.0),
+    CONSTRAINT chk_sales_total CHECK (sales_total >= 0.0),
+    CONSTRAINT chk_sales_count CHECK (sales_count >= 0),
+    CONSTRAINT chk_low_stock_count CHECK (low_stock_count >= 0),
+    CONSTRAINT chk_no_stock_count CHECK (no_stock_count >= 0),
+    CONSTRAINT chk_expiry_risk_count CHECK (expiry_risk_count >= 0),
+    CONSTRAINT chk_waste_count CHECK (waste_count >= 0),
+    
+    -- Asigură integritatea structurilor JSONB
+    CONSTRAINT chk_snapshot_object CHECK (jsonb_typeof(snapshot) = 'object'),
+    CONSTRAINT chk_recommendations_array CHECK (jsonb_typeof(recommendations) = 'array')
 );
 
-CREATE INDEX IF NOT EXISTS idx_store_ai_snapshots_store ON public.store_ai_snapshots(store_id, period_days);
+-- Index optimizat pentru lookup analitic
+CREATE INDEX IF NOT EXISTS idx_store_ai_snapshots_lookup ON public.store_ai_snapshots(store_id, period_days, generated_at DESC);
 
 COMMENT ON TABLE public.store_ai_snapshots IS 'Cache-ul server-side pentru snapshot-urile operaționale agregate necesare dashboard-ului AI Consultant.';
 
@@ -99,7 +120,19 @@ CREATE TABLE IF NOT EXISTS public.store_ai_training_snapshots (
     source_snapshot_id UUID NULL REFERENCES public.store_ai_snapshots(id) ON DELETE SET NULL,
     used_for_model_version TEXT NULL,
     exported_at TIMESTAMPTZ NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constrângeri de validare
+    CONSTRAINT chk_training_period CHECK (period_start <= period_end),
+    CONSTRAINT chk_aggregation_level CHECK (
+        aggregation_level IN ('daily_product_category', 'weekly_product_category', 'monthly_category', 'store_period_summary')
+    ),
+    CONSTRAINT chk_anonymization_level CHECK (
+        anonymization_level IN ('aggregated_store_level', 'anonymized_category_level')
+    ),
+    CONSTRAINT chk_payload_json_object CHECK (
+        jsonb_typeof(payload_json) = 'object' AND payload_json <> '{}'::jsonb
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_store_ai_training_store ON public.store_ai_training_snapshots(store_id);
@@ -115,33 +148,35 @@ ALTER TABLE public.store_ai_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.store_ai_training_snapshots ENABLE ROW LEVEL SECURITY;
 
 -- Politici pentru store_ai_consent:
--- Adminii/Managerii magazinului și platform_owner pot citi consimțământul.
+-- Aliniat cu helper-ul live public.current_user_store_ids() (plural)
+DROP POLICY IF EXISTS "store_ai_consent_select" ON public.store_ai_consent;
 CREATE POLICY "store_ai_consent_select" ON public.store_ai_consent
     FOR SELECT
     USING (
-        store_id IN (SELECT current_user_store_id()) OR
+        store_id IN (SELECT store_id FROM public.current_user_store_ids()) OR
         is_platform_owner()
     );
 
--- Doar Adminii magazinului pot actualiza opțiunile de consimțământ.
+DROP POLICY IF EXISTS "store_ai_consent_update" ON public.store_ai_consent;
 CREATE POLICY "store_ai_consent_update" ON public.store_ai_consent
     FOR UPDATE
     USING (
-        store_id IN (SELECT current_user_store_id()) AND
+        store_id IN (SELECT store_id FROM public.current_user_store_ids()) AND
         public.has_store_role(store_id, ARRAY['admin'])
     );
 
 -- Politici pentru store_ai_snapshots:
--- Utilizatorii magazinului autorizați și platform_owner pot citi cache-ul.
+DROP POLICY IF EXISTS "store_ai_snapshots_select" ON public.store_ai_snapshots;
 CREATE POLICY "store_ai_snapshots_select" ON public.store_ai_snapshots
     FOR SELECT
     USING (
-        store_id IN (SELECT current_user_store_id()) OR
+        store_id IN (SELECT store_id FROM public.current_user_store_ids()) OR
         is_platform_owner()
     );
 
 -- Politici pentru store_ai_training_snapshots:
 -- Doar platform_owner poate selecta/exporta datele de training agregate globale.
+DROP POLICY IF EXISTS "store_ai_training_snapshots_select" ON public.store_ai_training_snapshots;
 CREATE POLICY "store_ai_training_snapshots_select" ON public.store_ai_training_snapshots
     FOR SELECT
     USING (
@@ -152,13 +187,19 @@ CREATE POLICY "store_ai_training_snapshots_select" ON public.store_ai_training_s
 -- 5. TRIGGERI ȘI JURNALIZARE AUDIT (AUDIT LOGS)
 -- ==========================================
 
+-- Trigger auto-update timestamp updated_at pe store_ai_consent
+DROP TRIGGER IF EXISTS update_store_ai_consent_updated_at ON public.store_ai_consent;
+CREATE TRIGGER update_store_ai_consent_updated_at 
+    BEFORE UPDATE ON public.store_ai_consent 
+    FOR EACH ROW 
+    EXECUTE FUNCTION public.update_updated_at_column();
+
 -- Trigger pentru înregistrarea automată a modificărilor în store_ai_consent
 CREATE OR REPLACE FUNCTION public.fn_audit_store_ai_consent_changes()
 RETURNS TRIGGER AS $$
 DECLARE
     v_profile_id UUID;
 BEGIN
-    -- Obține ID-ul profilului utilizatorului curent
     v_profile_id := auth.uid();
     
     IF TG_OP = 'UPDATE' THEN
@@ -197,6 +238,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+DROP TRIGGER IF EXISTS tr_audit_store_ai_consent ON public.store_ai_consent;
 CREATE TRIGGER tr_audit_store_ai_consent
     AFTER UPDATE ON public.store_ai_consent
     FOR EACH ROW
@@ -216,6 +258,11 @@ AS $$
 DECLARE
     v_consent RECORD;
 BEGIN
+    -- Validare input
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'Store ID-ul nu poate fi null.';
+    END IF;
+
     -- Verificare permisiuni rol: manager sau admin
     IF NOT (is_platform_owner() OR public.has_store_role(p_store_id, ARRAY['admin', 'manager'])) THEN
         RAISE EXCEPTION 'Acces neautorizat la consimțământul AI.';
@@ -252,6 +299,28 @@ DECLARE
     v_new_allow_external_ai_processing BOOLEAN;
     v_new_consent_version TEXT;
 BEGIN
+    -- Validare input
+    IF p_store_id IS NULL OR p_patch IS NULL THEN
+        RAISE EXCEPTION 'Parametrii de intrare nu pot fi null.';
+    END IF;
+
+    -- Reject unknown keys in patch (Pre-apply hardening check)
+    IF EXISTS (
+        SELECT 1 
+        FROM jsonb_object_keys(p_patch) k 
+        WHERE k NOT IN (
+            'ai_consultant_enabled', 
+            'ai_data_preparation_enabled', 
+            'allow_model_improvement', 
+            'allow_anonymized_benchmarking', 
+            'allow_cross_store_training', 
+            'allow_external_ai_processing', 
+            'consent_version'
+        )
+    ) THEN
+        RAISE EXCEPTION 'Cheie de consimțământ nevalidă în patch.';
+    END IF;
+
     -- Doar Adminul magazinului are dreptul să editeze opțiunile de consent
     IF NOT public.has_store_role(p_store_id, ARRAY['admin']) THEN
         RAISE EXCEPTION 'Doar administratorul magazinului poate modifica setările de consimțământ AI.';
@@ -283,19 +352,22 @@ BEGIN
         allow_external_ai_processing = v_new_allow_external_ai_processing,
         consent_version = v_new_consent_version,
         
-        -- Dacă s-a activat îmbunătățirea modelului și anterior era dezactivată, populăm metadatele de audit
+        -- Dacă s-a activat îmbunătățirea modelului sau procesarea externă, și anterior erau dezactivate, populăm metadatele de audit
         accepted_by_profile_id = CASE 
-            WHEN NOT v_current.allow_model_improvement AND v_new_allow_model_improvement THEN v_profile_id
+            WHEN (NOT v_current.allow_model_improvement AND v_new_allow_model_improvement) OR
+                 (NOT v_current.allow_external_ai_processing AND v_new_allow_external_ai_processing) THEN v_profile_id
             ELSE accepted_by_profile_id 
         END,
         accepted_at = CASE 
-            WHEN NOT v_current.allow_model_improvement AND v_new_allow_model_improvement THEN NOW()
+            WHEN (NOT v_current.allow_model_improvement AND v_new_allow_model_improvement) OR
+                 (NOT v_current.allow_external_ai_processing AND v_new_allow_external_ai_processing) THEN NOW()
             ELSE accepted_at 
         END,
         
-        -- Dacă s-a dezactivat model improvement, marcăm momentul retragerii
+        -- Dacă s-au dezactivat ambele, marcăm momentul retragerii
         revoked_at = CASE 
-            WHEN v_current.allow_model_improvement AND NOT v_new_allow_model_improvement THEN NOW()
+            WHEN (v_current.allow_model_improvement OR v_current.allow_external_ai_processing) AND
+                 (NOT v_new_allow_model_improvement AND NOT v_new_allow_external_ai_processing) THEN NOW()
             ELSE revoked_at 
         END,
         updated_at = NOW()
@@ -330,9 +402,18 @@ DECLARE
     
     v_snapshot_payload JSONB;
     v_recs_payload JSONB;
-    v_snapshot_id UUID;
     v_new_snapshot RECORD;
 BEGIN
+    -- Validare parametru p_store_id
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'Store ID nu poate fi null.';
+    END IF;
+
+    -- Validare perioadă (Pre-apply hardening check)
+    IF p_period_days < 1 OR p_period_days > 365 THEN
+        RAISE EXCEPTION 'Perioada de analiză trebuie să fie între 1 și 365 de zile.';
+    END IF;
+
     -- 1. Verificare permisiuni rol: manager sau admin
     IF NOT (is_platform_owner() OR public.has_store_role(p_store_id, ARRAY['admin', 'manager'])) THEN
         RAISE EXCEPTION 'Permisiuni insuficiente pentru refresh snapshot AI.';
@@ -375,7 +456,7 @@ BEGIN
         GROUP BY pr.id
     ) st;
 
-    -- 6. Agregare vânzări 30 de zile
+    -- 6. Agregare vânzări
     SELECT COALESCE(SUM(total), 0.0), COALESCE(count(*), 0)
     INTO v_sales_val, v_sales_cnt
     FROM public.sales
@@ -408,7 +489,6 @@ BEGIN
         'waste30dCount', v_waste_cnt
     );
 
-    -- Euristici recomandări simple
     v_recs_payload := jsonb_build_array();
     
     IF v_low_stock_cnt > 0 THEN
@@ -465,6 +545,27 @@ BEGIN
     )
     RETURNING * INTO v_new_snapshot;
 
+    -- Jurnalizare în audit_logs a reîmprospătării
+    INSERT INTO public.audit_logs (
+        store_id,
+        profile_id,
+        action,
+        entity_type,
+        entity_id,
+        new_data
+    ) VALUES (
+        p_store_id,
+        auth.uid(),
+        'ai_snapshot_refreshed',
+        'store_ai_snapshots',
+        v_new_snapshot.id,
+        jsonb_build_object(
+            'period_days', p_period_days,
+            'active_products_count', v_products_count,
+            'total_stock_value', v_stock_val
+        )
+    );
+
     RETURN to_jsonb(v_new_snapshot);
 END;
 $$;
@@ -479,6 +580,11 @@ AS $$
 DECLARE
     v_snapshot RECORD;
 BEGIN
+    -- Validare input
+    IF p_store_id IS NULL THEN
+        RAISE EXCEPTION 'Store ID nu poate fi null.';
+    END IF;
+
     IF NOT (is_platform_owner() OR public.has_store_role(p_store_id, ARRAY['admin', 'manager'])) THEN
         RAISE EXCEPTION 'Permisiuni insuficiente pentru citire snapshot AI.';
     END IF;
@@ -498,6 +604,7 @@ END;
 $$;
 
 -- E. Creează training snapshot anonimizat DOAR DACĂ magazinul a dat acordul explicit (allow_model_improvement)
+-- Payload-ul NU conține PII (email, profile_id, user_id, customer/employee names, IP sau raw receipt IDs)
 CREATE OR REPLACE FUNCTION public.create_training_snapshot_if_consented(
     p_store_id UUID, 
     p_period_start DATE, 
@@ -509,24 +616,32 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-    v_consent_model_improvement BOOLEAN;
+    v_consent RECORD;
     v_latest_snapshot RECORD;
     v_payload JSONB;
     v_training_id UUID;
 BEGIN
+    -- Validare parametru
+    IF p_store_id IS NULL OR p_period_start IS NULL OR p_period_end IS NULL THEN
+        RAISE EXCEPTION 'Parametrii de intrare nu pot fi null.';
+    END IF;
+
+    IF p_period_start > p_period_end THEN
+        RAISE EXCEPTION 'Data de început trebuie să fie anterioară sau egală cu data de sfârșit.';
+    END IF;
+
     -- 1. Verificare permisiune de platform_owner sau admin magazin
     IF NOT (is_platform_owner() OR public.has_store_role(p_store_id, ARRAY['admin'])) THEN
         RAISE EXCEPTION 'Neautorizat pentru crearea dataset-ului de model training.';
     END IF;
 
     -- 2. Audit consimțământ: allow_model_improvement TREBUIE să fie TRUE și revoked_at IS NULL
-    SELECT allow_model_improvement INTO v_consent_model_improvement 
+    SELECT * INTO v_consent 
     FROM public.store_ai_consent 
-    WHERE store_id = p_store_id AND revoked_at IS NULL;
+    WHERE store_id = p_store_id;
 
-    IF NOT COALESCE(v_consent_model_improvement, FALSE) THEN
-        -- Nu returnăm eroare blocantă, dar eșuăm în mod silențios/securizat prin returnarea NULL
-        -- pentru a respecta strict dorința magazinului fără a opri batch job-urile globale.
+    IF NOT FOUND OR NOT COALESCE(v_consent.allow_model_improvement, FALSE) OR v_consent.revoked_at IS NOT NULL THEN
+        -- Gating silențios pentru a preveni blocarea batch-urilor globale
         RETURN NULL;
     END IF;
 
@@ -538,10 +653,10 @@ BEGIN
     LIMIT 1;
 
     IF NOT FOUND THEN
-        RETURN NULL; -- Date operaționale lipsă
+        RETURN NULL; 
     END IF;
 
-    -- 4. Construiește payload-ul strict anonimizat (fără UUID-uri, email, sau nume proprii)
+    -- 4. Construiește payload-ul strict anonimizat (fără UUID-uri brute, email sau nume proprii)
     v_payload := jsonb_build_object(
         'period_start', p_period_start,
         'period_end', p_period_end,
@@ -568,14 +683,14 @@ BEGIN
         p_store_id,
         p_period_start,
         p_period_end,
+        'store_period_summary',
         'aggregated_store_level',
-        'fully_anonymized_kpi',
         v_payload,
         v_latest_snapshot.id
     )
     RETURNING id INTO v_training_id;
 
-    -- 6. Jurnalizare în audit_logs a exportului de training
+    -- 6. Jurnalizare în audit_logs a exportului de training (doar metadata, exclus payload)
     INSERT INTO public.audit_logs (
         store_id,
         profile_id,
@@ -592,7 +707,7 @@ BEGIN
         jsonb_build_object(
             'period_start', p_period_start,
             'period_end', p_period_end,
-            'anonymization_level', 'fully_anonymized_kpi'
+            'anonymization_level', 'aggregated_store_level'
         )
     );
 
@@ -621,8 +736,8 @@ GRANT EXECUTE ON FUNCTION public.create_training_snapshot_if_consented(UUID, DAT
 -- ==========================================
 -- COMENTARII PRIVIND PLANUL DE ROLLOUT TEHNIC
 -- ==========================================
--- A. Etapa 6AI.2 (Prezentă): Validarea statică a blueprint-ului și a arhitecturii de consent granular.
--- B. Etapa 6AI.3: Teste de pre-apply hardening SQL (dry-run, validare reguli în sandbox izolat).
+-- A. Etapa 6AI.2: Validarea statică a blueprint-ului și a arhitecturii de consent granular.
+-- B. Etapa 6AI.3 (Curentă): Hardening SQL, validare compatibilitate schema live și checks constraints.
 -- C. Etapa 6AI.4: Executare SQL live, creare tabele reale, aplicare RLS și activare RPC-uri.
 -- D. Etapa 6AI.5: Integrare interfață setări în StoreSettingsPage (toggle-uri dinamice și microcopy de securitate).
 -- E. Etapa 6AI.6: Conectare dashboard AI Consultant la get_latest_store_ai_snapshot() și refresh_store_ai_snapshot().
