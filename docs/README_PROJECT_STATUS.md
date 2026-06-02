@@ -311,3 +311,11 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
     - Toate testele din suita `test_pos_barcode_enter_auto_add_6gpos11.py` și testele de regresie FiscalNet `test_fiscalnet_pos_auto_write_6gfn3.py` trec cu succes (100% PASS).
     - Raport tehnic generat la `docs/pos_barcode_enter_auto_add_6gpos11_report.md`.
   - **Următorul pas: 6G.POS.4 Barcode Label Printing sau 6G.TEST.0 Manual Aggressive POS Testing.**
+
+- **Etapa 6AI.0 (AI Consultant Module Load Failure Audit & Hotfix)**: **Realizat** — PASS.
+  - S-a auditat serviciul de date `aiConsultantDataService.ts` și s-a identificat cauza principală a erorilor `400 Bad Request`: depășirea limitei de lungime a interogării GET (URL limit) din cauza trimiterii a 705+ ID-uri de produs într-o singură clauză `.in(...)` pentru prețuri și loturi de stoc.
+  - S-a implementat chunk-uirea interogărilor cu dimensiune fixă (`chunkSize = 100`) pentru `product_prices`, `stock_batches`, `sale_items` și `waste_items` în `aiConsultantDataService.ts`, aliniindu-se la bunele practici existente în codebase.
+  - S-au adăugat mesaje de eroare diferențiate și ecrane specifice în `AiConsultantPage.tsx` pentru: magazin neselectat, modul dezactivat, lipsă permisiuni/RLS, erori tehnice securizate și un ecran intuitiv pentru starea de date insuficiente (empty state).
+  - S-a creat și integrat testul Playwright E2E `test_ai_consultant_load_6ai0.py` care validează scenariile de încărcare, redirecționarea rutei și cleanup-ul prin RPC-uri, utilizând contexte de browser izolate.
+  - Raport oficial creat la `docs/ai_consultant_load_failure_audit_6ai0_report.md`.
+

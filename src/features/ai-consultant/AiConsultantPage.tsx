@@ -3,13 +3,13 @@ import {
     BrainCircuit, Activity, Package, Store, 
     ArrowLeft, AlertTriangle, Info, TrendingUp,
     PackageMinus, DollarSign, Loader2, CheckCircle2,
-    Clock, RefreshCw
+    Clock, RefreshCw, ShieldAlert, StoreIcon, Database
 } from 'lucide-react';
 import { useAiConsultant } from './hooks/useAiConsultant';
 import { AiRecommendation, AiProductInsight } from './types';
 
 export default function AiConsultantPage() {
-    const { data, loading, error, refresh } = useAiConsultant();
+    const { data, loading, error, errorType, refresh } = useAiConsultant();
 
     if (loading) {
         return (
@@ -20,16 +20,60 @@ export default function AiConsultantPage() {
         );
     }
 
+    // Differentiated error states
     if (error) {
+        // Store missing
+        if (errorType === 'store_missing') {
+            return (
+                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-consultant-store-missing">
+                    <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-2">
+                        <StoreIcon size={32} />
+                    </div>
+                    <h2 className="text-xl font-black text-slate-800">{error}</h2>
+                    <p className="text-slate-500 font-medium max-w-md">Selectează un magazin din meniul principal pentru a accesa AI Consultant.</p>
+                    <button 
+                        onClick={refresh}
+                        className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all"
+                        data-testid="ai-consultant-retry-button"
+                    >
+                        Încearcă din nou
+                    </button>
+                </div>
+            );
+        }
+
+        // Permission / RLS error
+        if (errorType === 'permission_error') {
+            return (
+                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-consultant-permission-error">
+                    <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mb-2">
+                        <ShieldAlert size={32} />
+                    </div>
+                    <h2 className="text-xl font-black text-slate-800">Acces restricționat</h2>
+                    <p className="text-slate-500 font-medium max-w-md">{error}</p>
+                    <button 
+                        onClick={refresh}
+                        className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all"
+                        data-testid="ai-consultant-retry-button"
+                    >
+                        Încearcă din nou
+                    </button>
+                </div>
+            );
+        }
+
+        // Technical / data error (default)
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center">
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-consultant-error">
                 <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-2">
                     <AlertTriangle size={32} />
                 </div>
-                <h2 className="text-xl font-black text-slate-800">{error}</h2>
+                <h2 className="text-xl font-black text-slate-800">Eroare tehnică</h2>
+                <p className="text-slate-500 font-medium max-w-md">{error}</p>
                 <button 
                     onClick={refresh}
                     className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all"
+                    data-testid="ai-consultant-retry-button"
                 >
                     Încearcă din nou
                 </button>
@@ -39,8 +83,51 @@ export default function AiConsultantPage() {
 
     const { snapshot, recommendations } = data!;
 
+    // Empty state: no products yet
+    if (snapshot.activeProductsCount === 0) {
+        return (
+            <div className="p-8 max-w-7xl mx-auto font-sans">
+                <header className="flex justify-between items-start mb-8">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <button 
+                                onClick={() => window.history.back()}
+                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            >
+                                <ArrowLeft size={24} />
+                            </button>
+                            <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
+                                <BrainCircuit className="text-indigo-600" size={32} /> AI Consultant
+                            </h1>
+                        </div>
+                    </div>
+                </header>
+
+                <div className="flex flex-col items-center justify-center min-h-[40vh] gap-6 p-12 text-center" data-testid="ai-consultant-empty-state">
+                    <div className="w-20 h-20 bg-indigo-50 text-indigo-400 rounded-full flex items-center justify-center">
+                        <Database size={40} />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-700">Date insuficiente</h2>
+                    <p className="text-slate-500 font-medium max-w-lg text-lg">
+                        AI Consultant este activ, dar nu există încă suficiente date pentru generarea recomandărilor.
+                    </p>
+                    <p className="text-slate-400 font-medium max-w-md text-sm">
+                        Începe prin a adăuga produse, face recepții și înregistra vânzări. Consultantul va genera automat analize și recomandări când datele sunt disponibile.
+                    </p>
+                    <button 
+                        onClick={refresh}
+                        className="mt-4 flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all"
+                        data-testid="ai-consultant-retry-button"
+                    >
+                        <RefreshCw size={18} /> Verifică din nou
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="p-8 max-w-7xl mx-auto font-sans">
+        <div className="p-8 max-w-7xl mx-auto font-sans" data-testid="ai-consultant-dashboard">
             {/* Header */}
             <header className="flex justify-between items-start mb-8">
                 <div>

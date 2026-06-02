@@ -7,7 +7,8 @@ import {
 const toNumberStrict = (value: unknown, fieldLabel: string): number => {
     const num = Number(value);
     if (value === null || value === undefined || isNaN(num) || !Number.isFinite(num)) {
-        throw new Error(`${fieldLabel} trebuie să fie un număr valid.`);
+        console.warn(`[AI Consultant] ${fieldLabel} nu este un număr valid (valoare: ${String(value)}). Se folosește 0.`);
+        return 0;
     }
     return num;
 };
@@ -41,23 +42,45 @@ export const aiConsultantDataService = {
 
         const productIds = productRows.map(p => p.id);
 
-        // 2. Fetch Prices
-        const { data: prices, error: priceErr } = await supabase
-            .from('product_prices')
-            .select('product_id, price_sale, price_purchase')
-            .eq('store_id', storeId)
-            .in('product_id', productIds);
-        if (priceErr) throw priceErr;
-        const priceRows = (prices || []) as ProductPriceRow[];
+        const chunkSize = 100;
 
-        // 3. Fetch Batches
-        const { data: batches, error: batchErr } = await supabase
-            .from('stock_batches')
-            .select('product_id, quantity, purchase_price, zone, expiry_date')
-            .eq('store_id', storeId)
-            .in('product_id', productIds);
-        if (batchErr) throw batchErr;
-        const batchRows = (batches || []) as StockBatchRow[];
+        // 2. Fetch Prices in chunks
+        const pricePromises = [];
+        for (let i = 0; i < productIds.length; i += chunkSize) {
+            const chunk = productIds.slice(i, i + chunkSize);
+            pricePromises.push(
+                supabase
+                    .from('product_prices')
+                    .select('product_id, price_sale, price_purchase')
+                    .eq('store_id', storeId)
+                    .in('product_id', chunk)
+            );
+        }
+        const priceResults = await Promise.all(pricePromises);
+        const priceRows: ProductPriceRow[] = [];
+        for (const res of priceResults) {
+            if (res.error) throw res.error;
+            if (res.data) priceRows.push(...(res.data as ProductPriceRow[]));
+        }
+
+        // 3. Fetch Batches in chunks
+        const batchPromises = [];
+        for (let i = 0; i < productIds.length; i += chunkSize) {
+            const chunk = productIds.slice(i, i + chunkSize);
+            batchPromises.push(
+                supabase
+                    .from('stock_batches')
+                    .select('product_id, quantity, purchase_price, zone, expiry_date')
+                    .eq('store_id', storeId)
+                    .in('product_id', chunk)
+            );
+        }
+        const batchResults = await Promise.all(batchPromises);
+        const batchRows: StockBatchRow[] = [];
+        for (const res of batchResults) {
+            if (res.error) throw res.error;
+            if (res.data) batchRows.push(...(res.data as StockBatchRow[]));
+        }
 
         // 4. Fetch Sales (30 days)
         const { data: sales, error: saleErr } = await supabase
@@ -72,13 +95,22 @@ export const aiConsultantDataService = {
         let saleItemRows: SaleItemRow[] = [];
         if (saleRows.length > 0) {
             const saleIds = saleRows.map(s => s.id);
-            const { data: saleItems, error: siErr } = await supabase
-                .from('sale_items')
-                .select('sale_id, product_id, quantity, total_item')
-                .eq('store_id', storeId)
-                .in('sale_id', saleIds);
-            if (siErr) throw siErr;
-            saleItemRows = (saleItems || []) as SaleItemRow[];
+            const saleItemPromises = [];
+            for (let i = 0; i < saleIds.length; i += chunkSize) {
+                const chunk = saleIds.slice(i, i + chunkSize);
+                saleItemPromises.push(
+                    supabase
+                        .from('sale_items')
+                        .select('sale_id, product_id, quantity, total_item')
+                        .eq('store_id', storeId)
+                        .in('sale_id', chunk)
+                );
+            }
+            const saleItemResults = await Promise.all(saleItemPromises);
+            for (const res of saleItemResults) {
+                if (res.error) throw res.error;
+                if (res.data) saleItemRows.push(...(res.data as SaleItemRow[]));
+            }
         }
 
         // 5. Fetch Waste (30 days)
@@ -93,13 +125,22 @@ export const aiConsultantDataService = {
         let wasteItemRows: WasteItemRow[] = [];
         if (wasteEventRows.length > 0) {
             const wasteIds = wasteEventRows.map(w => w.id);
-            const { data: wasteItems, error: wiErr } = await supabase
-                .from('waste_items')
-                .select('waste_id, product_id, quantity')
-                .eq('store_id', storeId)
-                .in('waste_id', wasteIds);
-            if (wiErr) throw wiErr;
-            wasteItemRows = (wasteItems || []) as WasteItemRow[];
+            const wasteItemPromises = [];
+            for (let i = 0; i < wasteIds.length; i += chunkSize) {
+                const chunk = wasteIds.slice(i, i + chunkSize);
+                wasteItemPromises.push(
+                    supabase
+                        .from('waste_items')
+                        .select('waste_id, product_id, quantity')
+                        .eq('store_id', storeId)
+                        .in('waste_id', chunk)
+                );
+            }
+            const wasteItemResults = await Promise.all(wasteItemPromises);
+            for (const res of wasteItemResults) {
+                if (res.error) throw res.error;
+                if (res.data) wasteItemRows.push(...(res.data as WasteItemRow[]));
+            }
         }
 
         // --- MAP DATA ---
