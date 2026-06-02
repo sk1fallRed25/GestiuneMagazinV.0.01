@@ -11,8 +11,10 @@ import { StoreSettings } from './types';
 import { Settings, RefreshCw, AlertTriangle, BrainCircuit, ShieldAlert, Store } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { FiscalNetStationSettings } from '../fiscal-net';
+import { AiConsentSettingsCard } from '../ai-consultant';
 
 export const StoreSettingsPage: React.FC = () => {
+
   const { role } = useAuth();
   const {
     settings, storeInfo, loading, saving, error, isDirty, saveSuccess,
@@ -165,7 +167,10 @@ export const StoreSettingsPage: React.FC = () => {
         />
 
         <FiscalNetStationSettings disabled={!canView} />
+
+        <AiConsentSettingsCard storeId={storeInfo.storeId} canEdit={canEdit} />
       </div>
+
 
       {/* Save bar */}
       <StoreSettingsSaveBar

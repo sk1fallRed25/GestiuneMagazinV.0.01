@@ -90,3 +90,29 @@ export interface WasteItemRow {
     product_id: string;
     quantity: number | string;
 }
+
+export interface StoreAiConsent {
+  storeId: string;
+  aiConsultantEnabled: boolean;
+  aiDataPreparationEnabled: boolean;
+  allowModelImprovement: boolean;
+  allowAnonymizedBenchmarking: boolean;
+  allowCrossStoreTraining: boolean;
+  allowExternalAiProcessing: boolean;
+  consentVersion: string;
+  acceptedByProfileId: string | null;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface StoreAiConsentPatch {
+  aiConsultantEnabled?: boolean;
+  aiDataPreparationEnabled?: boolean;
+  allowModelImprovement?: boolean;
+  allowAnonymizedBenchmarking?: boolean;
+  allowCrossStoreTraining?: boolean;
+  allowExternalAiProcessing?: boolean;
+  consentVersion?: string;
+}
+
