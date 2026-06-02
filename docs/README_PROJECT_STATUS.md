@@ -336,6 +336,14 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au validat testele prin `test_ai_consultant_layout_clarity_6ai11.py` cu screenshot-uri pe 4 rezoluții salvate în `artifacts/6ai11/`.
   - Raport oficial generat la `docs/ai_consultant_layout_clarity_hotfix_6ai11_report.md`.
 
+- **Etapa 6AI.1.2 (AI Recommendation Filters Integration in Products Page)**: **Realizat** — PASS.
+  - S-au integrat filtrele de recomandare AI în pagina de produse, permițând butoanelor din AI Consultant să navigheze utilizând parametri de interogare (e.g. `/produse?aiFilter=low_stock`) și Router state.
+  - Pagina `ProductsPage.tsx` citește activ filtrul din URL și state local, afișând doar produsele corespunzătoare: `low_stock` (stoc total cuprins între 1 și 5 bucăți) și `no_stock` (stoc total 0).
+  - S-a adăugat o notificare de limitare cu avertisment de fallback în cazul selectării `dead_stock`, indicând necesitatea conectării cu snapshot-urile server-side.
+  - S-a proiectat și implementat un banner de filtrare AI vizual premium (`products-ai-filter-banner`) cu butoane de eliminare a filtrului și redirecționare rapidă către AI Consultant.
+  - S-a dezvoltat și executat cu succes testul Playwright E2E `test_ai_recommendation_product_filters_6ai12.py`, confirmând filtrarea corectă, funcționarea bannerelor, a butoanelor de curățare și a link-urilor URL directe.
+  - Raport oficial generat la `docs/ai_recommendation_product_filters_6ai12_report.md`.
+
 - **Etapa 6AI.2 (AI Server-Side Aggregation, Consent & ML Contribution Blueprint)**: **Realizat** — PASS.
   - S-a creat blueprint-ul de design pentru stocarea consimțământului granular, stocarea snapshot-urilor operaționale și a exporturilor ML.
   - S-a documentat schema bazei de date cu cinci indicatori independenți de consimțământ (UI visibility, data preparation, model improvement, benchmarking, external processing), toți fiind implicit `FALSE`.

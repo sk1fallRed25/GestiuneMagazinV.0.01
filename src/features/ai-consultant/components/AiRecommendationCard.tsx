@@ -26,7 +26,7 @@ const getRecommendationDetails = (id: string, originalTitle: string, originalDes
                 operationalImpact: 'Risc iminent de pierdere a vânzărilor din cauza indisponibilității mărfurilor la raft.',
                 recommendedAction: 'Verifică produsele cu stoc sub 5 bucăți și pregătește o nouă recepție sau comandă de reaprovizionare.',
                 actionLabel: 'Deschide lista cu stoc scăzut',
-                pathname: '/produse',
+                pathname: '/produse?aiFilter=low_stock',
                 state: { aiFilter: 'low_stock' }
             };
         case 'no-stock':
@@ -36,7 +36,7 @@ const getRecommendationDetails = (id: string, originalTitle: string, originalDes
                 operationalImpact: 'Pierderi active de vânzări zilnice și scăderea satisfacției clienților.',
                 recommendedAction: 'Refă stocul prin comenzi urgente sau marchează produsele ca inactive în catalog dacă nu se mai comercializează.',
                 actionLabel: 'Vezi produse epuizate',
-                pathname: '/produse',
+                pathname: '/produse?aiFilter=no_stock',
                 state: { aiFilter: 'no_stock' }
             };
         case 'expiry-risk':
@@ -56,7 +56,7 @@ const getRecommendationDetails = (id: string, originalTitle: string, originalDes
                 operationalImpact: 'Capital de lucru blocat în stocuri ineficiente și ocuparea spațiului valoros de depozitare.',
                 recommendedAction: 'Evaluează prețul de vânzare, poziționarea la raft sau creează o promoție specială de lichidare.',
                 actionLabel: 'Vezi produse fără vânzare',
-                pathname: '/produse',
+                pathname: '/produse?aiFilter=dead_stock',
                 state: { aiFilter: 'dead_stock' }
             };
         case 'no-sales':

@@ -9,9 +9,10 @@ interface ProductTableProps {
     onDelete: (id: string) => void;
     userRole?: string;
     vatConfig?: ProductVatConfig | null;
+    emptyStateDescription?: string;
 }
 
-const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig }: ProductTableProps) => {
+const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig, emptyStateDescription }: ProductTableProps) => {
     // Definire roluri cu permisiuni de ștergere (v2)
     // În v2, 'admin' și 'platform_owner' au permisiuni de administrare.
     const canDelete = ['admin', 'platform_owner'].includes(userRole || '');
@@ -113,7 +114,9 @@ const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig }: Produ
                         <Package size={32} />
                     </div>
                     <p className="text-sm font-bold text-gray-700 mb-1">Nu există înregistrări disponibile</p>
-                    <p className="text-xs text-gray-400 max-w-sm">Nu au fost găsite produse care să corespundă criteriilor de căutare în acest magazin.</p>
+                    <p className="text-xs text-gray-400 max-w-sm">
+                        {emptyStateDescription || "Nu au fost găsite produse care să corespundă criteriilor de căutare în acest magazin."}
+                    </p>
                 </div>
             )}
         </div>
