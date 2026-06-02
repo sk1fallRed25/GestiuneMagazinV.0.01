@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { usePos } from './hooks/usePos';
 import { usePosCategories } from './hooks/usePosCategories';
+import { useScannerFocus } from './hooks/useScannerFocus';
 import { PosHeader } from './components/PosHeader';
 import { PosSearchBar } from './components/PosSearchBar';
 import { PosProductResults } from './components/PosProductResults';
@@ -90,6 +91,13 @@ const PosPage: React.FC = () => {
 
     const inputRef = useRef<HTMLInputElement>(null);
 
+    // Scanner Focus Mode: auto-focus management with modal protection
+    const { isScannerReady } = useScannerFocus(inputRef, {
+        isModalOpen: isOpenModalOpen || isCloseModalOpen,
+        enabled: !!activeShift && !shiftLoading,
+        refocusDelay: 200
+    });
+
     // Când userul tastează, resetăm browse-ul
     const handleQueryChange = (q: string) => {
         setQuery(q);
@@ -171,6 +179,7 @@ const PosPage: React.FC = () => {
                     query={query}
                     onQueryChange={handleQueryChange}
                     onKeyDown={handleKeyDown}
+                    isScannerReady={isScannerReady}
                 />
 
                 {barcodeNotFound && (
