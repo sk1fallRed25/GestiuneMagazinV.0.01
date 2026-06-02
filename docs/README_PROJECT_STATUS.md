@@ -353,3 +353,13 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Niciun script SQL nu a fost executat live pe baza de date de producție în această etapă, acestea fiind pregătite ca blueprint-uri sigure de instalare.
   - Raport oficial generat la `docs/ai_server_side_aggregation_sql_hardening_6ai3_report.md`.
 
+- **Etapa 6AI.4 (AI Server-Side Aggregation SQL Manual Apply Verification)**: **Realizat** — PASS.
+  - Scriptul SQL consolidat `database/proposed_ai_server_side_aggregation_consent_6ai2.sql` a fost aplicat manual în Supabase SQL Editor de către utilizator.
+  - S-a creat suita de teste automate E2E Playwright `test_ai_server_side_aggregation_apply_6ai4.py` pentru a valida funcțional structura tabelelor, constrângerile de tip CHECK, politicile RLS (izolare multi-tenant), revocarea privilegiilor anonime (execute block) și comportamentul RPC-urilor.
+  - S-a verificat că stările implicite de consimțământ sunt `FALSE`, că actualizarea consent-ului validează patch-ul JSONB, că refresh-ul snapshot-ului este blocat fără consimțământ, iar crearea datasetului ML returnează NULL fără opt-in.
+  - S-a confirmat popularea jurnalelor în `public.audit_logs` pentru toate operațiunile critice de actualizare, refresh și export.
+  - S-au rulat toate suitele de teste din proiect (hardening, UI, load regression, layout clarity) și toate au trecut cu 100% succes.
+  - Raport oficial generat la `docs/ai_server_side_aggregation_sql_apply_verification_6ai4_report.md`.
+  - **Următorul pas recomandat: 6AI.5 Store Settings AI Consent UI Integration.**
+
+
