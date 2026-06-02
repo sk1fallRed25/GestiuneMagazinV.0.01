@@ -22,7 +22,7 @@ export default function AiConsultantPage() {
     // Loading State Skeleton
     if (loading) {
         return (
-            <div className="p-8 max-w-7xl mx-auto font-sans" data-testid="ai-consultant-loading">
+            <div className="p-8 max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 mx-auto font-sans" data-testid="ai-consultant-loading">
                 {/* Header Skeleton */}
                 <div className="h-44 bg-slate-900 rounded-3xl mb-8 animate-pulse flex flex-col justify-center px-8 gap-3 border border-slate-800">
                     <div className="h-8 bg-slate-800 w-1/4 rounded-xl"></div>
@@ -138,7 +138,7 @@ export default function AiConsultantPage() {
     // Empty state: no products yet
     if (snapshot.activeProductsCount === 0) {
         return (
-            <div className="p-8 max-w-7xl mx-auto font-sans">
+            <div className="p-8 max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 mx-auto font-sans">
                 <AiConsultantHeader 
                     generatedAt={snapshot.generatedAt}
                     storeName={currentStoreName || null}
@@ -170,7 +170,7 @@ export default function AiConsultantPage() {
     }
 
     return (
-        <div className="p-8 max-w-7xl mx-auto font-sans" data-testid="ai-consultant-dashboard">
+        <div className="p-8 max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 mx-auto font-sans" data-testid="ai-consultant-dashboard">
             {/* Header */}
             <AiConsultantHeader 
                 generatedAt={snapshot.generatedAt}
@@ -183,7 +183,7 @@ export default function AiConsultantPage() {
             <div className="bg-indigo-50/60 border border-indigo-100 p-4 rounded-2xl flex items-center gap-4 mb-8">
                 <Info className="text-indigo-500 shrink-0" size={24} />
                 <p className="text-xs font-bold text-indigo-900 leading-normal">
-                    Sistem de consultanță operațională bazat pe reguli deterministe v2. Momentan nu se utilizează modele AI externe (LLM/ML). Toate recomandările sunt calculate local pentru maximă siguranță.
+                    AI Consultant folosește reguli operaționale și agregări locale ale magazinului. Nu trimite date către modele AI externe.
                 </p>
             </div>
 
@@ -240,9 +240,9 @@ export default function AiConsultantPage() {
             </div>
 
             {/* Main Sections Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-8">
                 {/* Left Side: Recommendations and Top Selling */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="md:col-span-1 xl:col-span-7 space-y-8">
                     {/* Recommendations Section */}
                     <div data-testid="ai-recommendations-section" className="space-y-4">
                         <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 mb-4">
@@ -275,13 +275,14 @@ export default function AiConsultantPage() {
                 </div>
 
                 {/* Right Side: Low Stock, Expiry Risk and Dead Stock sidebars */}
-                <div className="space-y-8">
+                <div className="md:col-span-1 xl:col-span-5 space-y-8">
                     <AiProductInsightTable 
                         title="Alertă Stoc Scăzut / Epuizat"
                         products={snapshot.lowStockProducts}
                         type="low-stock"
                         emptyMessage="Nu există produse cu stoc critic."
                         testId="ai-low-stock-section"
+                        isSidebar={true}
                     />
 
                     <AiProductInsightTable 
@@ -290,6 +291,7 @@ export default function AiConsultantPage() {
                         type="expiry"
                         emptyMessage="Nu există riscuri de expirare detectate în depozit sau magazin."
                         testId="ai-expiry-risk-section"
+                        isSidebar={true}
                     />
 
                     <AiProductInsightTable 
@@ -298,6 +300,7 @@ export default function AiConsultantPage() {
                         type="dead-stock"
                         emptyMessage="Nu există produse blocate în stoc fără mișcare."
                         testId="ai-dead-stock-section"
+                        isSidebar={true}
                     />
                 </div>
             </div>

@@ -61,14 +61,23 @@ export const AiKpiCard: React.FC<AiKpiCardProps> = ({
                 {React.cloneElement(icon as React.ReactElement, { size: 28 })}
             </div>
             <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 truncate">
+                <p 
+                    title={label} 
+                    className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 whitespace-normal break-words"
+                >
                     {label}
                 </p>
-                <p className="text-2xl font-black text-slate-800 leading-tight truncate">
+                <p 
+                    title={value} 
+                    className="text-2xl font-black text-slate-800 leading-tight truncate"
+                >
                     {value}
                 </p>
                 {subtext && (
-                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5 truncate">
+                    <p 
+                        title={subtext} 
+                        className="text-[10px] font-bold text-slate-400 uppercase mt-0.5 whitespace-normal break-words"
+                    >
                         {subtext}
                     </p>
                 )}
