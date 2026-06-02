@@ -107,5 +107,14 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Suita de teste Playwright `test_ai_consultant_ui_6ai1.py` rulează și salvează capturi de ecran visual QA în `artifacts/6ai1/`.
   - Build-ul și toate testele de regresie (inclusiv entitlements și chunking) trec cu succes.
 
+- **Etapa 6AI.2 (AI Server-Side Aggregation, Consent & ML Data Contribution Blueprint)**: **PASS**
+  - S-a proiectat blueprint-ul bazei de date în `database/proposed_ai_server_side_aggregation_consent_6ai2.sql` definind structura tabelelor `store_ai_consent`, `store_ai_snapshots` și `store_ai_training_snapshots`.
+  - S-a definit un model de consimțământ granular pe 5 niveluri separate (UI, server processing, platform ML training, cross-store benchmarking, external API processing), toate fiind implicit `FALSE`.
+  - S-au elaborat semnăturile și logica internă a RPC-urilor securizate cu clauza `SECURITY DEFINER` și verificarea strictă a rolurilor magazinului (`has_store_role`).
+  - S-au implementat politici de izolare Row Level Security (RLS) specifice fiecărei tabele și un sistem de trigger automat de audit pe modificări de consimțământ.
+  - S-a documentat conformitatea cu GDPR și AI Act, detaliind procedurile de anonimizare/minimizare a datelor și excludere completă a PII-urilor.
+  - S-a creat scriptul de test static `test_ai_server_side_aggregation_consent_6ai2.py` care validează automat respectarea constrângerilor de securitate și consent.
+  - Build-ul și toate testele trec cu succes.
+
 ### Următorul pas recomandat:
-- **`6AI.2 Server-Side Aggregation Blueprint`** (Proiectarea transferului calculelor de business din client-side în backend/server-side).
+- **`6AI.3 Server-Side Aggregation & Consent SQL Hardening`** (Rularea și pre-validarea scripturilor SQL propuse în mediul sandbox izolat).
