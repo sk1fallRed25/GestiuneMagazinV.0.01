@@ -1,39 +1,92 @@
 import React from 'react';
 import { 
     BrainCircuit, Activity, Package, Store, 
-    ArrowLeft, AlertTriangle, Info, TrendingUp,
+    AlertTriangle, Info, TrendingUp,
     PackageMinus, DollarSign, Loader2, CheckCircle2,
-    Clock, RefreshCw, ShieldAlert, StoreIcon, Database
+    Clock, RefreshCw, ShieldAlert, StoreIcon, Database,
+    AlertOctagon
 } from 'lucide-react';
 import { useAiConsultant } from './hooks/useAiConsultant';
-import { AiRecommendation, AiProductInsight } from './types';
+import { useAuth } from '../auth/useAuth';
+
+// Component Importuri
+import { AiConsultantHeader } from './components/AiConsultantHeader';
+import { AiKpiCard } from './components/AiKpiCard';
+import { AiRecommendationCard } from './components/AiRecommendationCard';
+import { AiProductInsightTable } from './components/AiProductInsightTable';
 
 export default function AiConsultantPage() {
     const { data, loading, error, errorType, refresh } = useAiConsultant();
+    const { currentStoreName } = useAuth();
 
+    // Loading State Skeleton
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                <Loader2 className="animate-spin text-indigo-600" size={48} />
-                <p className="text-slate-500 font-black animate-pulse">Consultantul AI analizează datele operaționale v2...</p>
+            <div className="p-8 max-w-7xl mx-auto font-sans" data-testid="ai-consultant-loading">
+                {/* Header Skeleton */}
+                <div className="h-44 bg-slate-900 rounded-3xl mb-8 animate-pulse flex flex-col justify-center px-8 gap-3 border border-slate-800">
+                    <div className="h-8 bg-slate-800 w-1/4 rounded-xl"></div>
+                    <div className="h-4 bg-slate-800 w-1/2 rounded-lg"></div>
+                    <div className="h-5 bg-slate-800 w-1/3 rounded-lg mt-2"></div>
+                </div>
+
+                {/* 6 KPI Cards Skeleton Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-pulse flex items-center gap-4 h-[94px]">
+                            <div className="w-12 h-12 bg-slate-100 rounded-2xl shrink-0"></div>
+                            <div className="flex-1 space-y-2">
+                                <div className="h-3 bg-slate-100 w-1/2 rounded"></div>
+                                <div className="h-5 bg-slate-100 w-3/4 rounded"></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Recommendations and Tables Skeleton */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="h-6 bg-slate-200 w-1/4 rounded mb-4"></div>
+                        {[...Array(2)].map((_, i) => (
+                            <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-pulse space-y-4">
+                                <div className="h-4 bg-slate-100 w-12 rounded"></div>
+                                <div className="h-6 bg-slate-100 w-1/2 rounded flex items-center gap-2"></div>
+                                <div className="h-4 bg-slate-100 w-3/4 rounded"></div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="space-y-6">
+                        <div className="h-6 bg-slate-200 w-1/3 rounded mb-4"></div>
+                        {[...Array(3)].map((_, i) => (
+                            <div key={i} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-pulse space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-slate-100 rounded-xl shrink-0"></div>
+                                    <div className="flex-1 space-y-2">
+                                        <div className="h-4 bg-slate-100 w-3/4 rounded"></div>
+                                        <div className="h-3 bg-slate-100 w-1/2 rounded"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         );
     }
 
     // Differentiated error states
     if (error) {
-        // Store missing
         if (errorType === 'store_missing') {
             return (
                 <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-consultant-store-missing">
-                    <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mb-2">
-                        <StoreIcon size={32} />
+                    <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-3xl border border-amber-100 flex items-center justify-center mb-2 shadow-sm">
+                        <StoreIcon size={36} />
                     </div>
-                    <h2 className="text-xl font-black text-slate-800">{error}</h2>
-                    <p className="text-slate-500 font-medium max-w-md">Selectează un magazin din meniul principal pentru a accesa AI Consultant.</p>
+                    <h2 className="text-2xl font-black text-slate-800">{error}</h2>
+                    <p className="text-slate-500 font-semibold max-w-md mt-1 leading-relaxed">Selectează un magazin din meniul principal pentru a accesa AI Consultant.</p>
                     <button 
                         onClick={refresh}
-                        className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all"
+                        className="mt-4 px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
                         data-testid="ai-consultant-retry-button"
                     >
                         Încearcă din nou
@@ -42,18 +95,17 @@ export default function AiConsultantPage() {
             );
         }
 
-        // Permission / RLS error
         if (errorType === 'permission_error') {
             return (
                 <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-consultant-permission-error">
-                    <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center mb-2">
-                        <ShieldAlert size={32} />
+                    <div className="w-20 h-20 bg-orange-50 text-orange-600 rounded-3xl border border-orange-100 flex items-center justify-center mb-2 shadow-sm">
+                        <ShieldAlert size={36} />
                     </div>
-                    <h2 className="text-xl font-black text-slate-800">Acces restricționat</h2>
-                    <p className="text-slate-500 font-medium max-w-md">{error}</p>
+                    <h2 className="text-2xl font-black text-slate-800">Acces restricționat</h2>
+                    <p className="text-slate-500 font-semibold max-w-md mt-1 leading-relaxed">{error}</p>
                     <button 
                         onClick={refresh}
-                        className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all"
+                        className="mt-4 px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
                         data-testid="ai-consultant-retry-button"
                     >
                         Încearcă din nou
@@ -65,14 +117,14 @@ export default function AiConsultantPage() {
         // Technical / data error (default)
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-consultant-error">
-                <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-2">
-                    <AlertTriangle size={32} />
+                <div className="w-20 h-20 bg-red-50 text-red-600 rounded-3xl border border-red-100 flex items-center justify-center mb-2 shadow-sm">
+                    <AlertTriangle size={36} />
                 </div>
-                <h2 className="text-xl font-black text-slate-800">Eroare tehnică</h2>
-                <p className="text-slate-500 font-medium max-w-md">{error}</p>
+                <h2 className="text-2xl font-black text-slate-800">Eroare tehnică</h2>
+                <p className="text-slate-500 font-semibold max-w-md mt-1 leading-relaxed">{error}</p>
                 <button 
                     onClick={refresh}
-                    className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all"
+                    className="mt-4 px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
                     data-testid="ai-consultant-retry-button"
                 >
                     Încearcă din nou
@@ -87,36 +139,27 @@ export default function AiConsultantPage() {
     if (snapshot.activeProductsCount === 0) {
         return (
             <div className="p-8 max-w-7xl mx-auto font-sans">
-                <header className="flex justify-between items-start mb-8">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <button 
-                                onClick={() => window.history.back()}
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                            >
-                                <ArrowLeft size={24} />
-                            </button>
-                            <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-                                <BrainCircuit className="text-indigo-600" size={32} /> AI Consultant
-                            </h1>
-                        </div>
-                    </div>
-                </header>
+                <AiConsultantHeader 
+                    generatedAt={snapshot.generatedAt}
+                    storeName={currentStoreName || null}
+                    onRefresh={refresh}
+                    isRefreshing={loading}
+                />
 
                 <div className="flex flex-col items-center justify-center min-h-[40vh] gap-6 p-12 text-center" data-testid="ai-consultant-empty-state">
-                    <div className="w-20 h-20 bg-indigo-50 text-indigo-400 rounded-full flex items-center justify-center">
+                    <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-3xl border border-indigo-100 flex items-center justify-center shadow-sm">
                         <Database size={40} />
                     </div>
-                    <h2 className="text-2xl font-black text-slate-700">Date insuficiente</h2>
-                    <p className="text-slate-500 font-medium max-w-lg text-lg">
+                    <h2 className="text-2xl font-black text-slate-800">Date insuficiente pentru analiză</h2>
+                    <p className="text-slate-500 font-semibold max-w-lg text-sm leading-relaxed">
                         AI Consultant este activ, dar nu există încă suficiente date pentru generarea recomandărilor.
                     </p>
-                    <p className="text-slate-400 font-medium max-w-md text-sm">
+                    <p className="text-slate-400 font-semibold max-w-md text-xs leading-normal">
                         Începe prin a adăuga produse, face recepții și înregistra vânzări. Consultantul va genera automat analize și recomandări când datele sunt disponibile.
                     </p>
                     <button 
                         onClick={refresh}
-                        className="mt-4 flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-all"
+                        className="mt-4 flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
                         data-testid="ai-consultant-retry-button"
                     >
                         <RefreshCw size={18} /> Verifică din nou
@@ -129,274 +172,134 @@ export default function AiConsultantPage() {
     return (
         <div className="p-8 max-w-7xl mx-auto font-sans" data-testid="ai-consultant-dashboard">
             {/* Header */}
-            <header className="flex justify-between items-start mb-8">
-                <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <button 
-                            onClick={() => window.history.back()}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                        >
-                            <ArrowLeft size={24} />
-                        </button>
-                        <h1 className="text-3xl font-black text-slate-800 flex items-center gap-3">
-                            <BrainCircuit className="text-indigo-600" size={32} /> AI Consultant
-                        </h1>
-                    </div>
-                    <p className="text-slate-500 font-medium ml-12">
-                        Analiză operațională v2 bazată pe datele din ultimele 30 de zile.
-                        <span className="block text-[10px] uppercase font-black text-slate-400 tracking-tighter mt-1">
-                            Generat la: {new Date(snapshot.generatedAt).toLocaleString('ro-RO')}
-                        </span>
-                    </p>
-                </div>
-                <button 
-                    onClick={refresh}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 font-bold rounded-xl shadow-sm hover:border-indigo-500 hover:text-indigo-600 transition-all"
-                >
-                    <RefreshCw size={18} /> Re-analizează
-                </button>
-            </header>
+            <AiConsultantHeader 
+                generatedAt={snapshot.generatedAt}
+                storeName={currentStoreName || null}
+                onRefresh={refresh}
+                isRefreshing={loading}
+            />
 
-            {/* Disclaimer */}
-            <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl flex items-center gap-4 mb-8">
+            {/* Disclaimer / Info */}
+            <div className="bg-indigo-50/60 border border-indigo-100 p-4 rounded-2xl flex items-center gap-4 mb-8">
                 <Info className="text-indigo-500 shrink-0" size={24} />
-                <p className="text-sm font-bold text-indigo-900">
+                <p className="text-xs font-bold text-indigo-900 leading-normal">
                     Sistem de consultanță operațională bazat pe reguli deterministe v2. Momentan nu se utilizează modele AI externe (LLM/ML). Toate recomandările sunt calculate local pentru maximă siguranță.
                 </p>
             </div>
 
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <StatCard 
+            {/* KPI Cards Grid (6 columns responsive) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                <AiKpiCard 
+                    icon={<Package />} 
+                    label="Produse Active" 
+                    value={snapshot.activeProductsCount.toString()} 
+                    color="blue" 
+                    testId="ai-kpi-products-active"
+                    subtext="nomenclator"
+                />
+                <AiKpiCard 
                     icon={<DollarSign />} 
                     label="Valoare Stoc" 
                     value={`${snapshot.totalStockValue.toLocaleString('ro-RO')} lei`} 
                     color="indigo" 
+                    testId="ai-kpi-stock-value"
+                    subtext="estimată achiziție"
                 />
-                <StatCard 
+                <AiKpiCard 
                     icon={<TrendingUp />} 
                     label="Vânzări (30z)" 
                     value={`${snapshot.sales30dTotal.toLocaleString('ro-RO')} lei`} 
                     color="emerald" 
-                    subtext={`${snapshot.sales30dCount} bonuri`}
+                    testId="ai-kpi-sales-30d"
+                    subtext={`${snapshot.sales30dCount} tranzacții`}
                 />
-                <StatCard 
+                <AiKpiCard 
+                    icon={<AlertOctagon />} 
+                    label="Stoc Epuizat" 
+                    value={snapshot.noStockCount.toString()} 
+                    color="red" 
+                    testId="ai-kpi-no-stock"
+                    subtext="produse stoc zero"
+                />
+                <AiKpiCard 
                     icon={<AlertTriangle />} 
                     label="Stoc Scăzut" 
                     value={snapshot.lowStockCount.toString()} 
                     color="orange" 
+                    testId="ai-kpi-low-stock"
                     subtext="sub 5 bucăți"
                 />
-                <StatCard 
+                <AiKpiCard 
                     icon={<Clock />} 
                     label="Risc Expirare" 
                     value={snapshot.expiryRiskCount.toString()} 
-                    color="red" 
-                    subtext="loturi afectate"
+                    color="purple" 
+                    testId="ai-kpi-expiry-risk"
+                    subtext="loturi active"
                 />
             </div>
 
+            {/* Main Sections Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Recommendations List */}
-                <div className="lg:col-span-2 space-y-4">
-                    <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 mb-4">
-                        <Activity size={24} className="text-indigo-600" /> Recomandări Prioritare
-                    </h2>
-                    
-                    {recommendations.length === 0 ? (
-                        <div className="bg-emerald-50 border border-emerald-100 p-12 rounded-3xl flex flex-col items-center text-center gap-4">
-                            <CheckCircle2 size={64} className="text-emerald-500" />
-                            <h3 className="text-xl font-black text-emerald-900">Magazin Optimizat</h3>
-                            <p className="text-emerald-700 font-medium max-w-md">Sistemul nu a detectat anomalii sau riscuri majore în datele operaționale curente. Bravo!</p>
-                        </div>
-                    ) : (
-                        recommendations.map(rec => (
-                            <RecommendationCard key={rec.id} recommendation={rec} />
-                        ))
-                    )}
+                {/* Left Side: Recommendations and Top Selling */}
+                <div className="lg:col-span-2 space-y-8">
+                    {/* Recommendations Section */}
+                    <div data-testid="ai-recommendations-section" className="space-y-4">
+                        <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 mb-4">
+                            <Activity size={24} className="text-indigo-600" /> Recomandări Prioritare
+                        </h2>
+                        
+                        {recommendations.length === 0 ? (
+                            <div className="bg-emerald-50/50 border border-emerald-100 p-12 rounded-3xl flex flex-col items-center text-center gap-4">
+                                <CheckCircle2 size={64} className="text-emerald-500" />
+                                <h3 className="text-xl font-black text-emerald-950">Magazin Optimizat</h3>
+                                <p className="text-emerald-700 font-semibold max-w-md leading-relaxed text-sm">
+                                    Sistemul nu a detectat anomalii sau riscuri majore în datele operaționale curente. Bravo!
+                                </p>
+                            </div>
+                        ) : (
+                            recommendations.map(rec => (
+                                <AiRecommendationCard key={rec.id} recommendation={rec} />
+                            ))
+                        )}
+                    </div>
 
                     {/* Top Selling Products */}
-                    <div className="pt-8">
-                        <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 mb-6">
-                            <TrendingUp size={24} className="text-emerald-600" /> Cele Mai Vândute (30z)
-                        </h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {snapshot.topSellingProducts.map(p => (
-                                <InsightProductCard key={p.productId} product={p} type="sales" />
-                            ))}
-                        </div>
-                    </div>
+                    <AiProductInsightTable 
+                        title="Cele mai vândute produse (30z)"
+                        products={snapshot.topSellingProducts}
+                        type="top-selling"
+                        emptyMessage="Nu s-au înregistrat vânzări în ultimele 30 de zile."
+                        testId="ai-top-selling-section"
+                    />
                 </div>
 
-                {/* Side Insights */}
+                {/* Right Side: Low Stock, Expiry Risk and Dead Stock sidebars */}
                 <div className="space-y-8">
-                    {/* Low Stock Sidebar */}
-                    <div>
-                        <h2 className="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
-                            <AlertTriangle size={20} className="text-orange-500" /> Alertă Stoc Mic
-                        </h2>
-                        <div className="space-y-3">
-                            {snapshot.lowStockProducts.map(p => (
-                                <InsightProductCard key={p.productId} product={p} type="stock" />
-                            ))}
-                        </div>
-                    </div>
+                    <AiProductInsightTable 
+                        title="Alertă Stoc Scăzut / Epuizat"
+                        products={snapshot.lowStockProducts}
+                        type="low-stock"
+                        emptyMessage="Nu există produse cu stoc critic."
+                        testId="ai-low-stock-section"
+                    />
 
-                    {/* Expiry Risk Sidebar */}
-                    <div>
-                        <h2 className="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
-                            <Clock size={20} className="text-red-500" /> Risc Expirare Loturi
-                        </h2>
-                        <div className="space-y-3">
-                            {snapshot.expiryRiskProducts.map(p => (
-                                <InsightProductCard key={p.productId} product={p} type="expiry" />
-                            ))}
-                        </div>
-                    </div>
+                    <AiProductInsightTable 
+                        title="Risc Expirare Loturi"
+                        products={snapshot.expiryRiskProducts}
+                        type="expiry"
+                        emptyMessage="Nu există riscuri de expirare detectate în depozit sau magazin."
+                        testId="ai-expiry-risk-section"
+                    />
 
-                    {/* Dead Stock Sidebar */}
-                    <div>
-                        <h2 className="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
-                            <PackageMinus size={20} className="text-slate-500" /> Dead Stock (Valoare Blocată)
-                        </h2>
-                        <div className="space-y-3">
-                            {snapshot.deadStockProducts.map(p => (
-                                <InsightProductCard key={p.productId} product={p} type="dead" />
-                            ))}
-                        </div>
-                    </div>
+                    <AiProductInsightTable 
+                        title="Dead Stock (Valoare Blocată)"
+                        products={snapshot.deadStockProducts}
+                        type="dead-stock"
+                        emptyMessage="Nu există produse blocate în stoc fără mișcare."
+                        testId="ai-dead-stock-section"
+                    />
                 </div>
-            </div>
-        </div>
-    );
-}
-
-function StatCard({ icon, label, value, color, subtext }: { icon: React.ReactNode, label: string, value: string, color: string, subtext?: string }) {
-    const colors: Record<string, string> = {
-        indigo: 'bg-indigo-50 text-indigo-600',
-        emerald: 'bg-emerald-50 text-emerald-600',
-        orange: 'bg-orange-50 text-orange-600',
-        red: 'bg-red-50 text-red-600'
-    };
-
-    return (
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-5">
-            <div className={`w-14 h-14 ${colors[color]} rounded-2xl flex items-center justify-center shrink-0`}>
-                {React.cloneElement(icon as React.ReactElement, { size: 28 })}
-            </div>
-            <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-                <p className="text-2xl font-black text-slate-800 leading-tight">{value}</p>
-                {subtext && <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{subtext}</p>}
-            </div>
-        </div>
-    );
-}
-
-function RecommendationCard({ recommendation }: { recommendation: AiRecommendation }) {
-    const config = {
-        critical: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-900', icon: 'text-red-600', badge: 'CRITICAL' },
-        warning: { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-900', icon: 'text-orange-600', badge: 'ATENȚIE' },
-        info: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-900', icon: 'text-indigo-600', badge: 'INFO' }
-    };
-
-    const style = config[recommendation.severity as keyof typeof config] || config.info;
-
-    return (
-        <div className={`${style.bg} border ${style.border} p-6 rounded-3xl shadow-sm transition-all hover:shadow-md`}>
-            <div className="flex justify-between items-start mb-3">
-                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${style.icon} border border-current`}>
-                    {style.badge}
-                </span>
-            </div>
-            <h3 className={`text-xl font-black mb-2 ${style.text}`}>{recommendation.title}</h3>
-            <p className={`text-sm font-medium ${style.text} opacity-80 mb-6`}>{recommendation.description}</p>
-            
-            {recommendation.actionLabel && (
-                <button className="px-6 py-2 bg-white text-slate-800 font-black text-xs rounded-xl border border-slate-200 shadow-sm hover:border-indigo-500 hover:text-indigo-600 transition-all flex items-center gap-2">
-                    {recommendation.actionLabel}
-                </button>
-            )}
-        </div>
-    );
-}
-
-function InsightProductCard({ product, type }: { product: AiProductInsight, type: 'sales' | 'stock' | 'expiry' | 'dead' }) {
-
-    return (
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:border-indigo-200 transition-all">
-            <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
-                    <Package size={20} />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="font-black text-slate-800 text-sm truncate">{product.name}</p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{product.barcode}</p>
-                </div>
-            </div>
-
-            <div className="flex items-center justify-between mt-4">
-                {type === 'sales' && (
-                    <>
-                        <div className="text-left">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Cantitate Vândută</p>
-                            <p className="text-sm font-black text-emerald-600">{product.soldQuantity30d} {product.unit}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Venit Generat</p>
-                            <p className="text-sm font-black text-slate-800">{product.soldValue30d.toFixed(2)} lei</p>
-                        </div>
-                    </>
-                )}
-
-                {type === 'stock' && (
-                    <>
-                        <div className="text-left">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Stoc Curent</p>
-                            <p className="text-sm font-black text-orange-600">{product.stockTotal} {product.unit}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Zonă</p>
-                            <p className="text-[10px] font-black text-slate-500 uppercase">
-                                {product.stockMagazin > 0 ? 'Magazin' : 'Depozit'}
-                            </p>
-                        </div>
-                    </>
-                )}
-
-                {type === 'expiry' && (
-                    <>
-                        <div className="text-left">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Nivel Risc</p>
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${
-                                product.expiryRisk === 'expired' ? 'bg-red-50 text-red-600 border-red-200' : 
-                                product.expiryRisk === 'critical' ? 'bg-orange-50 text-orange-600 border-orange-200' : 
-                                'bg-yellow-50 text-yellow-600 border-yellow-200'
-                            }`}>
-                                {product.expiryRisk.toUpperCase()}
-                            </span>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Loturi Afectate</p>
-                            <p className="text-sm font-black text-slate-800">{product.stockTotal} {product.unit}</p>
-                        </div>
-                    </>
-                )}
-
-                {type === 'dead' && (
-                    <>
-                        <div className="text-left">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Ultima Vânzare</p>
-                            <p className="text-[10px] font-black text-slate-500">
-                                {product.lastSaleAt ? new Date(product.lastSaleAt).toLocaleDateString('ro-RO') : 'NICIODATĂ'}
-                            </p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Valoare Blocată</p>
-                            <p className="text-sm font-black text-red-600">{product.stockValueEstimate.toFixed(2)} lei</p>
-                        </div>
-                    </>
-                )}
             </div>
         </div>
     );

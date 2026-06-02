@@ -88,3 +88,24 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
 
 ### Urmatorul pas recomandat:
 - **`6G.POS.4 Barcode Label Printing`** (Tipărire etichete coduri de bare)
+
+---
+
+## Stadiu AI Consultant
+
+- **Etapa 6AI.0 (AI Consultant Module Load Failure Audit & Hotfix)**: **PASS**
+  - S-a rezolvat eroarea generică `Nu s-au putut încărca datele.` prin introducerea unui chunking asincron (`chunkSize = 100`) pentru interogările masive `.in(...)` care depășeau limita de 8KB a API Gateway-ului Supabase.
+  - S-a redus strictețea parser-ului numeric, introducând fallback pe valoarea `0` în caz de date invalide sau corupte pentru a asigura randarea.
+  - S-a diferențiat ecranul de eroare în UI pentru a afișa mesaje specifice de Store lipsă, RLS restricționat, Eroare tehnică și Date insuficiente (empty state).
+  - S-au adăugat selectori `data-testid` și s-a creat suita `test_ai_consultant_load_6ai0.py` pentru regresie.
+
+- **Etapa 6AI.1 (AI Consultant UI/UX Dashboard Polish)**: **PASS**
+  - S-a proiectat și implementat un dashboard operațional premium, utilizând carduri KPI animate, alerte colorate pe bază de severitate și butoane de acțiune rapidă către rutele active.
+  - S-au creat componente curate și reutilizabile: `AiConsultantHeader`, `AiKpiCard`, `AiRecommendationCard` și `AiProductInsightTable`.
+  - S-a asigurat responsivitatea completă pe 4 rezoluții (desktop, laptop, tabletă, mobil) prin transformarea automată a tabelelor mari în liste de carduri compacte pe ecrane de telefon (390x844).
+  - S-a implementat o stare de încărcare premium cu animații de tip skeleton loader.
+  - Suita de teste Playwright `test_ai_consultant_ui_6ai1.py` rulează și salvează capturi de ecran visual QA în `artifacts/6ai1/`.
+  - Build-ul și toate testele de regresie (inclusiv entitlements și chunking) trec cu succes.
+
+### Următorul pas recomandat:
+- **`6AI.2 Server-Side Aggregation Blueprint`** (Proiectarea transferului calculelor de business din client-side în backend/server-side).
