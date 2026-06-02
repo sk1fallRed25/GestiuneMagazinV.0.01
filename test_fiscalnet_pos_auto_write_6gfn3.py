@@ -55,7 +55,7 @@ def run_e2e_tests():
         page.on("pageerror", lambda err: safe_print(f"[BROWSER ERROR] {err}"))
         
         # Login
-        page.goto("http://localhost:5173/#/login")
+        page.goto("http://localhost:5174/#/login")
         page.locator("input[type='text']").wait_for(state="visible", timeout=10000)
         page.locator("input[type='text']").fill("admin@admin.com")
         page.locator("input[type='password']").fill("admin123")
@@ -137,7 +137,7 @@ def run_e2e_tests():
         safe_print(f"Seeded products: {seeding}")
 
         # Go to POS
-        page.goto("http://localhost:5173/#/vanzare")
+        page.goto("http://localhost:5174/#/vanzare")
         page.wait_for_timeout(2000)
 
         # Open shift if locked
@@ -209,7 +209,7 @@ def run_e2e_tests():
         page.on("dialog", handle_dialog_b)
 
         # Login
-        page.goto("http://localhost:5173/#/login")
+        page.goto("http://localhost:5174/#/login")
         page.locator("input[type='text']").wait_for(state="visible")
         page.locator("input[type='text']").fill("admin@admin.com")
         page.locator("input[type='password']").fill("admin123")
@@ -217,7 +217,7 @@ def run_e2e_tests():
         page.locator("text=Deconectare").wait_for(state="visible")
 
         # Go to POS
-        page.goto("http://localhost:5173/#/vanzare")
+        page.goto("http://localhost:5174/#/vanzare")
         page.wait_for_timeout(2000)
 
         # Open shift if locked

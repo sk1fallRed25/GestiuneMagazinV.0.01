@@ -301,4 +301,13 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Scanarea în POS funcționează perfect prin maparea în câmpul existent `barcode` (fără a schimba schema DB/RLS).
   - S-au validat testele E2E Playwright/static (`test_internal_barcode_generation_6gpos3.py` PASS) și build-ul Vite de producție.
   - Raport oficial creat la `docs/internal_barcode_generation_6gpos3_report.md`.
+  - **Etapa 6G.POS.1.1 (POS Barcode Enter Auto-Add Hotfix)**: **Realizat** — PASS.
+    - S-a implementat adăugarea automată a produsului în coș la apăsarea tastei `Enter` (pe baza codului de bare scanat/lipit).
+    - Se golește inputul și se menține/resturează focusul pe inputul `pos-barcode-input` pentru scanări succesive rapide.
+    - Scanarea repetată a aceluiași cod mărește cantitatea (fără a duplica linia de produs).
+    - Valoarea totală SGR și totalul bonului sunt actualizate corespunzător.
+    - În cazul codurilor inexistente, se afișează bannerul de avertizare `pos-barcode-not-found` sub formă de notificare non-blocking, care se ascunde automat la re-tastare.
+    - S-a validat că fluxul de checkout și scrierea automată a fișierelor de comenzi FiscalNet post-checkout funcționează perfect.
+    - Toate testele din suita `test_pos_barcode_enter_auto_add_6gpos11.py` și testele de regresie FiscalNet `test_fiscalnet_pos_auto_write_6gfn3.py` trec cu succes (100% PASS).
+    - Raport tehnic generat la `docs/pos_barcode_enter_auto_add_6gpos11_report.md`.
   - **Următorul pas: 6G.POS.4 Barcode Label Printing sau 6G.TEST.0 Manual Aggressive POS Testing.**

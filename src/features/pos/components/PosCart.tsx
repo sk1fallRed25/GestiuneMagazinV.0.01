@@ -27,7 +27,7 @@ export const PosCart: React.FC<PosCartProps> = ({ items, onUpdateQuantity, onRem
                     </div>
                 ) : (
                     items.map((item) => (
-                        <div key={item.productId} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3 animate-in slide-in-from-right-4 duration-300">
+                        <div key={item.productId} data-testid={`pos-cart-line-${item.productId}`} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3 animate-in slide-in-from-right-4 duration-300">
                             <div className="flex-1 min-w-0">
                                 <div className="font-bold text-gray-800 truncate">{item.name}</div>
                                 <div className="text-sm text-gray-500 font-mono mt-1">
@@ -61,7 +61,7 @@ export const PosCart: React.FC<PosCartProps> = ({ items, onUpdateQuantity, onRem
                                 >
                                     <Minus size={14} />
                                 </button>
-                                <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
+                                <span data-testid={`pos-cart-qty-${item.productId}`} className="w-8 text-center font-bold text-sm">{item.quantity}</span>
                                 <button 
                                     onClick={() => onUpdateQuantity(item.productId, item.quantity + 1)} 
                                     className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-green-50 text-gray-600 hover:text-green-600 transition-colors disabled:opacity-30"

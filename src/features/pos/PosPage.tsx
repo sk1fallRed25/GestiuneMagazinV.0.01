@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { usePos } from './hooks/usePos';
@@ -45,7 +45,10 @@ const PosPage: React.FC = () => {
         removeFromCart,
         updateQuantity,
         isSgrBlocked,
-        finalizeSale
+        finalizeSale,
+        barcodeNotFound,
+        setBarcodeNotFound,
+        handleBarcodeEnter
     } = usePos();
 
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
@@ -85,11 +88,26 @@ const PosPage: React.FC = () => {
         resetBrowse
     } = usePosCategories({ storeId: currentStoreId, allProducts });
 
+    const inputRef = useRef<HTMLInputElement>(null);
+
     // Când userul tastează, resetăm browse-ul
     const handleQueryChange = (q: string) => {
         setQuery(q);
         if (q && activeCategoryId) {
             resetBrowse();
+        }
+    };
+
+    const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const val = query.trim();
+            if (!val) return;
+
+            await handleBarcodeEnter(val);
+            setTimeout(() => {
+                inputRef.current?.focus();
+            }, 50);
         }
     };
 
@@ -149,9 +167,23 @@ const PosPage: React.FC = () => {
                 />
 
                 <PosSearchBar
+                    ref={inputRef}
                     query={query}
                     onQueryChange={handleQueryChange}
+                    onKeyDown={handleKeyDown}
                 />
+
+                {barcodeNotFound && (
+                    <div 
+                        data-testid="pos-barcode-not-found"
+                        className="mb-6 p-4 bg-rose-50 border-2 border-rose-200/50 rounded-xl text-rose-800 font-medium flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 shadow-sm"
+                    >
+                        <span className="text-xl">⚠️</span>
+                        <div>
+                            Produsul cu codul <span className="font-bold font-mono bg-rose-100/50 px-1.5 py-0.5 rounded border border-rose-200">{barcodeNotFound}</span> nu există.
+                        </div>
+                    </div>
+                )}
 
                 <div className="flex-1 overflow-y-auto pr-2">
                     {showBrowser ? (

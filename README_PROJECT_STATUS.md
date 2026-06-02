@@ -81,5 +81,10 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Build: 0 erori TypeScript, 2556 module.
   - Teste: 26 PASS, 0 FAIL.
 
+- **Etapa 6G.POS.1.1 (POS Barcode Enter Auto-Add Hotfix)**: **PASS**
+  - S-a implementat adăugarea automată a produsului în coș la scanarea sau introducerea codului de bare și apăsarea tastei `Enter` în POS.
+  - Scanarea repetată mărește cantitatea (fără duplicate), actualizează SGR și totalul bonului, iar în caz de cod inexistent afișează o eroare temporară, păstrând focusul pe input.
+  - Testele E2E Playwright și testele de regresie trec cu succes.
+
 ### Urmatorul pas recomandat:
-- **`6G.POS.3 Internal Codes / Generated Barcodes`** (Produse fara barcode, coduri interne auto-generate)
+- **`6G.POS.4 Barcode Label Printing`** (Tipărire etichete coduri de bare)

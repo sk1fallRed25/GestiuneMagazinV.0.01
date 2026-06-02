@@ -86,7 +86,7 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
 
             <div className="flex justify-between items-end mb-6">
                 <span className="text-gray-500 font-medium">TOTAL DE PLATĂ</span>
-                <span className="text-5xl font-black text-gray-900 tracking-tight">
+                <span className="text-5xl font-black text-gray-900 tracking-tight" data-testid="pos-cart-total">
                     {total.toFixed(2)} <span className="text-lg text-gray-400 font-normal">LEI</span>
                 </span>
             </div>
