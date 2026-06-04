@@ -175,4 +175,13 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Toate testele Playwright trec: `test_pos_cart_recovery_close_app_6app51.py` (12/12 PASS, Exit code 0).
   - Raport detaliat: `docs/pos_cart_recovery_close_app_6app51_report.md`.
 
+- **Etapa 6APP.6 (Local SQLite Database & Cache Storage in Electron Main)**: **PASS**
+  - Integrată baza de date SQLite nativă (`better-sqlite3`) în procesul Electron Main (`electron-sqlite-service.js`), inițializată în `%APPDATA%/Sistem Gestiune Magazin/offline_cache.db`.
+  - Definite tabelele locale SQLite (`local_products`, `local_product_prices`, `local_stock_snapshot`, `local_categories`, `local_shift_state`, `local_store_settings`, `local_sync_metadata`, `local_offline_sales_queue`) cu indecși pe codul de bare și numele produsului.
+  - Implementat modulul de sincronizare `usePosOfflineCache.ts` în React care verifică identitatea dispozitivului (amprentă unică în `device_id.json`), auto-înregistrează dispozitivul pe server (RPC `register_pos_device`) și stochează pachetul de date (RPC `get_offline_cache_bundle`) printr-o tranzacție atomică SQLite ACID.
+  - Adăugat componentul vizual premium `OfflineCacheSyncPanel.tsx` în setările magazinului, afișând starea cache-ului, numărul de elemente și avertizări de prospețime (green/yellow/red).
+  - Integrat fallback automat pentru căutare și scanare cod de bare în POS (`usePos.ts`) în mod offline, redirecționând interogarea către SQLite.
+  - Toate testele Playwright trec: `test_offline_data_cache_sqlite_6app6.py` (3/3 PASS, Exit code 0).
+  - Raport detaliat: `docs/offline_data_cache_sqlite_6app6_report.md`.
+
 

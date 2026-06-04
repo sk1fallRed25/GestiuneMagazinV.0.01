@@ -8,6 +8,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     appControls: {
         quitApp: () => ipcRenderer.invoke('app:quit')
     },
+    sqlite: {
+        saveCacheBundle: (args) => ipcRenderer.invoke('sqlite:save-bundle', args),
+        searchProducts: (args) => ipcRenderer.invoke('sqlite:search-products', args),
+        getProductByBarcode: (args) => ipcRenderer.invoke('sqlite:get-product-by-barcode', args),
+        getCacheStatus: (args) => ipcRenderer.invoke('sqlite:get-cache-status', args),
+        saveShift: (args) => ipcRenderer.invoke('sqlite:save-shift', args),
+        getShift: (args) => ipcRenderer.invoke('sqlite:get-shift', args),
+        getDeviceInfo: () => ipcRenderer.invoke('sqlite:get-device-info')
+    },
     updater: {
         checkForUpdates: () => ipcRenderer.invoke('updater:check-for-updates'),
         downloadUpdate: () => ipcRenderer.invoke('updater:download-update'),

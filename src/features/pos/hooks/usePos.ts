@@ -5,10 +5,12 @@ import { posService } from '../services/posService';
 import { savePosCartDraft, clearPosCartDraft, CartDraftContext } from '../services/posCartRecoveryService';
 import { PosProduct, CartItem, PaymentMethod, ActiveShift, CashRegister } from '../types';
 import { tryWriteFiscalNetAfterCheckout, isFiscalNetDesktopRuntime } from '../../fiscal-net';
+import { useNetworkStatus } from '../../../shared/network/useNetworkStatus';
 
 
 export const usePos = () => {
     const { user, currentStoreId } = useAuth();
+    const { isOnline } = useNetworkStatus();
     
     const [query, setQuery] = useState('');
     const [searchResults, setSearchResults] = useState<PosProduct[]>([]);
@@ -107,14 +109,24 @@ export const usePos = () => {
 
         setLoadingSearch(true);
         try {
-            const results = await posService.searchProducts(currentStoreId, q);
-            setSearchResults(results);
+            const isDesktop = !!window.electronAPI;
+            if (isDesktop && !isOnline && window.electronAPI?.sqlite) {
+                console.log("[usePos] Offline mode: searching products in local SQLite cache");
+                const results = await window.electronAPI.sqlite.searchProducts({
+                    storeId: currentStoreId,
+                    queryText: q
+                });
+                setSearchResults(results);
+            } else {
+                const results = await posService.searchProducts(currentStoreId, q);
+                setSearchResults(results);
+            }
         } catch (err: unknown) {
             console.error("Search error:", err);
         } finally {
             setLoadingSearch(false);
         }
-    }, [currentStoreId]);
+    }, [currentStoreId, isOnline]);
 
     // Debounce manual simplu pentru căutare
     useEffect(() => {
@@ -193,7 +205,18 @@ export const usePos = () => {
         if (!cleanBarcode) return false;
 
         try {
-            const product = await posService.getProductByBarcode(currentStoreId!, cleanBarcode);
+            const isDesktop = !!window.electronAPI;
+            let product;
+            if (isDesktop && !isOnline && window.electronAPI?.sqlite) {
+                console.log("[usePos] Offline mode: looking up barcode in local SQLite cache");
+                product = await window.electronAPI.sqlite.getProductByBarcode({
+                    storeId: currentStoreId!,
+                    barcode: cleanBarcode
+                });
+            } else {
+                product = await posService.getProductByBarcode(currentStoreId!, cleanBarcode);
+            }
+
             if (product) {
                 addToCart(product);
                 setBarcodeNotFound(null);
@@ -210,7 +233,7 @@ export const usePos = () => {
             toast.error("Eroare la scanarea codului de bare.");
             return false;
         }
-    }, [currentStoreId, addToCart]);
+    }, [currentStoreId, isOnline, addToCart]);
 
     const removeFromCart = (productId: string) => {
         setCart(prev => prev.filter(item => item.productId !== productId));

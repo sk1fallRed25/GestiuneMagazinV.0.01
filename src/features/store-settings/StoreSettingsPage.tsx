@@ -14,6 +14,7 @@ import { FiscalNetStationSettings } from '../fiscal-net';
 import { AiConsentSettingsCard } from '../ai-consultant';
 import { useNetworkStatus } from '../../shared/network/useNetworkStatus';
 import { AppUpdatePanel } from '../app-update/AppUpdatePanel';
+import { OfflineCacheSyncPanel } from '../pos/components/OfflineCacheSyncPanel';
 
 export const StoreSettingsPage: React.FC = () => {
 
@@ -196,6 +197,8 @@ export const StoreSettingsPage: React.FC = () => {
         <FiscalNetStationSettings disabled={!canView} />
 
         <AiConsentSettingsCard storeId={storeInfo.storeId} canEdit={canEdit} />
+
+        <OfflineCacheSyncPanel storeId={storeInfo.storeId} />
 
         {/* System & Application Info Card */}
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">

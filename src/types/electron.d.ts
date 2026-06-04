@@ -21,6 +21,43 @@ export interface ElectronAPI {
   appControls?: {
     quitApp: () => Promise<void>;
   };
+  sqlite?: {
+    saveCacheBundle: (args: {
+      storeId: string;
+      bundle: any;
+    }) => Promise<{ success: boolean; error?: string }>;
+    searchProducts: (args: {
+      storeId: string;
+      queryText: string;
+      limit?: number;
+    }) => Promise<any[]>;
+    getProductByBarcode: (args: {
+      storeId: string;
+      barcode: string;
+    }) => Promise<any | null>;
+    getCacheStatus: (args: {
+      storeId: string;
+    }) => Promise<{
+      initialized: boolean;
+      productCount?: number;
+      priceCount?: number;
+      stockCount?: number;
+      categoryCount?: number;
+      lastSyncAt?: string | null;
+      checksum?: string | null;
+      syncType?: string | null;
+      rowCountsJson?: string;
+      error?: string;
+    }>;
+    saveShift: (args: {
+      shift: any;
+    }) => Promise<{ success: boolean; error?: string }>;
+    getShift: (args: {
+      storeId: string;
+      cashierId: string;
+    }) => Promise<any | null>;
+    getDeviceInfo: () => Promise<{ fingerprint: string; name: string }>;
+  };
   updater?: {
     checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
     downloadUpdate: () => Promise<{ success: boolean; error?: string }>;

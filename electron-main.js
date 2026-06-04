@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { initializeUpdater } from './electron-updater-service.js';
+import { initDb, saveCacheBundle, searchLocalProducts, getLocalProductByBarcode, getLocalCacheStatus, saveLocalShiftState, getLocalShiftState, getOrCreateDeviceInfo } from './electron-sqlite-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,7 +39,14 @@ function createWindow() {
     initializeUpdater(win);
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+    try {
+        initDb(app.getPath('userData'));
+    } catch (err) {
+        console.error('Failed to initialize local database:', err);
+    }
+    createWindow();
+});
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
@@ -186,5 +194,69 @@ ipcMain.handle('read-fiscal-net-response', async (event, { raspunsPath, filename
     } catch (err) {
         console.error('[FiscalNet Pilot] Eroare citire raspuns:', err);
         return { success: false, error: serializeError(err) };
+    }
+});
+
+// Handlers IPC SQLite offline cache
+ipcMain.handle('sqlite:save-bundle', async (event, { storeId, bundle }) => {
+    try {
+        return saveCacheBundle(storeId, bundle);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error saving cache bundle:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:search-products', async (event, { storeId, queryText, limit }) => {
+    try {
+        return searchLocalProducts(storeId, queryText, limit);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error searching products:', err);
+        return [];
+    }
+});
+
+ipcMain.handle('sqlite:get-product-by-barcode', async (event, { storeId, barcode }) => {
+    try {
+        return getLocalProductByBarcode(storeId, barcode);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error getting product by barcode:', err);
+        return null;
+    }
+});
+
+ipcMain.handle('sqlite:get-cache-status', async (event, { storeId }) => {
+    try {
+        return getLocalCacheStatus(storeId);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error getting cache status:', err);
+        return { initialized: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:save-shift', async (event, { shift }) => {
+    try {
+        return saveLocalShiftState(shift);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error saving shift state:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:get-shift', async (event, { storeId, cashierId }) => {
+    try {
+        return getLocalShiftState(storeId, cashierId);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error getting shift state:', err);
+        return null;
+    }
+});
+
+ipcMain.handle('sqlite:get-device-info', async () => {
+    try {
+        return getOrCreateDeviceInfo(app.getPath('userData'));
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error getting device info:', err);
+        return { fingerprint: 'unknown_fingerprint_err', name: 'unknown_name_err' };
     }
 });
