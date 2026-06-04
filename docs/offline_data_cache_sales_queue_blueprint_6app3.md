@@ -1,7 +1,8 @@
 # Technical Blueprint: Offline POS Data Cache & Sales Queue (Stage 6APP.3)
 
 > [!IMPORTANT]
-> This document acts as an architectural specification blueprint. The actual offline sales queues, SQLite engine, and offline checkouts are NOT implemented in the current stage.
+> This document acts as an architectural specification blueprint. The actual offline sales queues, SQLite engine, and offline checkouts are NOT implemented in the current stage. The proposed SQL blueprint is NOT applied live to the database.
+
 
 ---
 
@@ -171,3 +172,16 @@ Each terminal has a unique ID to manage logs and coordinate sync states:
 ### Security Hardening
 - **Payload Verification:** The client generates a SHA-256 hash of the transaction before writing. The server recalculates and rejects mismatching packages.
 - **Server Recalculations:** The server does not trust client arithmetic; it recalculates VAT, SGR fees, and line totals from the item quantities and active catalog prices.
+
+---
+
+## 8. SQL Schema Hardening (Stage 6APP.4 Updates)
+
+Prior to database application, the SQL schema has been reinforced with strict database-level constraints:
+- **Identifier Lengths:** `pos_devices.device_fingerprint` must be at least 12 characters. `pos_devices.device_name` must be at least 2 characters.
+- **Transaction Idempotency:** Managed via unique constraint `unique_store_device_sale` on `(store_id, device_id, local_sale_id)`.
+- **Whitelists:** Status and Entity constraints are strictly enforced using whitelist checks (`status IN ('received', 'finalized', 'duplicate', 'conflict', 'failed', 'rejected')` and `entity IN ('products', 'product_prices', 'stock_batches', 'categories', 'shifts', 'store_settings', 'fiscalnet_config', 'full_bundle')`).
+- **Cryptographic Hash Checks:** SHA-256 validation enforced on `payload_hash` and snapshots `checksum` via regex matching `~ '^[a-f0-9]{64}$'`.
+- **Audit Integration:** All registration, sync request, and finalization actions write to the central `public.audit_logs`.
+- **Privilege Lockdown:** Execution permissions for all new RPC functions are explicitly revoked from `PUBLIC` and `anon` users, granting execution privileges exclusively to `authenticated` users, backed by internal RBAC checks.
+

@@ -397,8 +397,18 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a documentat comportamentul UI/UX și politica FiscalNet (scrie pe disc doar după sincronizare de succes).
   - Testul static din `test_offline_data_cache_sales_queue_blueprint_6app3.py` rulează și trece cu succes.
 
+- **Etapa 6APP.4 (Offline Data Cache SQL Pre-Apply Hardening)**: **PASS**
+  - S-a auditat compatibilitatea cu schema bazei de date live și s-a adaptat referențierea turelor active la tabela `public.pos_shifts`.
+  - S-au adăugat constrângeri stricte de validare pe `pos_devices` (lungime fingerprint și nume) și `offline_sale_sync_log` (whitelist statusuri, format SHA-256 hex de 64 de caractere pe `payload_hash` și snapshot-uri `checksum`).
+  - S-au securizat toate cele 4 RPC-uri prin clauza `SECURITY DEFINER` și `SET search_path = public` și s-au revocat explicit drepturile implicite de execuție pentru `PUBLIC` și `anon`, alocându-le doar pentru `authenticated` cu RBAC validat în tranzacție.
+  - S-a proiectat și asigurat idempotency la nivel de sincronizare tranzacțională (clasificând automat duplicatele, mismatch-urile de preț/TVA/SGR și eșecurile de stoc sub formă de conflicte).
+  - S-a creat scriptul de rollback idempotent `database/rollback_offline_data_cache_sales_queue_6app4.sql`.
+  - S-a implementat testul static de verificare `test_offline_data_cache_sql_hardening_6app4.py`.
+  - Toate testele trec cu succes, iar baza de date live Supabase și codul POS activ au rămas complet neschimbate.
+
 ### Următorul pas recomandat:
-- **`6APP.4 SQLite & Offline Queue Implementation`** (Implementarea bazei de date SQLite locale în Electron și a logicii de sincronizare).
+- **`6APP.5 Offline Data Cache SQL Manual Apply Verification`** (Aplicarea blueprint-ului SQL și testarea automată a RLS/RPC în baza de date Supabase).
+
 
 
 

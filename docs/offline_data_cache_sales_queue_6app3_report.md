@@ -10,7 +10,8 @@ This report details the architectural specifications, local schemas, synchroniza
 - **Static Verification Suite (`test_offline_data_cache_sales_queue_blueprint_6app3.py`)**: Checks for the presence of all required files, DB structures, and documented criteria.
 
 > [!IMPORTANT]
-> No real offline sales, SQLite engines, or synchronization routines are enabled in the codebase during this stage. The POS checkout continues to block checkouts when offline as implemented in Stage 6APP.1.
+> The offline sales queue and local SQLite are NOT implemented yet, and the SQL blueprint is NOT applied live. The POS checkout continues to block offline sales as implemented in Stage 6APP.1.
+
 
 ---
 
@@ -41,3 +42,5 @@ To prevent double receipt print jobs or orphan logs, the client does **NOT** wri
 | **Transaction Integrity** | Local database tampering. | The client hashes the payload with SHA-256; the server recalculates all totals (VAT, SGR, prices) and rejects modifications. |
 | **Idempotency** | Double sync submissions. | Handled via server-side unique constraints on the combination of `device_id` and `local_sale_id`. |
 | **Pricing / VAT Shifts** | Outdated tax rates or prices. | Strict 48-hour cache invalidation windows block offline checkout access. |
+| **SQL Blueprint Hardening** | Unauthorized RPC executions or weak constraints. | Revoked execute permissions for `PUBLIC`/`anon` on all RPCs, enforced DB-level whitelists and format checks (6APP.4). |
+
