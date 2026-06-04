@@ -296,6 +296,14 @@ export const AppUpdatePanel: React.FC = () => {
         </div>
       )}
 
+      {/* Notă pentru mediu Electron (NSIS vs Portable) */}
+      {isElectron && (
+        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mb-6 text-slate-500 text-xs font-bold flex items-start gap-2.5">
+          <Info size={16} className="shrink-0 mt-0.5 text-indigo-500" />
+          <span>Auto-update se aplică doar pentru versiunea instalată prin installer NSIS. Versiunea portable este doar pentru testare.</span>
+        </div>
+      )}
+
       {/* Progres descarcare */}
       {status === 'downloading' && (
         <div className="mb-6">

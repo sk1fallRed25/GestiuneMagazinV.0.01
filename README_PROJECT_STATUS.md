@@ -139,3 +139,11 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Implementat măsuri de siguranță POS în settings: instalarea update-ului este blocată dacă există produse în coș (`localStorage.getItem('pos_cart')` nu e gol), solicitând golirea coșului. Dacă e gol, se cere dublă confirmare înainte de repornire.
   - Toate testele trec: `test_desktop_auto_update_6app2.py` (Exit code 0).
   - Raport detaliat: `docs/desktop_auto_update_implementation_6app2_report.md`.
+
+- **Etapa 6APP.2.1 (Auto-Update Real Release Smoke Test Preparation)**: **PASS**
+  - Auditat configurația de publicare și corectat o lipsă critică prin adăugarea `electron-updater-service.js` în `build.files` din `package.json` pentru a asigura includerea în bundle-ul de producție Electron.
+  - Adăugat notificare de instalare NSIS vs Portable în `AppUpdatePanel.tsx` UI pentru ghidarea administratorului.
+  - Creat ghidul de testare manuală pe hardware real `docs/desktop_auto_update_real_release_smoke_test_6app21.md` (Version A -> B transition, latest.yml, update offline, pos safety).
+  - Creat scriptul de verificare statică `test_desktop_auto_update_release_smoke_6app21.py` care validează configurarea corectă din repository.
+  - Toate testele trec cu succes: `test_desktop_auto_update_release_smoke_6app21.py` (Exit code 0), `test_desktop_auto_update_6app2.py` (Exit code 0), `test_nir_placeholder_update_offline_6app1.py` (Exit code 0).
+  - Raport detaliat: `docs/desktop_auto_update_real_release_smoke_6app21_report.md`.
