@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { 
     LayoutDashboard, Package, CalendarClock, AlertOctagon, PackagePlus, 
     ArrowRightLeft, BrainCircuit, 
-    ShoppingCart, FileText, Settings, LogOut, Search, Bell, AlertTriangle, History, ShieldAlert, BarChart3 
+    ShoppingCart, FileText, Settings, LogOut, Search, Bell, AlertTriangle, History, ShieldAlert, BarChart3, Power 
 } from 'lucide-react';
 import { supabase } from '../shared/supabase/supabaseClient';
 import { isAdminLike, isManagerLike, isStockOperator, isCashierLike } from '../features/auth/permissions';
@@ -12,6 +12,9 @@ import { useAuth } from '../features/auth/useAuth';
 import { StoreContextSwitcher } from '../components/layout/StoreContextSwitcher';
 import { useModuleEntitlementsContext } from '../features/module-entitlements/ModuleEntitlementsContext';
 import { useNetworkStatus } from '../shared/network/useNetworkStatus';
+import { LogoutCartWarningDialog } from '../components/dialogs/LogoutCartWarningDialog';
+import { AppCloseCartWarningDialog } from '../components/dialogs/AppCloseCartWarningDialog';
+import { clearPosCartDraft } from '../features/pos/services/posCartRecoveryService';
 
 
 interface Notification {
@@ -23,12 +26,18 @@ interface Notification {
 }
 
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
-    const { role, profile, currentStore, currentStoreId, availableStores, selectStore, logout } = useAuth();
+    const { role, profile, user, currentStore, currentStoreId, availableStores, selectStore, logout } = useAuth();
     const { isModuleEnabled } = useModuleEntitlementsContext();
     const { isOnline, isReconnecting } = useNetworkStatus();
     const location = useLocation();
     const [scrolled, setScrolled] = useState(false);
     const [appVersion, setAppVersion] = useState('1.0.0');
+
+    // Logout/Close dialogs state
+    const [showLogoutCartWarning, setShowLogoutCartWarning] = useState(false);
+    const [showCloseCartWarning, setShowCloseCartWarning] = useState(false);
+
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI?.isElectron;
 
     useEffect(() => {
         const fetchVersion = async () => {
@@ -36,6 +45,8 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                 try {
                     const v = await (window as any).electronAPI.getAppVersion();
                     setAppVersion(v);
+                    // Also set global version for posCartRecoveryService
+                    (window as any).__APP_VERSION__ = v;
                 } catch (e) {
                     console.error(e);
                 }
@@ -97,6 +108,90 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
         return () => { supabase.removeChannel(channel); };
     }, []);
 
+    // --- Cart-aware helpers ---
+
+    /** Check if there are items in the POS cart (using the backward-compatible key) */
+    const hasCartItems = (): boolean => {
+        try {
+            const saved = localStorage.getItem('pos_cart');
+            if (!saved) return false;
+            const items = JSON.parse(saved);
+            return Array.isArray(items) && items.length > 0;
+        } catch {
+            return false;
+        }
+    };
+
+    const handleLogoutClick = () => {
+        if (hasCartItems()) {
+            setShowLogoutCartWarning(true);
+        } else {
+            logout();
+        }
+    };
+
+    const handleLogoutKeepCart = () => {
+        // Draft is already saved by autosave; just logout
+        setShowLogoutCartWarning(false);
+        logout();
+    };
+
+    const handleLogoutDiscardCart = () => {
+        // Clear cart from localStorage and draft
+        localStorage.setItem('pos_cart', '[]');
+        if (currentStoreId && user?.id) {
+            clearPosCartDraft({ storeId: currentStoreId, profileId: user.id });
+        }
+        setShowLogoutCartWarning(false);
+        logout();
+    };
+
+    const handleLogoutCancel = () => {
+        setShowLogoutCartWarning(false);
+    };
+
+    // --- Close App handlers ---
+
+    const handleCloseAppClick = () => {
+        if (!isElectron) {
+            toast.error('Închiderea aplicației este disponibilă doar în versiunea desktop.');
+            return;
+        }
+
+        if (hasCartItems()) {
+            setShowCloseCartWarning(true);
+        } else {
+            // Simple confirm
+            if (window.confirm('Închide aplicația?')) {
+                (window as any).electronAPI.appControls.quitApp();
+            }
+        }
+    };
+
+    const handleCloseKeepCart = () => {
+        // Draft is already saved by autosave; just quit
+        setShowCloseCartWarning(false);
+        if ((window as any).electronAPI?.appControls?.quitApp) {
+            (window as any).electronAPI.appControls.quitApp();
+        }
+    };
+
+    const handleCloseDiscardCart = () => {
+        // Clear cart and draft, then quit
+        localStorage.setItem('pos_cart', '[]');
+        if (currentStoreId && user?.id) {
+            clearPosCartDraft({ storeId: currentStoreId, profileId: user.id });
+        }
+        setShowCloseCartWarning(false);
+        if ((window as any).electronAPI?.appControls?.quitApp) {
+            (window as any).electronAPI.appControls.quitApp();
+        }
+    };
+
+    const handleCloseCancel = () => {
+        setShowCloseCartWarning(false);
+    };
+
     interface NavLinkProps {
         to: string;
         label: string;
@@ -136,6 +231,24 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
     return (
         <div className="flex h-screen bg-slate-50 font-sans overflow-hidden text-slate-800">
+            {/* Logout Cart Warning Dialog */}
+            {showLogoutCartWarning && (
+                <LogoutCartWarningDialog
+                    onKeepAndLogout={handleLogoutKeepCart}
+                    onDiscardAndLogout={handleLogoutDiscardCart}
+                    onCancel={handleLogoutCancel}
+                />
+            )}
+
+            {/* Close App Cart Warning Dialog */}
+            {showCloseCartWarning && (
+                <AppCloseCartWarningDialog
+                    onKeepAndClose={handleCloseKeepCart}
+                    onDiscardAndClose={handleCloseDiscardCart}
+                    onCancel={handleCloseCancel}
+                />
+            )}
+
             {/* SIDEBAR */}
             <aside className="w-72 bg-[#0f172a] text-white flex flex-col shadow-2xl z-30 shrink-0 transition-all duration-300">
                 <div className="p-8 pb-4 flex items-center gap-4">
@@ -241,7 +354,21 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                             </span>
                         </div>
                     </div>
-                    <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all text-sm font-medium border border-transparent hover:border-red-500/20"><LogOut size={18} /><span>Deconectare</span></button>
+                    <button onClick={handleLogoutClick} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all text-sm font-medium border border-transparent hover:border-red-500/20"><LogOut size={18} /><span>Deconectare</span></button>
+                    <button
+                        data-testid="app-close-button"
+                        onClick={handleCloseAppClick}
+                        disabled={!isElectron}
+                        title={isElectron ? 'Închide aplicația desktop' : 'Închiderea aplicației este disponibilă doar în versiunea desktop.'}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${
+                            isElectron 
+                                ? 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 border-transparent hover:border-slate-600/30 cursor-pointer' 
+                                : 'text-slate-600 border-transparent opacity-40 cursor-not-allowed'
+                        }`}
+                    >
+                        <Power size={18} />
+                        <span>Închide aplicația</span>
+                    </button>
                 </div>
             </aside>
 

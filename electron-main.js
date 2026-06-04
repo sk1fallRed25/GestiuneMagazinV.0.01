@@ -93,6 +93,11 @@ function serializeError(err) {
     return String(err || 'Eroare necunoscută.');
 }
 
+ipcMain.handle('app:quit', () => {
+    console.log('[AppControls] Quit requested via IPC.');
+    app.quit();
+});
+
 ipcMain.handle('get-app-version', () => {
     return app.getVersion();
 });

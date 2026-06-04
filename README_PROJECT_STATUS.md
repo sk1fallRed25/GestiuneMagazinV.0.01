@@ -155,5 +155,24 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Definit logul local append-only (`.jsonl`) pentru prevenirea defecțiunilor fizice de calculator (PC stricat) și procedurile administrative de backup/recovery.
   - Stabilite regulile post-sync FiscalNet (nu se scrie offline, se printează doar după sync reușit și returnare sale_id) și protocoalele de rezolvare a conflictelor.
   - Toate testele trec cu succes: `test_offline_data_cache_sales_queue_blueprint_6app3.py` (Exit code 0), `test_desktop_auto_update_6app2.py` (Exit code 0), `test_nir_placeholder_update_offline_6app1.py` (Exit code 0).
-  - Raport detaliat: `docs/offline_data_cache_sales_queue_6app3_report.md`.
+  - **Etapa 6APP.4 (Offline Data Cache SQL Pre-Apply Hardening)**: **PASS**
+  - S-a întărit și securizat schema SQL a bazei de date propusă pentru offline.
+  - S-au adăugat validări de securitate pe funcțiile RPC, în special pe `register_pos_device` (lungime fingerprint și securizare).
+  - S-a finalizat scriptul pregătit pentru aplicare în `database/proposed_offline_data_cache_sales_queue_6app3.sql`.
+  - Toate testele trec: `test_offline_data_cache_sql_hardening_6app4.py` (Exit code 0).
+
+- **Etapa 6APP.5 (Offline Data Cache SQL Manual Apply Verification)**: **PASS**
+  - S-a aplicat manual scriptul SQL în Supabase SQL Editor.
+  - S-a dezvoltat suita E2E `test_offline_data_cache_sql_apply_6app5.py` pentru a valida corectitudinea aplicării catalogului: tabele create (`pos_devices`, `offline_sale_sync_log`, `offline_sync_snapshots`), politici de RLS active, funcții `SECURITY DEFINER` securizate cu `search_path = public` și revocare drepturi EXECUTE pentru rolurile anon/public.
+  - Toate testele catalog, RLS și RPC-uri în contextul de utilizatori reali trec cu succes (Exit code 0).
+
+- **Etapa 6APP.5.1 (Desktop Close Button + POS Cart Recovery)**: **PASS**
+  - S-a implementat butonul dedicat "Închide aplicația" în layout-ul Sidebar, activ exclusiv în runtime-ul desktop/Electron via IPC `app:quit`.
+  - S-a implementat bariera de deconectare și închidere când coșul POS conține produse active, afișând dialogurile specifice de atenționare cu opțiuni de păstrare (draft) sau ștergere.
+  - Dezvoltat serviciul `posCartRecoveryService.ts` cu namespace unic utilizator/magazin și schemă structurată pentru stocarea draft-urilor de coș.
+  - S-a asigurat compatibilitatea cu remount-ul React 18 Strict Mode prin flag-ul `hasCartBeenModifiedRef` pentru a preveni ștergerea timpurie a draftului la mount.
+  - **OPTIME**: S-a rescris interogarea `listAllProducts` din `posService.ts` printr-un singur JOIN select pentru a rezolva eroarea de depășire a lungimii maxime a URL-ului (400 Bad Request) atunci când există peste 900+ de produse în magazin.
+  - Toate testele Playwright trec: `test_pos_cart_recovery_close_app_6app51.py` (12/12 PASS, Exit code 0).
+  - Raport detaliat: `docs/pos_cart_recovery_close_app_6app51_report.md`.
+
 

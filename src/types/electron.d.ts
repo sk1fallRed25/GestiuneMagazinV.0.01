@@ -18,6 +18,9 @@ export interface ElectronAPI {
     filename: string;
   }) => Promise<{ success: boolean; content?: string; error?: string }>;
   getAppVersion: () => Promise<string>;
+  appControls?: {
+    quitApp: () => Promise<void>;
+  };
   updater?: {
     checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
     downloadUpdate: () => Promise<{ success: boolean; error?: string }>;

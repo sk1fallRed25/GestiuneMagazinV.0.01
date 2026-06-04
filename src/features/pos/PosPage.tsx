@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { usePos } from './hooks/usePos';
 import { usePosCategories } from './hooks/usePosCategories';
 import { useScannerFocus } from './hooks/useScannerFocus';
@@ -14,12 +15,21 @@ import { PosPaymentPanel } from './components/PosPaymentPanel';
 import { ShiftOpenModal } from './components/ShiftOpenModal';
 import { ShiftCloseModal } from './components/ShiftCloseModal';
 import { PosLockScreen } from './components/PosLockScreen';
+import { PosCartRecoveryDialog } from './components/PosCartRecoveryDialog';
 import { posService } from './services/posService';
+import {
+    hasPosCartDraft,
+    loadPosCartDraft,
+    clearPosCartDraft,
+    validateCartItems,
+    CartDraftContext,
+    PosCartDraft,
+} from './services/posCartRecoveryService';
 import { useAuth } from '../auth/useAuth';
 import { PosProduct } from './types';
 
 const PosPage: React.FC = () => {
-    const { currentStoreId } = useAuth();
+    const { currentStoreId, user } = useAuth();
     const { isOnline } = useNetworkStatus();
     const {
         query,
@@ -47,6 +57,7 @@ const PosPage: React.FC = () => {
         addToCart,
         removeFromCart,
         updateQuantity,
+        restoreCartFromDraft,
         isSgrBlocked,
         finalizeSale,
         barcodeNotFound,
@@ -56,6 +67,11 @@ const PosPage: React.FC = () => {
 
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+
+    // Cart Recovery State
+    const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
+    const [recoveryDraft, setRecoveryDraft] = useState<PosCartDraft | null>(null);
+    const recoveryCheckedRef = useRef(false);
 
     // Toate produsele pentru browser categorii
     const [allProducts, setAllProducts] = useState<PosProduct[]>([]);
@@ -78,6 +94,82 @@ const PosPage: React.FC = () => {
         loadAllProducts();
     }, [loadAllProducts]);
 
+    // Check for saved cart draft on POS entry
+    useEffect(() => {
+        if (recoveryCheckedRef.current) return;
+        if (!currentStoreId || !user?.id) return;
+
+        const ctx: CartDraftContext = {
+            storeId: currentStoreId,
+            profileId: user.id,
+        };
+
+        if (hasPosCartDraft(ctx) && cart.length === 0) {
+            const draft = loadPosCartDraft(ctx);
+            if (draft && draft.items.length > 0) {
+                setRecoveryDraft(draft);
+                setShowRecoveryDialog(true);
+            }
+        }
+        recoveryCheckedRef.current = true;
+    }, [currentStoreId, user?.id, cart.length]);
+
+    const handleRestoreCart = useCallback(() => {
+        if (!recoveryDraft) return;
+
+        // Validate items against current products
+        const { validItems, invalidCount, recalculated } = validateCartItems(
+            recoveryDraft.items,
+            allProducts.map(p => ({
+                id: p.id,
+                name: p.name,
+                priceSale: p.priceSale,
+                stockMagazin: p.stockMagazin,
+                sgrEnabled: p.sgrEnabled,
+                sgrType: p.sgrType,
+                status: 'active',
+            }))
+        );
+
+        if (validItems.length > 0) {
+            restoreCartFromDraft(validItems);
+            toast.success(`Coșul a fost restaurat cu ${validItems.length} produse.`);
+        }
+
+        if (invalidCount > 0) {
+            toast.error(`${invalidCount} produse din coșul salvat nu mai sunt disponibile și nu au fost restaurate.`);
+        }
+
+        if (recalculated) {
+            toast('Unele produse au fost recalculate pe baza datelor curente.', { icon: 'ℹ️' });
+        }
+
+        if (validItems.length === 0) {
+            toast.error('Niciun produs din coșul salvat nu mai este disponibil.');
+        }
+
+        // Clear draft after restore attempt
+        if (currentStoreId && user?.id) {
+            clearPosCartDraft({ storeId: currentStoreId, profileId: user.id });
+        }
+
+        setShowRecoveryDialog(false);
+        setRecoveryDraft(null);
+    }, [recoveryDraft, allProducts, restoreCartFromDraft, currentStoreId, user?.id]);
+
+    const handleDiscardDraft = useCallback(() => {
+        if (currentStoreId && user?.id) {
+            clearPosCartDraft({ storeId: currentStoreId, profileId: user.id });
+        }
+        toast.success('Coșul salvat a fost șters.');
+        setShowRecoveryDialog(false);
+        setRecoveryDraft(null);
+    }, [currentStoreId, user?.id]);
+
+    const handleDraftLater = useCallback(() => {
+        setShowRecoveryDialog(false);
+    }, []);
+
     // Hook categorii pentru browser
     const {
         categoriesTree,
@@ -95,7 +187,7 @@ const PosPage: React.FC = () => {
 
     // Scanner Focus Mode: auto-focus management with modal protection
     const { isScannerReady } = useScannerFocus(inputRef, {
-        isModalOpen: isOpenModalOpen || isCloseModalOpen,
+        isModalOpen: isOpenModalOpen || isCloseModalOpen || showRecoveryDialog,
         enabled: !!activeShift && !shiftLoading,
         refocusDelay: 200
     });
@@ -126,6 +218,16 @@ const PosPage: React.FC = () => {
 
     return (
         <div className="flex h-screen bg-gray-100 overflow-hidden font-sans relative">
+            {/* Cart Recovery Dialog */}
+            {showRecoveryDialog && recoveryDraft && (
+                <PosCartRecoveryDialog
+                    draft={recoveryDraft}
+                    onRestore={handleRestoreCart}
+                    onDiscard={handleDiscardDraft}
+                    onLater={handleDraftLater}
+                />
+            )}
+
             {/* Ecran de blocare obligatoriu cand nu exista tura activa */}
             {!activeShift && !shiftLoading && (
                 <PosLockScreen

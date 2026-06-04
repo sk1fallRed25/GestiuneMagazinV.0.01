@@ -95,7 +95,17 @@ export const posService = {
 
         const { data: products, error: pError } = await supabase
             .from('products')
-            .select('id, name, barcode, unit, sgr_enabled, sgr_type, category_id')
+            .select(`
+                id, 
+                name, 
+                barcode, 
+                unit, 
+                sgr_enabled, 
+                sgr_type, 
+                category_id,
+                product_prices (price_sale, vat_percent, store_id),
+                stock_batches (quantity, zone, store_id)
+            `)
             .eq('store_id', storeId)
             .eq('status', 'active')
             .order('name', { ascending: true });
@@ -103,30 +113,14 @@ export const posService = {
         if (pError) throw pError;
         if (!products || products.length === 0) return [];
 
-        const productIds = products.map(p => p.id);
-
-        // Prețuri
-        const { data: prices, error: prError } = await supabase
-            .from('product_prices')
-            .select('product_id, price_sale, vat_percent')
-            .eq('store_id', storeId)
-            .in('product_id', productIds);
-        if (prError) throw prError;
-
-        // Stoc magazin
-        const { data: batches, error: bError } = await supabase
-            .from('stock_batches')
-            .select('product_id, quantity')
-            .eq('store_id', storeId)
-            .eq('zone', 'magazin')
-            .gt('quantity', 0)
-            .in('product_id', productIds);
-        if (bError) throw bError;
-
-        return products.map(p => {
-            const price = prices?.find(pr => pr.product_id === p.id);
-            const productBatches = batches?.filter(b => b.product_id === p.id) || [];
-            const stockMagazin = productBatches.reduce((acc, b) => acc + toNumberStrict(b.quantity, 'stoc lot'), 0);
+        return (products as any[]).map(p => {
+            const price = Array.isArray(p.product_prices)
+                ? p.product_prices.find((pr: any) => pr.store_id === storeId)
+                : null;
+            const productBatches = Array.isArray(p.stock_batches)
+                ? p.stock_batches.filter((b: any) => b.store_id === storeId && b.zone === 'magazin' && Number(b.quantity) > 0)
+                : [];
+            const stockMagazin = productBatches.reduce((acc: number, b: any) => acc + toNumberStrict(b.quantity, 'stoc lot'), 0);
             const sgrType = normalizeSgrType(p.sgr_type);
             const sgrEnabled = !!(p.sgr_enabled && sgrType !== null);
 

@@ -5,6 +5,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     readFiscalNetResponse: (args) => ipcRenderer.invoke('read-fiscal-net-response', args),
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     isElectron: true,
+    appControls: {
+        quitApp: () => ipcRenderer.invoke('app:quit')
+    },
     updater: {
         checkForUpdates: () => ipcRenderer.invoke('updater:check-for-updates'),
         downloadUpdate: () => ipcRenderer.invoke('updater:download-update'),

@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../auth/useAuth';
 import { posService } from '../services/posService';
+import { savePosCartDraft, clearPosCartDraft, CartDraftContext } from '../services/posCartRecoveryService';
 import { PosProduct, CartItem, PaymentMethod, ActiveShift, CashRegister } from '../types';
 import { tryWriteFiscalNetAfterCheckout, isFiscalNetDesktopRuntime } from '../../fiscal-net';
 
@@ -11,17 +12,44 @@ export const usePos = () => {
     
     const [query, setQuery] = useState('');
     const [searchResults, setSearchResults] = useState<PosProduct[]>([]);
-    const [cart, setCart] = useState<CartItem[]>(() => {
-        try {
-            const saved = localStorage.getItem('pos_cart');
-            return saved ? JSON.parse(saved) : [];
-        } catch (e) {
-            return [];
-        }
-    });
+    const [cart, setCart] = useState<CartItem[]>([]);
+
+    // Debounced autosave of cart draft (300ms)
+    const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hasCartBeenModifiedRef = useRef(false);
 
     useEffect(() => {
+        // Keep old pos_cart key for backward compatibility (auto-update guard)
         localStorage.setItem('pos_cart', JSON.stringify(cart));
+
+        if (cart.length > 0) {
+            hasCartBeenModifiedRef.current = true;
+        }
+
+        // Skip saving/clearing the draft on initial mount or before any items are added
+        if (!hasCartBeenModifiedRef.current) {
+            return;
+        }
+
+        // Debounced save to scoped draft
+        if (draftSaveTimerRef.current) {
+            clearTimeout(draftSaveTimerRef.current);
+        }
+        draftSaveTimerRef.current = setTimeout(() => {
+            if (currentStoreId && user?.id) {
+                const ctx: CartDraftContext = {
+                    storeId: currentStoreId,
+                    profileId: user.id,
+                };
+                savePosCartDraft(ctx, cart, activeShift?.shiftId);
+            }
+        }, 300);
+
+        return () => {
+            if (draftSaveTimerRef.current) {
+                clearTimeout(draftSaveTimerRef.current);
+            }
+        };
     }, [cart]);
     const [barcodeNotFound, setBarcodeNotFound] = useState<string | null>(null);
     const [loadingSearch, setLoadingSearch] = useState(false);
@@ -214,6 +242,15 @@ export const usePos = () => {
         setCardAmount('0.00');
         setPaymentMethod('cash');
         setLastEditedMixedField(null);
+        // Clear scoped draft
+        if (currentStoreId && user?.id) {
+            clearPosCartDraft({ storeId: currentStoreId, profileId: user.id });
+        }
+    };
+
+    /** Restore cart items from a recovered draft. Totals are recalculated by the cart. */
+    const restoreCartFromDraft = (items: CartItem[]) => {
+        setCart(items);
     };
 
     const SGR_CHECKOUT_BACKEND_ENABLED = typeof window !== 'undefined' && (window as any).SGR_CHECKOUT_BACKEND_ENABLED !== undefined
@@ -542,6 +579,7 @@ export const usePos = () => {
         removeFromCart,
         updateQuantity,
         clearCart,
+        restoreCartFromDraft,
         productsSubtotal,
         cartSgrTotal,
         isSgrBlocked,
