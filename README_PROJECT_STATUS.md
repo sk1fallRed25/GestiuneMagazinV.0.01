@@ -147,3 +147,13 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Creat scriptul de verificare statică `test_desktop_auto_update_release_smoke_6app21.py` care validează configurarea corectă din repository.
   - Toate testele trec cu succes: `test_desktop_auto_update_release_smoke_6app21.py` (Exit code 0), `test_desktop_auto_update_6app2.py` (Exit code 0), `test_nir_placeholder_update_offline_6app1.py` (Exit code 0).
   - Raport detaliat: `docs/desktop_auto_update_real_release_smoke_6app21_report.md`.
+
+- **Etapa 6APP.3 (Offline Data Cache & Sales Queue Blueprint)**: **PASS**
+  - Proiectat schema SQL pe server (`proposed_offline_data_cache_sales_queue_6app3.sql`) pentru device register (`pos_devices`), cozi de actualizări (`offline_sale_sync_log`), snapshoturi de integritate (`offline_sync_snapshots`) și proceduri RPC securizate (`SECURITY DEFINER`, `search_path = public`).
+  - Proiectat blueprintul complet (`offline_data_cache_sales_queue_blueprint_6app3.md`) cu tabele locale SQLite (produse, prețuri, stoc snapshot, categorii, tura activă, coadă vânzări locală, metadata sync).
+  - Definit frecvența sincronizărilor (startup sync, periodic incremental pull, full daily pull, manual sync) și invalidări la 24h (warning)/48h (block).
+  - Definit logul local append-only (`.jsonl`) pentru prevenirea defecțiunilor fizice de calculator (PC stricat) și procedurile administrative de backup/recovery.
+  - Stabilite regulile post-sync FiscalNet (nu se scrie offline, se printează doar după sync reușit și returnare sale_id) și protocoalele de rezolvare a conflictelor.
+  - Toate testele trec cu succes: `test_offline_data_cache_sales_queue_blueprint_6app3.py` (Exit code 0), `test_desktop_auto_update_6app2.py` (Exit code 0), `test_nir_placeholder_update_offline_6app1.py` (Exit code 0).
+  - Raport detaliat: `docs/offline_data_cache_sales_queue_6app3_report.md`.
+
