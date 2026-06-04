@@ -254,10 +254,10 @@ BEGIN
 
     -- 4. Fetch Products (filter by p_since if present)
     SELECT COALESCE(jsonb_agg(t), '[]'::jsonb) INTO v_products FROM (
-        SELECT id, name, barcode, category_id, sgr_enabled, sgr_type, active
+        SELECT id, name, barcode, category_id, sgr_enabled, sgr_type, (status = 'active') AS active
         FROM public.products
         WHERE store_id = p_store_id
-          AND active = TRUE
+          AND status = 'active'
           AND (p_since IS NULL OR updated_at >= p_since)
     ) t;
 
@@ -282,7 +282,7 @@ BEGIN
         SELECT id, parent_id, name
         FROM public.categories
         WHERE store_id = p_store_id
-          AND (p_since IS NULL OR updated_at >= p_since)
+          AND (p_since IS NULL OR created_at >= p_since)
     ) t;
 
     -- 8. Fetch Active Shift (open shift for current cashier user)
@@ -316,7 +316,7 @@ BEGIN
     );
 
     -- 11. Compute checksum of the returned products and prices to verify package integrity
-    v_checksum := encode(digest(v_products::text || v_prices::text, 'sha256'), 'hex');
+    v_checksum := encode(extensions.digest((v_products::text || v_prices::text)::bytea, 'sha256'), 'hex');
 
     -- 12. Log Snapshot creation
     INSERT INTO public.offline_sync_snapshots (
@@ -538,7 +538,7 @@ BEGIN
 
         -- Check Product exists and is active
         IF NOT EXISTS (
-            SELECT 1 FROM public.products WHERE id = v_product_id AND store_id = p_store_id AND active = true
+            SELECT 1 FROM public.products WHERE id = v_product_id AND store_id = p_store_id AND status = 'active'
         ) THEN
             UPDATE public.offline_sale_sync_log
             SET status = 'conflict', error_code = 'PRODUCT_INACTIVE', error_message = 'Product not found or inactive: ' || v_product_id::text

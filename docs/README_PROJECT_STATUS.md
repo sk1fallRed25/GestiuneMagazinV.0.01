@@ -406,8 +406,15 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a implementat testul static de verificare `test_offline_data_cache_sql_hardening_6app4.py`.
   - Toate testele trec cu succes, iar baza de date live Supabase și codul POS activ au rămas complet neschimbate.
 
+- **Etapa 6APP.5 (Offline Data Cache SQL Manual Apply Verification)**: **PASS**
+  - S-a verificat și confirmat aplicarea manuală a scriptului SQL pe baza de date live Supabase.
+  - S-au adăugat corecții critice pentru câmpul `created_at` în query-ul pe `public.categories` și calificarea corectă la `extensions.digest` cu conversie la `bytea`.
+  - S-au validat toate constrângerile catalogului, politicile RLS, drepturile RPC de securitate și izolarea datelor anonime.
+  - Testele Playwright din `test_offline_data_cache_sql_apply_6app5.py` rulează și trec cu succes.
+  - Raport oficial generat la `docs/offline_data_cache_sql_apply_verification_6app5_report.md`.
+
 ### Următorul pas recomandat:
-- **`6APP.5 Offline Data Cache SQL Manual Apply Verification`** (Aplicarea blueprint-ului SQL și testarea automată a RLS/RPC în baza de date Supabase).
+- **`6APP.6 Local SQLite Cache Engine`** (Implementarea motorului SQLite local din Electron Main Process pentru caching date în client).
 
 
 
