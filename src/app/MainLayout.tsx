@@ -11,6 +11,7 @@ import { isAdminLike, isManagerLike, isStockOperator, isCashierLike } from '../f
 import { useAuth } from '../features/auth/useAuth';
 import { StoreContextSwitcher } from '../components/layout/StoreContextSwitcher';
 import { useModuleEntitlementsContext } from '../features/module-entitlements/ModuleEntitlementsContext';
+import { useNetworkStatus } from '../shared/network/useNetworkStatus';
 
 
 interface Notification {
@@ -24,8 +25,24 @@ interface Notification {
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
     const { role, profile, currentStore, currentStoreId, availableStores, selectStore, logout } = useAuth();
     const { isModuleEnabled } = useModuleEntitlementsContext();
+    const { isOnline, isReconnecting } = useNetworkStatus();
     const location = useLocation();
     const [scrolled, setScrolled] = useState(false);
+    const [appVersion, setAppVersion] = useState('1.0.0');
+
+    useEffect(() => {
+        const fetchVersion = async () => {
+            if (typeof window !== 'undefined' && (window as any).electronAPI?.getAppVersion) {
+                try {
+                    const v = await (window as any).electronAPI.getAppVersion();
+                    setAppVersion(v);
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+        };
+        fetchVersion();
+    }, []);
 
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
@@ -106,6 +123,9 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
         <>
             {isModuleEnabled('reception') && (
                 <NavLink to="/receptie" label="Recepție Marfă" icon={<PackagePlus size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
+            )}
+            {(role === 'admin' || role === 'platform_owner' || role === 'manager' || role === 'gestionar') && (
+                <NavLink to="/nir" label="NIR / e-Factura" icon={<FileText size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
             )}
             {isModuleEnabled('transfer') && (
                 <NavLink to="/transfer" label="Transfer Marfă" icon={<ArrowRightLeft size={18} />} className={isSubmenu ? "ml-4 text-xs" : ""} />
@@ -208,12 +228,37 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                         </>
                     )}
                 </nav>
-                <div className="p-4 bg-[#0a0f1c]">
+                <div className="p-4 bg-[#0a0f1c] flex flex-col gap-2">
+                    <div className="flex flex-col px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-800 text-[10px] text-slate-400 font-semibold gap-1 mb-2">
+                        <div className="flex justify-between">
+                            <span>VERSIUNE</span>
+                            <span data-testid="app-version-label" className="font-bold text-slate-200">{appVersion}</span>
+                        </div>
+                        <div className="flex justify-between">
+                            <span>RUNTIME</span>
+                            <span data-testid="app-runtime-label" className="font-bold text-slate-200">
+                                {import.meta.env.DEV ? 'development' : 'production'} / {((window as any).electronAPI?.isElectron) ? 'electron' : 'web'}
+                            </span>
+                        </div>
+                    </div>
                     <button onClick={logout} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all text-sm font-medium border border-transparent hover:border-red-500/20"><LogOut size={18} /><span>Deconectare</span></button>
                 </div>
             </aside>
 
             <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+                {/* Global Network Banners */}
+                {!isOnline && !isReconnecting && (
+                    <div data-testid="network-offline-banner" className="w-full bg-red-600 text-white text-center py-2 text-xs font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top duration-300 z-50 shrink-0">
+                        <span>⚠️ Offline — unele funcții sunt indisponibile</span>
+                    </div>
+                )}
+                {isReconnecting && (
+                    <div data-testid="network-reconnecting-banner" className="w-full bg-amber-500 text-white text-center py-2 text-xs font-bold flex items-center justify-center gap-2 animate-in slide-in-from-top duration-300 z-50 shrink-0">
+                        <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <span>Reconectare...</span>
+                    </div>
+                )}
+
                 <header className={`h-20 flex items-center justify-between px-8 z-20 transition-all duration-300 ${scrolled ? 'bg-white/80 backdrop-blur-md border-b border-gray-200' : 'bg-transparent'}`}>
                     <div className="flex items-center bg-white border border-gray-200 rounded-full px-4 py-2 w-96 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
                         <Search size={18} className="text-gray-400" />
@@ -225,6 +270,12 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                     </div>
 
                     <div className="flex items-center gap-4">
+                        {isOnline && !isReconnecting && (
+                            <div data-testid="network-status-indicator" className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-black uppercase tracking-wider">
+                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                Online
+                            </div>
+                        )}
                         <div className="relative" ref={notifMenuRef}>
                             <button onClick={() => setShowNotifMenu(!showNotifMenu)} className={`p-2 rounded-full hover:bg-gray-100 relative transition-colors ${showNotifMenu ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500'}`}>
                                 <Bell size={20} />

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Database, RefreshCw, AlertCircle, Sparkles, X, ArrowLeft } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNetworkStatus } from '../../shared/network/useNetworkStatus';
 import { useAuth } from '../auth/useAuth';
 import { useProducts } from './hooks/useProducts';
 import { Product } from './types';
@@ -11,6 +12,7 @@ import ProductEditModal from './components/ProductEditModal';
 
 const ProductsPage = () => {
     const { role } = useAuth();
+    const { isOnline } = useNetworkStatus();
     const userRole = role || undefined;
     const location = useLocation();
     const navigate = useNavigate();
@@ -96,14 +98,27 @@ const ProductsPage = () => {
 
     return (
         <div className="p-8 max-w-[1400px] mx-auto min-h-screen bg-slate-50/30">
+            {/* Offline Warning Banner */}
+            {!isOnline && (
+                <div data-testid="products-offline-warning-banner" className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-3xl text-amber-800 text-sm font-semibold flex items-center gap-3">
+                    <span>⚠️</span>
+                    <span>Datele afișate pot fi neactualizate. Reconectează aplicația pentru operațiuni de stoc.</span>
+                </div>
+            )}
+
             {/* Header Secțiune */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3 flex-wrap">
                         <span className="bg-indigo-600 p-2 rounded-xl text-white shadow-lg shadow-indigo-200">
                             <Database size={28} />
                         </span>
                         Monitorizare Stocuri & Produse
+                        {!isOnline && (
+                            <span data-testid="products-offline-badge" className="ml-3 px-3 py-1 bg-amber-500 text-white rounded-full text-xs font-black uppercase tracking-wider animate-pulse">
+                                Date posibil neactualizate
+                            </span>
+                        )}
                     </h1>
                     <p className="text-gray-500 mt-2 ml-1 text-sm italic">
                         Sincronizare în timp real (Schema v2). Rol: <span className="font-bold text-indigo-600 uppercase">{userRole || 'Nedefinit'}</span>

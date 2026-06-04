@@ -89,6 +89,10 @@ function serializeError(err) {
     return String(err || 'Eroare necunoscută.');
 }
 
+ipcMain.handle('get-app-version', () => {
+    return app.getVersion();
+});
+
 // Handlers IPC securizate pentru Pilotul Controlat FiscalNet
 ipcMain.handle('write-fiscal-net-file', async (event, { bonuriPath, filename, content, raspunsPath }) => {
     let tempPath = null;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { CreditCard, RefreshCw } from 'lucide-react';
 import { PaymentMethod } from '../types';
+import { useNetworkStatus } from '../../../shared/network/useNetworkStatus';
 
 interface PosPaymentPanelProps {
     total: number;
@@ -31,6 +32,7 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
     loading,
     disabled
 }) => {
+    const { isOnline } = useNetworkStatus();
     return (
         <div className="p-6 bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             {/* Metoda Plată */}
@@ -91,9 +93,16 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
                 </span>
             </div>
 
+            {!isOnline && (
+                <div data-testid="pos-payment-offline-warning" className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs font-semibold flex items-start gap-2">
+                    <span>⚠️</span>
+                    <span>Sistem offline. Vânzarea nu poate fi finalizată până la reconectare.</span>
+                </div>
+            )}
+
             <button
                 onClick={onFinalize}
-                disabled={disabled || loading}
+                disabled={disabled || loading || !isOnline}
                 className={`w-full py-5 rounded-2xl text-2xl font-black shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed`}
             >
                 {loading ? <RefreshCw className="animate-spin" /> : 'ÎNCASEAZĂ'}

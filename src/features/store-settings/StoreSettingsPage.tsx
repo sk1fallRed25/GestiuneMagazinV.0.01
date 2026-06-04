@@ -12,14 +12,31 @@ import { Settings, RefreshCw, AlertTriangle, BrainCircuit, ShieldAlert, Store } 
 import { useAuth } from '../auth/useAuth';
 import { FiscalNetStationSettings } from '../fiscal-net';
 import { AiConsentSettingsCard } from '../ai-consultant';
+import { useNetworkStatus } from '../../shared/network/useNetworkStatus';
 
 export const StoreSettingsPage: React.FC = () => {
 
   const { role } = useAuth();
+  const { isOnline } = useNetworkStatus();
   const {
     settings, storeInfo, loading, saving, error, isDirty, saveSuccess,
     canView, canEdit, setSettings, save, reload, reset,
   } = useStoreSettings();
+
+  const [appVersion, setAppVersion] = React.useState('1.0.0');
+  React.useEffect(() => {
+    const fetchVersion = async () => {
+      if (typeof window !== 'undefined' && (window as any).electronAPI?.getAppVersion) {
+        try {
+          const v = await (window as any).electronAPI.getAppVersion();
+          setAppVersion(v);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    };
+    fetchVersion();
+  }, []);
 
   // ─── Forbidden state (casier/gestionar) ────────────────────
   if (!canView) {
@@ -35,7 +52,8 @@ export const StoreSettingsPage: React.FC = () => {
   }
 
   // ─── No store selected (platform_owner) ────────────────────
-  if (!storeInfo.storeId && !loading) {
+  const { currentStoreId } = useAuth();
+  if (!currentStoreId && !loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center font-sans">
         <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-indigo-100">
@@ -60,7 +78,7 @@ export const StoreSettingsPage: React.FC = () => {
   }
 
   // ─── Error state with retry ────────────────────────────────
-  if (error && !storeInfo.storeId) {
+  if (error && !storeInfo.storeId && isOnline) {
     return (
       <div className="p-8 max-w-5xl mx-auto font-sans">
         <div className="bg-red-50 text-red-700 p-8 rounded-3xl flex flex-col items-center gap-4 border border-red-100 text-center">
@@ -113,6 +131,14 @@ export const StoreSettingsPage: React.FC = () => {
           {loading ? 'Se încarcă...' : 'Reîncarcă'}
         </button>
       </div>
+      
+      {/* Offline warning notice */}
+      {!isOnline && (
+        <div data-testid="settings-offline-warning" className="mb-6 p-4 bg-red-50 border border-red-200 rounded-3xl text-red-800 text-sm font-semibold flex items-center gap-3">
+          <span>⚠️</span>
+          <span>Nu poți salva modificări cât timp aplicația este offline.</span>
+        </div>
+      )}
 
       {/* Error banner (non-blocking) */}
       {error && (
@@ -169,6 +195,27 @@ export const StoreSettingsPage: React.FC = () => {
         <FiscalNetStationSettings disabled={!canView} />
 
         <AiConsentSettingsCard storeId={storeInfo.storeId} canEdit={canEdit} />
+
+        {/* System & Application Info Card */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            ℹ️ Sistem și Informații Aplicație
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+              <span className="text-xs text-slate-400 font-bold uppercase">Versiune Aplicație</span>
+              <span data-testid="settings-app-version-label" className="text-base font-black text-slate-700">
+                {appVersion}
+              </span>
+            </div>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+              <span className="text-xs text-slate-400 font-bold uppercase">Mediu Runtime</span>
+              <span data-testid="settings-app-runtime-label" className="text-base font-black text-slate-700">
+                {((window as any).electronAPI?.isElectron) ? 'Electron Desktop' : 'Web Browser'}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
 

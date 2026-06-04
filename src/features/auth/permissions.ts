@@ -37,6 +37,10 @@ export const routeConfigs: Record<string, RouteConfig> = {
     moduleKey: 'reception',
     requiresStoreContext: true,
   },
+  '/nir': {
+    allowedRoles: ['admin', 'platform_owner', 'manager', 'gestionar'],
+    requiresStoreContext: true,
+  },
   '/transfer': {
     allowedRoles: ['admin', 'platform_owner', 'gestionar'],
     moduleKey: 'transfer',

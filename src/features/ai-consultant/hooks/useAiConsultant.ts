@@ -67,6 +67,10 @@ export const useAiConsultant = () => {
     };
 
     const refresh = useCallback(async () => {
+        if (!navigator.onLine) {
+            toast.error("Analiza AI nu poate fi reîmprospătată fără conexiune.");
+            return;
+        }
         if (!currentStoreId) {
             if (role === 'platform_owner') {
                 setError("Selectează un magazin pentru a genera recomandări.");

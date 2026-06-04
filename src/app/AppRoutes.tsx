@@ -21,6 +21,7 @@ import FastAdd from '../FastAdd';
 import { OwnerConsolePage } from '../features/owner-console';
 import { ReportsPage } from '../features/reports/ReportsPage';
 import { StoreSettingsPage } from '../features/store-settings';
+import { NirPage } from '../features/nir/NirPage';
 
 const DefaultLandingRoute: React.FC = () => {
     const { role, currentStoreId } = useAuth();
@@ -101,6 +102,11 @@ const AppRoutes = () => {
                             <Route path="/receptie" element={
                                 <ProtectedRoute allowedRoles={[...ROLES_ADMIN, 'gestionar']}>
                                     <Receptie />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/nir" element={
+                                <ProtectedRoute allowedRoles={['admin', 'platform_owner', 'manager', 'gestionar']}>
+                                    <NirPage />
                                 </ProtectedRoute>
                             } />
                             <Route path="/transfer" element={

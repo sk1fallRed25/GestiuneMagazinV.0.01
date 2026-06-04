@@ -412,6 +412,10 @@ export const usePos = () => {
 
     // Finalizare vânzare
     const finalizeSale = async () => {
+        if (!navigator.onLine) {
+            toast.error("Nu se poate finaliza vânzarea fără conexiune la server.");
+            return;
+        }
         if (!currentStoreId || !user) {
             toast.error("Sesiune invalidă.");
             return;

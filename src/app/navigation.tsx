@@ -22,6 +22,7 @@ export const navigationConfig: NavItem[] = [
     { to: '/pierderi', label: 'Raportare Pierderi', icon: <AlertOctagon size={18} />, category: 'Stocuri', roles: ['admin', 'platform_owner', 'gestionar'] },
     
     { to: '/receptie', label: 'Recepție Marfă', icon: <Settings size={18} />, category: 'Operațiuni', roles: ['admin', 'platform_owner', 'gestionar'] },
+    { to: '/nir', label: 'NIR / e-Factura', icon: <FileText size={18} />, category: 'Operațiuni', roles: ['admin', 'platform_owner', 'manager', 'gestionar'] },
     { to: '/transfer', label: 'Transfer Marfă', icon: <Settings size={18} />, category: 'Operațiuni', roles: ['admin', 'platform_owner', 'gestionar'] },
     
     { to: '/istoric-pierderi', label: 'Audit Pierderi', icon: <History size={18} />, category: 'Administrare', roles: ['admin', 'platform_owner', 'manager'] },

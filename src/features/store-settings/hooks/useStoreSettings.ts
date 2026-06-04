@@ -116,6 +116,10 @@ export const useStoreSettings = (): UseStoreSettingsReturn => {
   // ─── Save ────────────────────────────────────────────────────
 
   const save = useCallback(async () => {
+    if (!navigator.onLine) {
+      toast.error("Nu poți salva modificări cât timp aplicația este offline.");
+      return;
+    }
     if (!currentStoreId || !canEdit) return;
 
     const enforced = enforceVatPayerRules(settings);

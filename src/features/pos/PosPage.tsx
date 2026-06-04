@@ -4,6 +4,7 @@ import { LogOut } from 'lucide-react';
 import { usePos } from './hooks/usePos';
 import { usePosCategories } from './hooks/usePosCategories';
 import { useScannerFocus } from './hooks/useScannerFocus';
+import { useNetworkStatus } from '../../shared/network/useNetworkStatus';
 import { PosHeader } from './components/PosHeader';
 import { PosSearchBar } from './components/PosSearchBar';
 import { PosProductResults } from './components/PosProductResults';
@@ -19,6 +20,7 @@ import { PosProduct } from './types';
 
 const PosPage: React.FC = () => {
     const { currentStoreId } = useAuth();
+    const { isOnline } = useNetworkStatus();
     const {
         query,
         setQuery,
@@ -163,8 +165,14 @@ const PosPage: React.FC = () => {
 
             {/* --- STANGA: CATALOG --- */}
             <div className="w-3/5 p-6 flex flex-col gap-2 pt-20 md:pt-6">
+                {!isOnline && (
+                    <div data-testid="pos-offline-banner" className="mb-4 p-3 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                        <span>⚠️ Sistem offline. Vânzarea nu poate fi finalizată până la reconectare.</span>
+                    </div>
+                )}
+
                 <PosHeader
-                    isOnline={navigator.onLine}
+                    isOnline={isOnline}
                     syncStatus={shiftLoading ? "Verificare tură..." : (loadingSearch ? "Căutare în curs..." : "Sistem Pregătit (v2)")}
                     loading={loadingSearch || shiftLoading}
                     activeShift={activeShift}

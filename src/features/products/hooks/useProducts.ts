@@ -59,6 +59,10 @@ export const useProducts = () => {
     }, [products, searchTerm]);
 
     const updateProduct = async (productId: string, input: ProductUpdateInput) => {
+        if (!navigator.onLine) {
+            toast.error("Nu poți modifica produse cât timp aplicația este offline.");
+            return;
+        }
         if (!currentStoreId) {
             toast.error(role === 'platform_owner' 
                 ? "Selectează un magazin pentru a vedea produsele." 
@@ -85,6 +89,10 @@ export const useProducts = () => {
     };
 
     const deleteProduct = async (productId: string) => {
+        if (!navigator.onLine) {
+            toast.error("Nu poți modifica produse cât timp aplicația este offline.");
+            return;
+        }
         if (!currentStoreId) {
             toast.error("Magazinul curent nu este selectat.");
             return;

@@ -119,6 +119,9 @@ export const useReception = () => {
     };
 
     const submitReception = async () => {
+        if (!navigator.onLine) {
+            return toast.error("Nu poți finaliza recepții cât timp aplicația este offline.");
+        }
         if (!currentStoreId || !user) {
             return toast.error("Sesiune invalidă.");
         }
