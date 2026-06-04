@@ -94,19 +94,25 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
             </div>
 
             {!isOnline && (
-                <div data-testid="pos-payment-offline-warning" className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs font-semibold flex items-start gap-2">
+                <div data-testid="pos-payment-offline-warning" className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-semibold flex items-start gap-2">
                     <span>⚠️</span>
-                    <span>Sistem offline. Vânzarea nu poate fi finalizată până la reconectare.</span>
+                    <span>Sistem offline. Vânzarea va fi salvată local în coadă și sincronizată ulterior.</span>
                 </div>
             )}
 
             <button
                 onClick={onFinalize}
-                disabled={disabled || loading || !isOnline}
+                disabled={disabled || loading || (!isOnline && !window.electronAPI?.sqlite)}
                 className={`w-full py-5 rounded-2xl text-2xl font-black shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed`}
             >
-                {loading ? <RefreshCw className="animate-spin" /> : 'ÎNCASEAZĂ'}
+                {loading ? <RefreshCw className="animate-spin" /> : (isOnline ? 'ÎNCASEAZĂ' : 'Salvează vânzare offline')}
             </button>
+            
+            {!isOnline && window.electronAPI?.sqlite && (
+                <p className="text-xs text-center text-amber-600 mt-2 font-medium">
+                    Bonul fiscal se va emite doar după sincronizare.
+                </p>
+            )}
             
             <p className="text-[10px] text-center text-gray-400 mt-4 uppercase tracking-widest">
                 Fiscal Bridge va fi conectat ulterior

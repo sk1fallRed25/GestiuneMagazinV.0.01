@@ -22,6 +22,7 @@ import { OwnerConsolePage } from '../features/owner-console';
 import { ReportsPage } from '../features/reports/ReportsPage';
 import { StoreSettingsPage } from '../features/store-settings';
 import { NirPage } from '../features/nir/NirPage';
+import { OfflineSalesPanel } from '../features/offline-sales/OfflineSalesPanel';
 
 const DefaultLandingRoute: React.FC = () => {
     const { role, currentStoreId } = useAuth();
@@ -147,6 +148,11 @@ const AppRoutes = () => {
                             <Route path="/setari-magazin" element={
                                 <ProtectedRoute allowedRoles={['admin', 'platform_owner', 'manager']}>
                                     <StoreSettingsPage />
+                                </ProtectedRoute>
+                            } />
+                            <Route path="/offline-sales" element={
+                                <ProtectedRoute allowedRoles={[...ROLES_POS, 'manager']}>
+                                    <OfflineSalesPanel />
                                 </ProtectedRoute>
                             } />
                             <Route path="*" element={<Navigate to="/" replace />} />

@@ -15,7 +15,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getCacheStatus: (args) => ipcRenderer.invoke('sqlite:get-cache-status', args),
         saveShift: (args) => ipcRenderer.invoke('sqlite:save-shift', args),
         getShift: (args) => ipcRenderer.invoke('sqlite:get-shift', args),
-        getDeviceInfo: () => ipcRenderer.invoke('sqlite:get-device-info')
+        getDeviceInfo: () => ipcRenderer.invoke('sqlite:get-device-info'),
+        validateCartItems: (args) => ipcRenderer.invoke('sqlite:validate-cart-items', args),
+        enqueueOfflineSale: (args) => ipcRenderer.invoke('sqlite:enqueue-offline-sale', args),
+        listOfflineSales: (args) => ipcRenderer.invoke('sqlite:list-offline-sales', args),
+        getOfflineSale: (args) => ipcRenderer.invoke('sqlite:get-offline-sale', args),
+        updateOfflineSaleStatus: (args) => ipcRenderer.invoke('sqlite:update-offline-sale-status', args),
+        deleteOfflineSale: (args) => ipcRenderer.invoke('sqlite:delete-offline-sale', args),
+        getOfflineSalesSummary: (args) => ipcRenderer.invoke('sqlite:get-offline-sales-summary', args)
     },
     updater: {
         checkForUpdates: () => ipcRenderer.invoke('updater:check-for-updates'),

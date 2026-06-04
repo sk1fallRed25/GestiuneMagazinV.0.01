@@ -16,6 +16,7 @@ import { ShiftOpenModal } from './components/ShiftOpenModal';
 import { ShiftCloseModal } from './components/ShiftCloseModal';
 import { PosLockScreen } from './components/PosLockScreen';
 import { PosCartRecoveryDialog } from './components/PosCartRecoveryDialog';
+import { OfflineSaleConfirmModal } from './components/OfflineSaleConfirmModal';
 import { posService } from './services/posService';
 import {
     hasPosCartDraft,
@@ -60,6 +61,7 @@ const PosPage: React.FC = () => {
         restoreCartFromDraft,
         isSgrBlocked,
         finalizeSale,
+        saveOfflineSale,
         barcodeNotFound,
         setBarcodeNotFound,
         handleBarcodeEnter
@@ -67,6 +69,96 @@ const PosPage: React.FC = () => {
 
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
     const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
+
+    // Offline sales queue state
+    const [isOfflineConfirmOpen, setIsOfflineConfirmOpen] = useState(false);
+    const [queuedCount, setQueuedCount] = useState(0);
+
+    const updateOfflineSummary = useCallback(async () => {
+        if (window.electronAPI?.sqlite && currentStoreId) {
+            try {
+                const summary = await window.electronAPI.sqlite.getOfflineSalesSummary({ storeId: currentStoreId });
+                setQueuedCount(summary.queuedCount);
+            } catch (e) {
+                console.error('[PosPage] Failed to load offline sales summary:', e);
+            }
+        }
+    }, [currentStoreId]);
+
+    useEffect(() => {
+        updateOfflineSummary();
+        const interval = setInterval(updateOfflineSummary, 10000);
+        return () => clearInterval(interval);
+    }, [updateOfflineSummary]);
+
+    const handleOfflineConfirm = async () => {
+        setIsOfflineConfirmOpen(false);
+        const res = await saveOfflineSale();
+        if (res.success) {
+            updateOfflineSummary();
+        }
+    };
+
+    const handleFinalizeClick = async () => {
+        if (isOnline) {
+            await finalizeSale();
+        } else {
+            if (!window.electronAPI?.sqlite) {
+                toast.error("SQLite nu este disponibil.");
+                return;
+            }
+            if (cart.length === 0) {
+                toast.error("Coșul este gol.");
+                return;
+            }
+
+            // Client side validations
+            const cacheStatus = await window.electronAPI.sqlite.getCacheStatus({ storeId: currentStoreId! });
+            if (!cacheStatus || !cacheStatus.initialized || !cacheStatus.lastSyncAt) {
+                toast.error("Nu există date offline suficiente pentru această vânzare.");
+                return;
+            }
+
+            const lastSyncTime = new Date(cacheStatus.lastSyncAt).getTime();
+            const ageHrs = (Date.now() - lastSyncTime) / (1000 * 60 * 60);
+            if (ageHrs > 48) {
+                toast.error("Cache offline expirat. Reconectează aplicația pentru actualizare.");
+                return;
+            }
+
+            const devInfo = await window.electronAPI.sqlite.getDeviceInfo();
+            if (!devInfo || !devInfo.fingerprint) {
+                toast.error("Nu s-a putut obține identitatea dispozitivului.");
+                return;
+            }
+
+            const localShift = await window.electronAPI.sqlite.getShift({ storeId: currentStoreId!, cashierId: user!.id });
+            if (!localShift || localShift.status !== 'open') {
+                toast.error("Nu există tură activă salvată local. Reconectează aplicația.");
+                return;
+            }
+
+            const itemIds = cart.map(item => item.productId);
+            const validateRes = await window.electronAPI.sqlite.validateCartItems({ storeId: currentStoreId!, itemIds });
+            if (!validateRes || !validateRes.valid) {
+                if (validateRes && validateRes.reason === 'missing_product') {
+                    toast.error("Produsul nu mai există în cache-ul local.");
+                } else {
+                    toast.error("Nu există date offline suficiente pentru această vânzare.");
+                }
+                return;
+            }
+
+            for (const item of cart) {
+                if (item.quantity <= 0) {
+                    toast.error("Cantitățile produselor din coș trebuie să fie pozitive.");
+                    return;
+                }
+            }
+
+            setIsOfflineConfirmOpen(true);
+        }
+    };
 
     // Cart Recovery State
     const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
@@ -228,6 +320,13 @@ const PosPage: React.FC = () => {
                 />
             )}
 
+            {/* Offline Sale Confirm Dialog */}
+            <OfflineSaleConfirmModal
+                isOpen={isOfflineConfirmOpen}
+                onClose={() => setIsOfflineConfirmOpen(false)}
+                onConfirm={handleOfflineConfirm}
+            />
+
             {/* Ecran de blocare obligatoriu cand nu exista tura activa */}
             {!activeShift && !shiftLoading && (
                 <PosLockScreen
@@ -268,8 +367,17 @@ const PosPage: React.FC = () => {
             {/* --- STANGA: CATALOG --- */}
             <div className="w-3/5 p-6 flex flex-col gap-2 pt-20 md:pt-6">
                 {!isOnline && (
-                    <div data-testid="pos-offline-banner" className="mb-4 p-3 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2">
-                        <span>⚠️ Sistem offline. Vânzarea nu poate fi finalizată până la reconectare.</span>
+                    <div data-testid="pos-offline-banner" className="mb-4 p-3 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm animate-in slide-in-from-top duration-300">
+                        <span>⚠️ Mod Offline Activ. Vânzările sunt salvate local.</span>
+                    </div>
+                )}
+
+                {queuedCount > 0 && (
+                    <div 
+                        data-testid="pos-offline-queued-badge" 
+                        className="mb-4 p-2.5 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-amber-100 animate-in slide-in-from-top duration-300"
+                    >
+                        <span>📦 Vânzări offline în așteptare: {queuedCount}</span>
                     </div>
                 )}
 
@@ -360,7 +468,7 @@ const PosPage: React.FC = () => {
                     onCardAmountChange={setCardAmount}
                     onCashBlur={onCashBlur}
                     onCardBlur={onCardBlur}
-                    onFinalize={finalizeSale}
+                    onFinalize={handleFinalizeClick}
                     loading={submitting}
                     disabled={cart.length === 0 || !activeShift || isSgrBlocked}
                 />

@@ -57,6 +57,41 @@ export interface ElectronAPI {
       cashierId: string;
     }) => Promise<any | null>;
     getDeviceInfo: () => Promise<{ fingerprint: string; name: string }>;
+    validateCartItems: (args: {
+      storeId: string;
+      itemIds: string[];
+    }) => Promise<{ valid: boolean; reason?: 'missing_product' | 'missing_price'; productId?: string; error?: string }>;
+    enqueueOfflineSale: (args: {
+      sale: {
+        local_sale_id: string;
+        store_id: string;
+        device_fingerprint: string;
+        shift_id: string | null;
+        cashier_profile_id: string;
+        created_at_local: string;
+        status: 'queued';
+        cart_items_json: string;
+        payments_json: string;
+        totals_json: string;
+        sgr_totals_json?: string | null;
+        vat_breakdown_json?: string | null;
+        fiscal_status?: 'not_allowed_offline' | 'pending_after_sync' | 'fiscalized' | 'fiscal_failed';
+      };
+    }) => Promise<{ success: boolean; local_sale_id: string; payload_hash: string; error?: string }>;
+    listOfflineSales: (args: { storeId: string }) => Promise<any[]>;
+    getOfflineSale: (args: { localSaleId: string }) => Promise<any | null>;
+    updateOfflineSaleStatus: (args: {
+      localSaleId: string;
+      status: 'queued' | 'syncing' | 'synced' | 'failed' | 'conflict' | 'cancelled';
+      errorMsg?: string | null;
+      syncedSaleId?: string | null;
+    }) => Promise<{ success: boolean; error?: string }>;
+    deleteOfflineSale: (args: { localSaleId: string }) => Promise<{ success: boolean; error?: string }>;
+    getOfflineSalesSummary: (args: { storeId: string }) => Promise<{
+      queuedCount: number;
+      queuedTotal: number;
+      lastSale: { createdAtLocal: string; grandTotal: number } | null;
+    }>;
   };
   updater?: {
     checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;

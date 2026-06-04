@@ -138,16 +138,32 @@ function createSchemas() {
             sync_attempts INTEGER DEFAULT 0,
             last_error TEXT,
             synced_sale_id TEXT,
-            fiscal_status TEXT,
+            fiscal_status TEXT DEFAULT 'pending_after_sync',
             updated_at_local TEXT
         )
     `);
+
+    // Schema migration for 6APP.7: ensure device_fingerprint exists
+    try {
+        const columns = db.pragma("table_info(local_offline_sales_queue)");
+        const hasFingerprint = columns.some(c => c.name === 'device_fingerprint');
+        if (!hasFingerprint) {
+            console.log('[SQLite Service] Migrating local_offline_sales_queue: adding device_fingerprint column.');
+            db.exec('ALTER TABLE local_offline_sales_queue ADD COLUMN device_fingerprint TEXT');
+            db.exec('UPDATE local_offline_sales_queue SET device_fingerprint = COALESCE(device_id, "unknown")');
+        }
+    } catch (err) {
+        console.error('[SQLite Service] Migration of local_offline_sales_queue failed:', err);
+    }
 
     // Indexes
     db.exec(`CREATE INDEX IF NOT EXISTS idx_products_barcode ON local_products (barcode)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_products_name ON local_products (name)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_prices_store ON local_product_prices (store_id)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_stock_store ON local_stock_snapshot (store_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_offline_sales_status ON local_offline_sales_queue (status)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_offline_sales_created ON local_offline_sales_queue (created_at_local DESC)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_offline_sales_store_status ON local_offline_sales_queue (store_id, status)`);
 }
 
 /**
@@ -477,5 +493,264 @@ export function getOrCreateDeviceInfo(userDataPath) {
         console.error('[SQLite Service] Error writing device_id.json:', e);
     }
     return deviceData;
+}
+
+/**
+ * Validates that all cart item product IDs and their pricing snapshots exist locally.
+ * @param {string} storeId Store identifier.
+ * @param {string[]} itemIds Array of product IDs to validate.
+ */
+export function validateCartItemsLocal(storeId, itemIds) {
+    if (!db) throw new Error('Database not initialized.');
+    if (!storeId) throw new Error('storeId is required.');
+    if (!Array.isArray(itemIds)) throw new Error('itemIds must be an array.');
+
+    const stmtProduct = db.prepare('SELECT product_id FROM local_products WHERE product_id = ? AND active = 1');
+    const stmtPrice = db.prepare('SELECT price_sale FROM local_product_prices WHERE product_id = ? AND store_id = ?');
+
+    for (const id of itemIds) {
+        const prod = stmtProduct.get(id);
+        if (!prod) {
+            return { valid: false, reason: 'missing_product', productId: id };
+        }
+        const price = stmtPrice.get(id, storeId);
+        if (!price) {
+            return { valid: false, reason: 'missing_price', productId: id };
+        }
+    }
+
+    return { valid: true };
+}
+
+/**
+ * Enqueues a new offline sale in the local SQLite queue.
+ * @param {object} sale Sale payload details.
+ */
+export function enqueueOfflineSale(sale) {
+    if (!db) throw new Error('Database not initialized.');
+    
+    const {
+        local_sale_id,
+        store_id,
+        device_fingerprint,
+        shift_id,
+        cashier_profile_id,
+        created_at_local,
+        status,
+        cart_items_json,
+        payments_json,
+        totals_json,
+        sgr_totals_json = null,
+        vat_breakdown_json = null,
+        fiscal_status = 'pending_after_sync'
+    } = sale;
+
+    if (!local_sale_id || typeof local_sale_id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(local_sale_id)) {
+        throw new Error('Invalid local_sale_id. Must be a valid UUID.');
+    }
+    if (!store_id || typeof store_id !== 'string') {
+        throw new Error('store_id is required.');
+    }
+    if (!device_fingerprint || typeof device_fingerprint !== 'string') {
+        throw new Error('device_fingerprint is required.');
+    }
+    if (!cashier_profile_id || typeof cashier_profile_id !== 'string') {
+        throw new Error('cashier_profile_id is required.');
+    }
+    if (!created_at_local || typeof created_at_local !== 'string') {
+        throw new Error('created_at_local is required.');
+    }
+    if (status !== 'queued') {
+        throw new Error('Initial status must be queued.');
+    }
+
+    try {
+        const items = JSON.parse(cart_items_json);
+        if (!Array.isArray(items) || items.length === 0) {
+            throw new Error('cart_items_json must be a non-empty array.');
+        }
+    } catch (e) {
+        throw new Error('Invalid cart_items_json: ' + e.message);
+    }
+
+    try {
+        JSON.parse(payments_json);
+    } catch (e) {
+        throw new Error('Invalid payments_json: ' + e.message);
+    }
+
+    try {
+        JSON.parse(totals_json);
+    } catch (e) {
+        throw new Error('Invalid totals_json: ' + e.message);
+    }
+
+    if (sgr_totals_json) {
+        try { JSON.parse(sgr_totals_json); } catch (e) { throw new Error('Invalid sgr_totals_json'); }
+    }
+    if (vat_breakdown_json) {
+        try { JSON.parse(vat_breakdown_json); } catch (e) { throw new Error('Invalid vat_breakdown_json'); }
+    }
+
+    const allowedFiscalStatuses = ['not_allowed_offline', 'pending_after_sync', 'fiscalized', 'fiscal_failed'];
+    if (!allowedFiscalStatuses.includes(fiscal_status)) {
+        throw new Error('Invalid fiscal_status.');
+    }
+
+    const canonicalPayload = {
+        local_sale_id,
+        store_id,
+        device_fingerprint,
+        shift_id,
+        cashier_profile_id,
+        created_at_local,
+        cart_items_json,
+        payments_json,
+        totals_json
+    };
+    
+    const canonicalStr = JSON.stringify(canonicalPayload, Object.keys(canonicalPayload).sort());
+    const payload_hash = crypto.createHash('sha256').update(canonicalStr).digest('hex');
+
+    const now = new Date().toISOString();
+
+    db.prepare(`
+        INSERT INTO local_offline_sales_queue (
+            local_sale_id, store_id, device_fingerprint, shift_id, cashier_profile_id,
+            created_at_local, updated_at_local, status, cart_items_json, payments_json,
+            totals_json, sgr_totals_json, vat_breakdown_json, payload_hash, sync_attempts,
+            last_error, synced_sale_id, fiscal_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?)
+    `).run(
+        local_sale_id, store_id, device_fingerprint, shift_id, cashier_profile_id,
+        created_at_local, now, 'queued', cart_items_json, payments_json,
+        totals_json, sgr_totals_json, vat_breakdown_json, payload_hash, fiscal_status
+    );
+
+    return { success: true, local_sale_id, payload_hash };
+}
+
+/**
+ * Lists all offline sales for a store.
+ * @param {string} storeId Store identifier.
+ */
+export function listOfflineSales(storeId) {
+    if (!db) throw new Error('Database not initialized.');
+    if (!storeId) throw new Error('storeId is required.');
+    
+    return db.prepare(`
+        SELECT * FROM local_offline_sales_queue
+        WHERE store_id = ?
+        ORDER BY created_at_local DESC
+    `).all(storeId);
+}
+
+/**
+ * Gets a single offline sale.
+ * @param {string} localSaleId Local sale UUID.
+ */
+export function getOfflineSale(localSaleId) {
+    if (!db) throw new Error('Database not initialized.');
+    if (!localSaleId) throw new Error('localSaleId is required.');
+
+    return db.prepare(`
+        SELECT * FROM local_offline_sales_queue
+        WHERE local_sale_id = ?
+    `).get(localSaleId) || null;
+}
+
+/**
+ * Updates status and sync details for an offline sale.
+ */
+export function updateOfflineSaleStatus(localSaleId, status, errorMsg = null, syncedSaleId = null) {
+    if (!db) throw new Error('Database not initialized.');
+    if (!localSaleId) throw new Error('localSaleId is required.');
+
+    const allowedStatuses = ['queued', 'syncing', 'synced', 'failed', 'conflict', 'cancelled'];
+    if (!allowedStatuses.includes(status)) {
+        throw new Error(`Invalid status: ${status}`);
+    }
+
+    const now = new Date().toISOString();
+
+    if (status === 'synced') {
+        db.prepare(`
+            UPDATE local_offline_sales_queue
+            SET status = ?, last_error = ?, synced_sale_id = ?, updated_at_local = ?, sync_attempts = sync_attempts + 1
+            WHERE local_sale_id = ?
+        `).run(status, errorMsg, syncedSaleId, now, localSaleId);
+    } else {
+        db.prepare(`
+            UPDATE local_offline_sales_queue
+            SET status = ?, last_error = ?, updated_at_local = ?, sync_attempts = sync_attempts + 1
+            WHERE local_sale_id = ?
+        `).run(status, errorMsg, now, localSaleId);
+    }
+
+    return { success: true };
+}
+
+/**
+ * Controlled hard-delete of an offline sale.
+ */
+export function deleteOfflineSale(localSaleId) {
+    if (!db) throw new Error('Database not initialized.');
+    if (!localSaleId) throw new Error('localSaleId is required.');
+
+    db.prepare(`
+        DELETE FROM local_offline_sales_queue
+        WHERE local_sale_id = ?
+    `).run(localSaleId);
+
+    return { success: true };
+}
+
+/**
+ * Returns summary metrics of offline sales.
+ */
+export function getOfflineSalesSummary(storeId) {
+    if (!db) throw new Error('Database not initialized.');
+    if (!storeId) throw new Error('storeId is required.');
+
+    const allSales = db.prepare(`
+        SELECT status, totals_json, created_at_local
+        FROM local_offline_sales_queue
+        WHERE store_id = ?
+    `).all(storeId);
+
+    let queuedCount = 0;
+    let queuedTotal = 0;
+    let lastSaleRow = null;
+
+    for (const sale of allSales) {
+        let grandTotal = 0;
+        try {
+            const totals = JSON.parse(sale.totals_json);
+            grandTotal = totals.grandTotal || 0;
+        } catch (e) {
+            console.error('[SQLite Service] Failed to parse totals_json:', e);
+        }
+
+        if (sale.status === 'queued') {
+            queuedCount++;
+            queuedTotal += grandTotal;
+        }
+
+        if (!lastSaleRow || new Date(sale.created_at_local) > new Date(lastSaleRow.created_at_local)) {
+            lastSaleRow = {
+                created_at_local: sale.created_at_local,
+                grandTotal
+            };
+        }
+    }
+
+    return {
+        queuedCount,
+        queuedTotal,
+        lastSale: lastSaleRow ? {
+            createdAtLocal: lastSaleRow.created_at_local,
+            grandTotal: lastSaleRow.grandTotal
+        } : null
+    };
 }
 

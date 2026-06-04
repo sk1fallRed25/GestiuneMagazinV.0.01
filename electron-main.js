@@ -3,7 +3,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { initializeUpdater } from './electron-updater-service.js';
-import { initDb, saveCacheBundle, searchLocalProducts, getLocalProductByBarcode, getLocalCacheStatus, saveLocalShiftState, getLocalShiftState, getOrCreateDeviceInfo } from './electron-sqlite-service.js';
+import { 
+    initDb, saveCacheBundle, searchLocalProducts, getLocalProductByBarcode, 
+    getLocalCacheStatus, saveLocalShiftState, getLocalShiftState, getOrCreateDeviceInfo,
+    validateCartItemsLocal, enqueueOfflineSale, listOfflineSales, getOfflineSale, 
+    updateOfflineSaleStatus, deleteOfflineSale, getOfflineSalesSummary 
+} from './electron-sqlite-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -258,5 +263,68 @@ ipcMain.handle('sqlite:get-device-info', async () => {
     } catch (err) {
         console.error('[Electron SQLite IPC] Error getting device info:', err);
         return { fingerprint: 'unknown_fingerprint_err', name: 'unknown_name_err' };
+    }
+});
+
+ipcMain.handle('sqlite:validate-cart-items', async (event, { storeId, itemIds }) => {
+    try {
+        return validateCartItemsLocal(storeId, itemIds);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error validating cart items:', err);
+        return { valid: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:enqueue-offline-sale', async (event, { sale }) => {
+    try {
+        return enqueueOfflineSale(sale);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error enqueuing offline sale:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:list-offline-sales', async (event, { storeId }) => {
+    try {
+        return listOfflineSales(storeId);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error listing offline sales:', err);
+        return [];
+    }
+});
+
+ipcMain.handle('sqlite:get-offline-sale', async (event, { localSaleId }) => {
+    try {
+        return getOfflineSale(localSaleId);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error getting offline sale:', err);
+        return null;
+    }
+});
+
+ipcMain.handle('sqlite:update-offline-sale-status', async (event, { localSaleId, status, errorMsg, syncedSaleId }) => {
+    try {
+        return updateOfflineSaleStatus(localSaleId, status, errorMsg, syncedSaleId);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error updating offline sale status:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:delete-offline-sale', async (event, { localSaleId }) => {
+    try {
+        return deleteOfflineSale(localSaleId);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error deleting offline sale:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:get-offline-sales-summary', async (event, { storeId }) => {
+    try {
+        return getOfflineSalesSummary(storeId);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error getting offline sales summary:', err);
+        return { queuedCount: 0, queuedTotal: 0, lastSale: null };
     }
 });

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useStoreSettings } from './hooks/useStoreSettings';
 import { StoreFiscalSettingsPanel } from './components/StoreFiscalSettingsPanel';
 import { StoreTaxSettingsPanel } from './components/StoreTaxSettingsPanel';
@@ -199,6 +200,24 @@ export const StoreSettingsPage: React.FC = () => {
         <AiConsentSettingsCard storeId={storeInfo.storeId} canEdit={canEdit} />
 
         <OfflineCacheSyncPanel storeId={storeInfo.storeId} />
+
+        {/* Coadă Vânzări Offline */}
+        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-4">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            🛍️ Administrare Coadă Vânzări Offline
+          </h2>
+          <p className="text-sm text-gray-500 font-medium leading-relaxed">
+            Monitorizează și gestionează vânzările salvate local în timp ce stația de vânzare (POS) a rulat fără conexiune la internet.
+          </p>
+          <div className="flex gap-4 mt-2">
+            <Link
+              to="/offline-sales"
+              className="px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-sm transition-all border border-indigo-100 text-center"
+            >
+              Vizualizează Vânzări în Așteptare
+            </Link>
+          </div>
+        </div>
 
         {/* System & Application Info Card */}
         <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">

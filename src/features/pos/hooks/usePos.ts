@@ -81,19 +81,49 @@ export const usePos = () => {
         setShiftLoading(true);
         setShiftError(null);
         try {
-            const [shift, registers] = await Promise.all([
-                posService.getActiveShift(currentStoreId, user.id),
-                posService.listCashRegisters(currentStoreId)
-            ]);
-            setActiveShift(shift);
-            setCashRegisters(registers);
+            const isDesktop = !!window.electronAPI;
+            if (isDesktop && !isOnline && window.electronAPI?.sqlite) {
+                console.log("[usePos] Offline mode: loading shift state from local SQLite");
+                const localShift = await window.electronAPI.sqlite.getShift({
+                    storeId: currentStoreId,
+                    cashierId: user.id
+                });
+                if (localShift && localShift.status === 'open') {
+                    setActiveShift({
+                        shiftId: localShift.shift_id,
+                        status: 'open',
+                        openingCash: 0,
+                        openedAt: localShift.opened_at,
+                        cashRegisterId: null,
+                        cashRegisterName: null,
+                        currentTotals: {
+                            totalSales: 0,
+                            totalCash: 0,
+                            totalCard: 0,
+                            totalMixed: 0,
+                            expectedCash: 0,
+                            transactionsCount: 0
+                        }
+                    });
+                } else {
+                    setActiveShift(null);
+                }
+                setCashRegisters([]);
+            } else {
+                const [shift, registers] = await Promise.all([
+                    posService.getActiveShift(currentStoreId, user.id),
+                    posService.listCashRegisters(currentStoreId)
+                ]);
+                setActiveShift(shift);
+                setCashRegisters(registers);
+            }
         } catch (err: unknown) {
             console.error("loadShiftData error:", err);
             setShiftError(getErrorMessage(err));
         } finally {
             setShiftLoading(false);
         }
-    }, [currentStoreId, user]);
+    }, [currentStoreId, user, isOnline]);
 
     useEffect(() => {
         loadShiftData();
@@ -574,6 +604,159 @@ export const usePos = () => {
         }
     };
 
+    const saveOfflineSale = async (): Promise<{ success: boolean; error?: string }> => {
+        if (isOnline) {
+            toast.error("Sistemul este online. Folosește încasarea standard.");
+            return { success: false, error: 'System is online' };
+        }
+        if (!window.electronAPI?.sqlite) {
+            toast.error("SQLite nu este disponibil.");
+            return { success: false, error: 'SQLite not available' };
+        }
+        if (!currentStoreId || !user) {
+            toast.error("Sesiune invalidă.");
+            return { success: false, error: 'Invalid session' };
+        }
+        if (cart.length === 0) {
+            toast.error("Coșul este gol.");
+            return { success: false, error: 'Cart is empty' };
+        }
+
+        // 1. Check local cache initialized & not expired
+        const cacheStatus = await window.electronAPI.sqlite.getCacheStatus({ storeId: currentStoreId });
+        if (!cacheStatus || !cacheStatus.initialized || !cacheStatus.lastSyncAt) {
+            toast.error("Nu există date offline suficiente pentru această vânzare.");
+            return { success: false, error: 'Offline cache not initialized' };
+        }
+
+        const lastSyncTime = new Date(cacheStatus.lastSyncAt).getTime();
+        const ageHrs = (Date.now() - lastSyncTime) / (1000 * 60 * 60);
+        if (ageHrs > 48) {
+            toast.error("Cache offline expirat. Reconectează aplicația pentru actualizare.");
+            return { success: false, error: 'Offline cache expired' };
+        }
+
+        // 2. Device Fingerprint
+        const devInfo = await window.electronAPI.sqlite.getDeviceInfo();
+        if (!devInfo || !devInfo.fingerprint) {
+            toast.error("Nu s-a putut obține identitatea dispozitivului.");
+            return { success: false, error: 'Device identity missing' };
+        }
+
+        // 3. Check active shift
+        const localShift = await window.electronAPI.sqlite.getShift({
+            storeId: currentStoreId,
+            cashierId: user.id
+        });
+        if (!localShift || localShift.status !== 'open') {
+            toast.error("Nu există tură activă salvată local. Reconectează aplicația.");
+            return { success: false, error: 'No active local shift' };
+        }
+
+        // 4. Validate products and prices exist in local DB
+        const itemIds = cart.map(item => item.productId);
+        const validateRes = await window.electronAPI.sqlite.validateCartItems({
+            storeId: currentStoreId,
+            itemIds
+        });
+        if (!validateRes || !validateRes.valid) {
+            if (validateRes && validateRes.reason === 'missing_product') {
+                toast.error("Produsul nu mai există în cache-ul local.");
+            } else {
+                toast.error("Nu există date offline suficiente pentru această vânzare.");
+            }
+            return { success: false, error: 'Products not found in local cache' };
+        }
+
+        // 5. Positive quantities validation
+        for (const item of cart) {
+            if (item.quantity <= 0) {
+                toast.error("Cantitățile produselor din coș trebuie să fie pozitive.");
+                return { success: false, error: 'Invalid product quantity' };
+            }
+        }
+
+        // 6. Map and build payload
+        const local_sale_id = window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID() : 'f' + Math.random().toString(36).substring(2, 15);
+        const itemsPayload = cart.map(item => ({
+            product_id: item.productId,
+            barcode: item.barcode,
+            name: item.name,
+            quantity: item.quantity,
+            unit_price_snapshot: item.price,
+            vat_group_snapshot: `TVA${item.vatPercent}`,
+            vat_rate_snapshot: item.vatPercent,
+            sgr_enabled_snapshot: item.sgrEnabled ? 1 : 0,
+            sgr_type_snapshot: item.sgrType || null,
+            sgr_deposit_amount_snapshot: item.sgrEnabled ? 0.50 : 0
+        }));
+
+        const paymentsPayload = paymentMethod === 'mixed'
+            ? [
+                { method: 'cash', amount: parseFloat(cashAmount) || 0 },
+                { method: 'card', amount: parseFloat(cardAmount) || 0 }
+              ]
+            : [
+                { method: paymentMethod, amount: totalBon }
+              ];
+
+        const totalsPayload = {
+            productsSubtotal,
+            sgrTotal: cartSgrTotal,
+            grandTotal: totalBon
+        };
+
+        const vatBreakdown: Record<string, { base: number; vat: number; rate: number }> = {};
+        cart.forEach(item => {
+            const rate = item.vatPercent || 19;
+            const key = `TVA${rate}`;
+            if (!vatBreakdown[key]) {
+                vatBreakdown[key] = { base: 0, vat: 0, rate };
+            }
+            const totalAmount = item.quantity * item.price;
+            const base = totalAmount / (1 + rate / 100);
+            const vat = totalAmount - base;
+            vatBreakdown[key].base += base;
+            vatBreakdown[key].vat += vat;
+        });
+
+        const salePayload = {
+            local_sale_id,
+            store_id: currentStoreId,
+            device_fingerprint: devInfo.fingerprint,
+            shift_id: localShift.shift_id,
+            cashier_profile_id: user.id,
+            created_at_local: new Date().toISOString(),
+            status: 'queued' as const,
+            cart_items_json: JSON.stringify(itemsPayload),
+            payments_json: JSON.stringify(paymentsPayload),
+            totals_json: JSON.stringify(totalsPayload),
+            sgr_totals_json: JSON.stringify({ sgrTotal: cartSgrTotal }),
+            vat_breakdown_json: JSON.stringify(vatBreakdown),
+            fiscal_status: 'pending_after_sync' as const
+        };
+
+        setSubmitting(true);
+        try {
+            const res = await window.electronAPI.sqlite.enqueueOfflineSale({ sale: salePayload });
+            if (res && res.success) {
+                toast.success("Vânzarea offline a fost salvată local. Se va sincroniza după reconectare.");
+                clearCart();
+                setQuery('');
+                setSearchResults([]);
+                return { success: true };
+            } else {
+                throw new Error(res?.error || "Eroare la adăugarea în coada locală.");
+            }
+        } catch (err: any) {
+            console.error("[usePos] Offline checkout failed:", err);
+            toast.error(`Eroare la salvarea vânzării offline: ${err.message}`);
+            return { success: false, error: err.message };
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return {
         query,
         setQuery,
@@ -608,6 +791,7 @@ export const usePos = () => {
         isSgrBlocked,
         SGR_CHECKOUT_BACKEND_ENABLED,
         finalizeSale,
+        saveOfflineSale,
         barcodeNotFound,
         setBarcodeNotFound,
         handleBarcodeEnter

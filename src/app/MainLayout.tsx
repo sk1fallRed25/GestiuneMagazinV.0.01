@@ -32,12 +32,32 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
     const location = useLocation();
     const [scrolled, setScrolled] = useState(false);
     const [appVersion, setAppVersion] = useState('1.0.0');
+    const [offlineQueuedCount, setOfflineQueuedCount] = useState(0);
+
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI?.isElectron;
+
+    useEffect(() => {
+        if (!isElectron || !currentStoreId) return;
+        
+        const updateCount = async () => {
+            if ((window as any).electronAPI?.sqlite?.getOfflineSalesSummary) {
+                try {
+                    const stats = await (window as any).electronAPI.sqlite.getOfflineSalesSummary({ storeId: currentStoreId });
+                    setOfflineQueuedCount(stats.queuedCount);
+                } catch (e) {
+                    console.error('Error fetching offline stats in MainLayout:', e);
+                }
+            }
+        };
+
+        updateCount();
+        const interval = setInterval(updateCount, 15000);
+        return () => clearInterval(interval);
+    }, [isElectron, currentStoreId]);
 
     // Logout/Close dialogs state
     const [showLogoutCartWarning, setShowLogoutCartWarning] = useState(false);
     const [showCloseCartWarning, setShowCloseCartWarning] = useState(false);
-
-    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI?.isElectron;
 
     useEffect(() => {
         const fetchVersion = async () => {
@@ -197,14 +217,18 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
         label: string;
         icon: React.ReactNode;
         className?: string;
+        badge?: React.ReactNode;
     }
 
-    const NavLink = ({ to, label, icon, className = "" }: NavLinkProps) => {
+    const NavLink = ({ to, label, icon, className = "", badge }: NavLinkProps) => {
         const isActive = location.pathname === to;
         return (
-            <Link to={to} className={`relative flex items-center gap-3 px-4 py-3 mx-2 rounded-xl transition-all duration-200 text-sm font-medium group ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${className}`}>
-                {icon}
-                <span>{label}</span>
+            <Link to={to} className={`relative flex items-center justify-between px-4 py-3 mx-2 rounded-xl transition-all duration-200 text-sm font-medium group ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${className}`}>
+                <div className="flex items-center gap-3">
+                    {icon}
+                    <span>{label}</span>
+                </div>
+                {badge && <div className="z-10">{badge}</div>}
                 {isActive && <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-white rounded-l-full opacity-20"></div>}
             </Link>
         )
@@ -325,6 +349,18 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                                 <>
                                     <div className="px-4 py-2 mt-6 text-xs font-bold text-slate-500 uppercase tracking-wider">Vânzare</div>
                                     <NavLink to="/vanzare" label="Deschide POS" icon={<ShoppingCart size={18} />} />
+                                    {isElectron && (
+                                        <NavLink 
+                                            to="/offline-sales" 
+                                            label="Vânzări offline" 
+                                            icon={<FileText size={18} />} 
+                                            badge={offlineQueuedCount > 0 ? (
+                                                <span className="bg-amber-500 text-white font-black text-[10px] px-2 py-0.5 rounded-full animate-pulse shadow-sm">
+                                                    {offlineQueuedCount}
+                                                </span>
+                                            ) : null}
+                                        />
+                                    )}
                                 </>
                             )}
                             
