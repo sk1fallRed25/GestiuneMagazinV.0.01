@@ -17,3 +17,6 @@ mobile/web-build/
 # Temporary and local test outputs
 scratch/
 artifacts/
+release/
+*.png
+*.html
