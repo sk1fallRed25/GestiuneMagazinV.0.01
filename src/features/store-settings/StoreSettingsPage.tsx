@@ -13,6 +13,7 @@ import { useAuth } from '../auth/useAuth';
 import { FiscalNetStationSettings } from '../fiscal-net';
 import { AiConsentSettingsCard } from '../ai-consultant';
 import { useNetworkStatus } from '../../shared/network/useNetworkStatus';
+import { AppUpdatePanel } from '../app-update/AppUpdatePanel';
 
 export const StoreSettingsPage: React.FC = () => {
 
@@ -216,6 +217,9 @@ export const StoreSettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Centru de Actualizări (Auto-Update) */}
+        <AppUpdatePanel />
       </div>
 
 

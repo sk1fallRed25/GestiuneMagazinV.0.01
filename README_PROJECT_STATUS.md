@@ -118,3 +118,24 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
 
 ### Următorul pas recomandat:
 - **`6AI.3 Server-Side Aggregation & Consent SQL Hardening`** (Rularea și pre-validarea scripturilor SQL propuse în mediul sandbox izolat).
+
+---
+
+## Stadiu Desktop Update & Offline Safe Mode
+
+- **Etapa 6APP.1 (NIR Placeholder UI + Auto-Update Blueprint + Offline Safe Mode Blueprint)**: **PASS**
+  - Creat `NirPage.tsx` ca placeholder de înaltă fidelitate pentru modulul NIR/e-Factura (permisiuni admin/manager/gestionar).
+  - Implementat network hook `useNetworkStatus.ts` cu monitorizare `online`/`offline` și debounce la reconectare.
+  - Implementat UI Safe Mode (offline banner global + blocare checkout în POS, salvare setări, actualizări produse și recepție stoc offline).
+  - Documentat blueprint-ul de update (`desktop_auto_update_blueprint_6app2.md`) și blueprint-ul de offline (`offline_safe_mode_blueprint_6app3.md`).
+  - Toate testele trec: `test_nir_placeholder_update_offline_6app1.py` (Exit code 0).
+
+- **Etapa 6APP.2 (Desktop Auto-Update Implementation)**: **PASS**
+  - Instalat pachetul `electron-updater` ca dependență în `package.json`.
+  - Configurat `package.json` cu win target `nsis` și `portable`, setări de instalare NSIS (non-one-click, directoare personalizabile) și publish.
+  - Creat `electron-updater-service.js` în procesul Main care integrează `electron-updater`, gestionează fluxurile în background și emite mesaje IPC.
+  - Expus interfața `updater` în `electron-preload.js` securizând canalele de update IPC și definit tipurile în `src/types/electron.d.ts`.
+  - Dezvoltat panoul `AppUpdatePanel.tsx` în Settings cu monitorizarea progresului de download și avertizări de browser sandbox.
+  - Implementat măsuri de siguranță POS în settings: instalarea update-ului este blocată dacă există produse în coș (`localStorage.getItem('pos_cart')` nu e gol), solicitând golirea coșului. Dacă e gol, se cere dublă confirmare înainte de repornire.
+  - Toate testele trec: `test_desktop_auto_update_6app2.py` (Exit code 0).
+  - Raport detaliat: `docs/desktop_auto_update_implementation_6app2_report.md`.

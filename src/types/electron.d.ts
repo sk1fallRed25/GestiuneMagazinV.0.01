@@ -17,6 +17,14 @@ export interface ElectronAPI {
     raspunsPath: string;
     filename: string;
   }) => Promise<{ success: boolean; content?: string; error?: string }>;
+  getAppVersion: () => Promise<string>;
+  updater?: {
+    checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;
+    downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
+    installUpdateAndRestart: () => Promise<{ success: boolean; error?: string }>;
+    getUpdateStatus: () => Promise<{ status: string; progress: number }>;
+    onUpdateEvent: (channel: string, callback: (event: any, ...args: any[]) => void) => () => void;
+  };
 }
 
 declare global {

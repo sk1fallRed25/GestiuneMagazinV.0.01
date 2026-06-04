@@ -11,7 +11,18 @@ export const usePos = () => {
     
     const [query, setQuery] = useState('');
     const [searchResults, setSearchResults] = useState<PosProduct[]>([]);
-    const [cart, setCart] = useState<CartItem[]>([]);
+    const [cart, setCart] = useState<CartItem[]>(() => {
+        try {
+            const saved = localStorage.getItem('pos_cart');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    });
+
+    useEffect(() => {
+        localStorage.setItem('pos_cart', JSON.stringify(cart));
+    }, [cart]);
     const [barcodeNotFound, setBarcodeNotFound] = useState<string | null>(null);
     const [loadingSearch, setLoadingSearch] = useState(false);
     const [submitting, setSubmitting] = useState(false);

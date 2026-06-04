@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { initializeUpdater } from './electron-updater-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -32,6 +33,9 @@ function createWindow() {
     if (process.env.NODE_ENV === 'development') {
         win.webContents.openDevTools();
     }
+
+    // Initialize the auto updater service
+    initializeUpdater(win);
 }
 
 app.whenReady().then(createWindow);
