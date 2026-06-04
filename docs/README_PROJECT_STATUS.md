@@ -346,7 +346,7 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
 
 - **Etapa 6AI.2 (AI Server-Side Aggregation, Consent & ML Contribution Blueprint)**: **Realizat** — PASS.
   - S-a creat blueprint-ul de design pentru stocarea consimțământului granular, stocarea snapshot-urilor operaționale și a exporturilor ML.
-  - S-a documentat schema bazei de date cu cinci indicatori independenți de consimțământ (UI visibility, data preparation, model improvement, benchmarking, external processing), toți fiind implicit `FALSE`.
+- S-a documentat schema bazei de date cu cinci indicatori independenți de consimțământ (UI visibility, data preparation, model improvement, benchmarking, external processing), toți fiind implicit `FALSE`.
   - S-a conceput un mecanism securizat de generare a dataset-urilor fără date cu caracter personal (PII-free whitelist).
   - S-a implementat testul static de audit `test_ai_server_side_aggregation_consent_6ai2.py`.
   - Blueprint-ul bazei de date salvat la `database/proposed_ai_server_side_aggregation_consent_6ai2.sql` și rapoartele la `docs/ai_server_side_aggregation_consent_blueprint_6ai2.md` și `docs/ai_server_side_aggregation_consent_6ai2_report.md`.
@@ -369,5 +369,36 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au rulat toate suitele de teste din proiect (hardening, UI, load regression, layout clarity) și toate au trecut cu 100% succes.
   - Raport oficial generat la `docs/ai_server_side_aggregation_sql_apply_verification_6ai4_report.md`.
   - **Următorul pas recomandat: 6AI.5 Store Settings AI Consent UI Integration.**
+
+---
+
+## Stadiu Offline Data & Auto-Update (6APP)
+
+- **Etapa 6APP.1 (NIR Placeholder & Offline Safe Mode)**: **PASS**
+  - S-a adăugat o pagină placeholder curată pentru NIR cu starea "În lucru" și butonul dezactivat conform restricțiilor de securitate.
+  - S-a integrat componenta de detectare a conexiunii la rețea `useNetworkStatus` cu banner-ul corespunzător în caz de offline.
+  - S-au configurat etichetele dinamice de versiune și mediu de execuție ("Electron Desktop" sau "Web Sandbox").
+  - S-au adăugat măsuri de securitate în mod offline (Offline Safe Mode) care blochează finalizarea vânzărilor și afișează avertismente corespunzătoare pe paginile POS, Produse și Setări.
+  - Testele Playwright din `test_nir_placeholder_update_offline_6app1.py` rulează și trec cu succes.
+
+- **Etapa 6APP.2 (Desktop Auto-Update Infrastructure)**: **PASS**
+  - S-a proiectat și configurat infrastructura de auto-update prin `electron-builder` utilizând target-urile `nsis` și `portable`.
+  - S-a implementat Electron IPC bridge pentru interacțiunea cu `electron-updater` securizat împotriva scurgerilor de privilegii.
+  - S-a proiectat un panou de setări premium `AppUpdatePanel` cu stări de progres ale descărcării și buton de instalare cu double-confirm.
+  - S-au integrat garduri de protecție la nivel de POS: instalarea actualizării este strict blocată dacă există produse active în coș.
+  - Testele Playwright din `test_desktop_auto_update_6app2.py` rulează și trec cu succes.
+
+- **Etapa 6APP.3 (Offline Data Cache & Sales Queue Blueprint)**: **PASS**
+  - S-a proiectat blueprint-ul tehnic pentru baza de date locală SQLite în procesul principal Electron.
+  - S-a elaborat schema detaliată a tabelelor locale (`local_products`, `local_product_prices`, `local_stock_snapshot`, `local_categories`, `local_shift_state`, `local_offline_sales_queue`, `local_sync_metadata`).
+  - S-a definit politica de sincronizare periodică (full refresh zilnic, sync incremental la 15-30 minute) și validitatea cache-ului (warning la 24h, blocare totală la 48h).
+  - S-a propus schema bazei de date server în `database/proposed_offline_data_cache_sales_queue_6app3.sql` conținând tabelele server (`pos_devices`, `offline_sale_sync_log`, `offline_sync_snapshots`) și RPC-uri securizate cu `SECURITY DEFINER` și `SET search_path = public`.
+  - S-a proiectat protocolul de backup local append-only în format `.jsonl` sub `%APPDATA%\GestiuneMagazin\offline-backups\` pentru protecția datelor la defectarea hardware-ului terminalului.
+  - S-a documentat comportamentul UI/UX și politica FiscalNet (scrie pe disc doar după sincronizare de succes).
+  - Testul static din `test_offline_data_cache_sales_queue_blueprint_6app3.py` rulează și trece cu succes.
+
+### Următorul pas recomandat:
+- **`6APP.4 SQLite & Offline Queue Implementation`** (Implementarea bazei de date SQLite locale în Electron și a logicii de sincronizare).
+
 
 
