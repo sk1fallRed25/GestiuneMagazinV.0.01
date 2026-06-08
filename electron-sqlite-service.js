@@ -1,4 +1,6 @@
-import Database from 'better-sqlite3';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const Database = require('better-sqlite3');
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';

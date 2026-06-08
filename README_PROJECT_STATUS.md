@@ -192,5 +192,14 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - **Rezultate**: Toate testele automate (static check, offline cache integration test, auto-update integration test) au fost rulate și trec cu succes (Exit code 0). Instalația packaged porneste cu succes.
   - Raport detaliat: `docs/packaged_electron_sqlite_service_hotfix_6app61_report.md`.
 
+- **Etapa 6APP.6.2 (Packaged Electron better-sqlite3 Native Dependency Hotfix)**: **PASS**
+  - **Eroare raportată**: `ERR_MODULE_NOT_FOUND` pentru `better-sqlite3` importat din `electron-sqlite-service.js` la pornirea aplicației packaged `.exe`.
+  - **Cauză**: Pachetul `better-sqlite3` era plasat în `devDependencies` și nu era inclus în build-ul de producție, iar fișierele native `.node` nu erau extrase din arhiva ASAR.
+  - **Hotfix**: S-a mutat `better-sqlite3` în `dependencies` în `package.json`, s-a adăugat configurarea `asarUnpack` pentru fișiere `.node` și s-a refactorizat importul în `electron-sqlite-service.js` cu `createRequire`.
+  - **Testare statică**: S-a creat scriptul de test `test_packaged_better_sqlite3_native_6app62.py` pentru a valida configurația package.json, prezența fișierelor și modul de import.
+  - **Rezultate**: Toate testele automate (ambele teste statice 6APP.6.1 și 6APP.6.2, offline cache, auto-update) au trecut cu succes. Executabilul packaged pornește corect.
+  - Raport detaliat: `docs/packaged_better_sqlite3_native_hotfix_6app62_report.md`.
+
+
 
 
