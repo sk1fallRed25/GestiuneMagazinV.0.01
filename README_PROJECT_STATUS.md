@@ -209,6 +209,14 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - **Notă**: `.exe`-ul NU a fost generat în această etapă la cererea utilizatorului.
   - Raport detaliat: `docs/packaged_electron_updater_import_hotfix_6app63_report.md`.
 
+- **Etapa 6APP.6.4 (Access Denied Logout + Close App Controls Hotfix)**: **PASS**
+  - **Problemă raportată**: Casierul rămâne blocat pe ecranul „Acces Interzis" fără buton de Deconectare sau Închide aplicația — doar „Înapoi la Dashboard" care e tot restricționat.
+  - **Cauză UX**: Ecranul Access Denied avea un singur buton cu `window.history.back()`, fără logout sau close app.
+  - **Hotfix**: S-a extras componenta `AccessDeniedCard` în `ProtectedRoute.tsx` cu 3 acțiuni: „Înapoi la POS" (pentru casier) / „Înapoi la Dashboard" (altele), „Deconectare" (folosește `useAuth().logout`), „Închide aplicația" (Electron `quitApp` cu dialog confirmare, disabled în browser).
+  - **Testare**: S-a creat `test_access_denied_controls_6app64.py` cu 9 verificări statice + 6 scenarii E2E.
+  - **Rezultate**: Build OK, teste statice PASS. `.exe`-ul NU a fost generat.
+  - Raport detaliat: `docs/access_denied_controls_hotfix_6app64_report.md`.
+
 
 
 
