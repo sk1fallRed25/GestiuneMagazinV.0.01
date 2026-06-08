@@ -182,6 +182,15 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Adăugat componentul vizual premium `OfflineCacheSyncPanel.tsx` în setările magazinului, afișând starea cache-ului, numărul de elemente și avertizări de prospețime (green/yellow/red).
   - Integrat fallback automat pentru căutare și scanare cod de bare în POS (`usePos.ts`) în mod offline, redirecționând interogarea către SQLite.
   - Toate testele Playwright trec: `test_offline_data_cache_sqlite_6app6.py` (3/3 PASS, Exit code 0).
-  - Raport detaliat: `docs/offline_data_cache_sqlite_6app6_report.md`.
+  - Raport detaliat: `docs/offline_data_cache_sqlite_6app6.md`.
+
+- **Etapa 6APP.6.1 (Packaged Electron SQLite Service Inclusion Hotfix)**: **PASS**
+  - **Eroare raportată**: `ERR_MODULE_NOT_FOUND` pentru `electron-sqlite-service.js` la pornirea aplicației packaged `.exe`.
+  - **Cauză**: Fișierul `electron-sqlite-service.js` nu era inclus în lista `files` din configurarea de build a `package.json`, ceea ce a dus la omiterea sa din pachetul final generat de `electron-builder`.
+  - **Hotfix**: S-a adăugat `electron-sqlite-service.js` în vectorul `files` din `package.json`.
+  - **Testare statică**: S-a creat scriptul de test `test_packaged_electron_sqlite_service_6app61.py` care verifică automat integritatea importurilor și configurațiile de build.
+  - **Rezultate**: Toate testele automate (static check, offline cache integration test, auto-update integration test) au fost rulate și trec cu succes (Exit code 0). Instalația packaged porneste cu succes.
+  - Raport detaliat: `docs/packaged_electron_sqlite_service_hotfix_6app61_report.md`.
+
 
 

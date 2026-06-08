@@ -59,6 +59,7 @@
       "electron-main.js",
       "electron-preload.js",
       "electron-updater-service.js",
+      "electron-sqlite-service.js",
       "package.json"
     ],
     "publish": {
