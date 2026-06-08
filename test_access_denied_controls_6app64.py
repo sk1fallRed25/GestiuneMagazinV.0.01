@@ -141,7 +141,7 @@ def run_e2e_tests():
             # Login as casier
             page.goto("http://localhost:5174/#/login")
             page.locator("input[type='text']").wait_for(state="visible", timeout=10000)
-            page.locator("input[type='text']").fill("casier@admin.com")
+            page.locator("input[type='text']").fill("casier@casier.com")
             page.locator("input[type='password']").fill("casier123")
             page.locator("button[type='submit']").click()
             page.wait_for_timeout(3000)
@@ -247,7 +247,7 @@ def run_e2e_tests():
             # Login as casier
             browser_page.goto("http://localhost:5174/#/login")
             browser_page.locator("input[type='text']").wait_for(state="visible", timeout=10000)
-            browser_page.locator("input[type='text']").fill("casier@admin.com")
+            browser_page.locator("input[type='text']").fill("casier@casier.com")
             browser_page.locator("input[type='password']").fill("casier123")
             browser_page.locator("button[type='submit']").click()
             browser_page.wait_for_timeout(3000)
@@ -294,7 +294,7 @@ def run_e2e_tests():
             # Login as casier
             electron_page.goto("http://localhost:5174/#/login")
             electron_page.locator("input[type='text']").wait_for(state="visible", timeout=10000)
-            electron_page.locator("input[type='text']").fill("casier@admin.com")
+            electron_page.locator("input[type='text']").fill("casier@casier.com")
             electron_page.locator("input[type='password']").fill("casier123")
             electron_page.locator("button[type='submit']").click()
             electron_page.wait_for_timeout(3000)
