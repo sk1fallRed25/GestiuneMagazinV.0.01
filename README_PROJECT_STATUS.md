@@ -200,6 +200,15 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - **Rezultate**: Toate testele automate (ambele teste statice 6APP.6.1 și 6APP.6.2, offline cache, auto-update) au trecut cu succes. Executabilul packaged pornește corect.
   - Raport detaliat: `docs/packaged_better_sqlite3_native_hotfix_6app62_report.md`.
 
+- **Etapa 6APP.6.3 (Packaged Electron Updater ESM/CommonJS Import Hotfix)**: **PASS**
+  - **Eroare raportată**: `SyntaxError: The requested module 'electron-updater' does not provide an export named 'autoUpdater'` la pornirea aplicației packaged `.exe`.
+  - **Cauză**: Pachetul `electron-updater` este CommonJS și nu expune named exports compatibile ESM în contextul packaged Electron cu `"type": "module"`. Importul `import { autoUpdater } from 'electron-updater'` funcționa în dev, dar crăpa în producție.
+  - **Hotfix**: S-a înlocuit importul ESM named cu bridge-ul `createRequire` din `'module'`, identic cu pattern-ul validat pentru `better-sqlite3` în 6APP.6.2. S-a adăugat fallback defensiv care setează status `'unavailable'` dacă modulul nu poate fi încărcat.
+  - **Testare statică**: S-a creat scriptul `test_packaged_electron_updater_import_6app63.py` (12 verificări automate).
+  - **Rezultate**: Toate testele automate (6APP.6.3, 6APP.6.2, 6APP.6.1) au trecut cu succes. Build OK.
+  - **Notă**: `.exe`-ul NU a fost generat în această etapă la cererea utilizatorului.
+  - Raport detaliat: `docs/packaged_electron_updater_import_hotfix_6app63_report.md`.
+
 
 
 

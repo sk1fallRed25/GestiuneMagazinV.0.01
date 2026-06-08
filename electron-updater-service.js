@@ -1,5 +1,32 @@
 import { app, ipcMain } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import { createRequire } from 'module';
+
+// Bridge CommonJS electron-updater into ESM context.
+// electron-updater is a CommonJS package and does not expose named ESM exports.
+// In packaged Electron apps with "type": "module", using `import { autoUpdater }`
+// causes: SyntaxError: The requested module 'electron-updater' does not provide
+// an export named 'autoUpdater'. The createRequire bridge resolves this,
+// matching the pattern already used for better-sqlite3 in electron-sqlite-service.js.
+const require = createRequire(import.meta.url);
+
+let autoUpdater;
+let updaterAvailable = true;
+try {
+    const electronUpdater = require('electron-updater');
+    autoUpdater = electronUpdater.autoUpdater ?? electronUpdater.default?.autoUpdater ?? electronUpdater;
+} catch (loadErr) {
+    console.error('[Updater] CRITICAL: Failed to load electron-updater module:', loadErr);
+    updaterAvailable = false;
+    // Create a no-op stub so the rest of the file doesn't crash
+    autoUpdater = {
+        autoDownload: false,
+        autoInstallOnAppQuit: false,
+        on: () => {},
+        checkForUpdates: async () => null,
+        downloadUpdate: async () => {},
+        quitAndInstall: () => {},
+    };
+}
 
 // Local console-based logger fallback
 const log = {
@@ -8,7 +35,7 @@ const log = {
 };
 
 let mainWindow = null;
-let lastStatus = 'idle';
+let lastStatus = updaterAvailable ? 'idle' : 'unavailable';
 let downloadProgressPercent = 0;
 
 export function initializeUpdater(win) {
