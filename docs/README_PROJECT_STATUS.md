@@ -433,9 +433,24 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a corectat managementul modului Kiosk la nivel de navigare în `AppRoutes.tsx` adăugând verificări defensive împotriva erorilor în medii de testare fără Electron API.
   - Suita de teste automate E2E Playwright `test_access_denied_controls_6app64.py` a fost rulată cu succes, trecând 100% toate verificările de prezență, vizibilitate, navigare și fallback-uri.
 
+- **Etapa 6UX.3 (POS Workspace, Cart & Payments Polish)**: **PASS**
+  - S-a redesenat complet interfața panoului de plată (`PosPaymentPanel.tsx`) utilizând design tokens și culori din paleta Tailwind pentru a asigura un contrast de înaltă calitate.
+  - S-au mărit butoanele de incrementare/decrementare din coș (`PosCart.tsx`) la exact `w-11 h-11` (44px) conform recomandărilor pentru ecrane tactile.
+  - S-a adăugat o secțiune de detalii pentru metoda de plată mixtă, afișând dinamic suma rămasă de achitat.
+  - S-a înlocuit afișarea textului simplu pentru coș gol cu o componentă dedicată premium de Empty State.
+  - S-au integrat insigne dinamice pentru starea driverului local FiscalNet și starea de scanare.
+  - Suita de teste Playwright `test_ui_pos_workspace_cart_payments_6ux3.py` a rulat și a validat toate fluxurile cu succes.
+
+- **Etapa 6UX.3.1 (POS Category/Subcategory Product Filter & Scanner Badge Hotfix)**: **PASS**
+  - S-a remediat bug-ul filtrării produselor din POS după selectarea categoriei și a unei subcategorii, prin implementarea logicii recursive `getProductCategoryIds` în hook-ul `usePosCategories.ts` pentru a suporta robustețea atributelor `categoryId`, `category_id`, `subcategory_id` și a fallback-urilor bazate pe nume.
+  - S-a corectat suprapunerea vizuală dintre placeholder-ul câmpului de scanare și insigna statusului de scanare din `PosSearchBar.tsx` prin rearanjarea layout-ului în format vertical flexibil.
+  - S-a adăugat o redirecționare contextuală securizată ("Mergi la Catalog Produse") pentru rolurile administrative în cazul subcategoriilor goale, ascunsă pentru rolul de casier.
+  - S-a dezvoltat și executat cu succes testul Playwright dedicat `test_pos_category_subcategory_filter_6ux31.py` care acoperă scenariile pentru ambele roluri.
+
 ### Următorul pas recomandat:
-- **`6UX.3 Products & Catalog UI/UX`** (Refactorizarea paginii de catalog produse).
+- **`6UX.4 Products & Catalog UI/UX`** (Refactorizarea paginii de catalog produse).
 - **`6APP.6 Local SQLite Cache Engine`** (Implementarea motorului SQLite local din Electron Main Process pentru caching date în client).
+
 
 
 

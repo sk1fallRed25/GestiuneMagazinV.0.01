@@ -5,9 +5,11 @@
  */
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { FolderOpen, Tag, Package, ChevronLeft, Layers } from 'lucide-react';
 import { CategoryWithSubs, CategoryOption } from '../../catalog/types';
 import { PosProduct } from '../types';
+import { useAuth } from '../../auth/useAuth';
 
 interface PosCategoryBrowserProps {
     categoriesTree: CategoryWithSubs[];
@@ -32,6 +34,8 @@ export const PosCategoryBrowser: React.FC<PosCategoryBrowserProps> = ({
     onSelectSubcategory,
     onSelectProduct
 }) => {
+    const { role } = useAuth();
+    const isAdminOrManager = role === 'admin' || role === 'manager' || role === 'platform_owner';
     const activeCategory = categoriesTree.find(c => c.id === activeCategoryId) ?? null;
 
     // ── Stare loading ──
@@ -77,7 +81,9 @@ export const PosCategoryBrowser: React.FC<PosCategoryBrowserProps> = ({
                 <ProductGrid
                     products={browseProducts}
                     onSelect={onSelectProduct}
-                    emptyMsg={`Niciun produs în „${subName}"`}
+                    emptyMsg="Nu există produse în această subcategorie."
+                    emptyDescription="Verifică dacă produsele sunt încadrate pe subcategoria corectă în Catalog Produse."
+                    showCatalogButton={isAdminOrManager}
                 />
             </div>
         );
@@ -125,6 +131,8 @@ export const PosCategoryBrowser: React.FC<PosCategoryBrowserProps> = ({
                     products={browseProducts}
                     onSelect={onSelectProduct}
                     emptyMsg={`Niciun produs direct în „${activeCategory?.name}"`}
+                    emptyDescription="Verifică dacă produsele sunt încadrate pe categoria corectă în Catalog Produse."
+                    showCatalogButton={isAdminOrManager}
                 />
             </div>
         );
@@ -165,14 +173,31 @@ interface ProductGridProps {
     products: PosProduct[];
     onSelect: (p: PosProduct) => void;
     emptyMsg?: string;
+    emptyDescription?: string;
+    showCatalogButton?: boolean;
 }
 
-const ProductGrid: React.FC<ProductGridProps> = ({ products, onSelect, emptyMsg }) => {
+const ProductGrid: React.FC<ProductGridProps> = ({ products, onSelect, emptyMsg, emptyDescription, showCatalogButton }) => {
     if (products.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-300 gap-2">
-                <Package size={32} className="opacity-30" />
-                <p className="text-xs font-bold text-gray-400">{emptyMsg ?? 'Niciun produs'}</p>
+            <div className="flex flex-col items-center justify-center py-10 bg-gray-50/50 border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center gap-3">
+                <div className="p-3 bg-gray-100 text-gray-400 rounded-2xl">
+                    <Package size={36} className="opacity-40" />
+                </div>
+                <div>
+                    <h4 className="text-sm font-bold text-gray-800">{emptyMsg ?? 'Niciun produs'}</h4>
+                    {emptyDescription && (
+                        <p className="text-xs text-gray-400 font-medium mt-1.5 max-w-sm mx-auto">{emptyDescription}</p>
+                    )}
+                </div>
+                {showCatalogButton && (
+                    <Link
+                        to="/produse"
+                        className="mt-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95"
+                    >
+                        Mergi la Catalog Produse
+                    </Link>
+                )}
             </div>
         );
     }
