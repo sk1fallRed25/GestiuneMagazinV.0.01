@@ -16,6 +16,7 @@ import { AiConsentSettingsCard } from '../ai-consultant';
 import { useNetworkStatus } from '../../shared/network/useNetworkStatus';
 import { AppUpdatePanel } from '../app-update/AppUpdatePanel';
 import { OfflineCacheSyncPanel } from '../pos/components/OfflineCacheSyncPanel';
+import { PosCartEventsPanel } from '../pos/components/PosCartEventsPanel';
 
 export const StoreSettingsPage: React.FC = () => {
 
@@ -27,6 +28,8 @@ export const StoreSettingsPage: React.FC = () => {
   } = useStoreSettings();
 
   const [appVersion, setAppVersion] = React.useState('1.0.0');
+  const [windowState, setWindowState] = React.useState('Web Browser');
+
   React.useEffect(() => {
     const fetchVersion = async () => {
       if (typeof window !== 'undefined' && (window as any).electronAPI?.getAppVersion) {
@@ -39,6 +42,33 @@ export const StoreSettingsPage: React.FC = () => {
       }
     };
     fetchVersion();
+  }, []);
+
+  React.useEffect(() => {
+    const fetchWindowState = async () => {
+      if (typeof window !== 'undefined' && (window as any).electronAPI?.appControls?.getWindowState) {
+        try {
+          const state = await (window as any).electronAPI.appControls.getWindowState();
+          if (state.isKiosk) {
+            setWindowState('Desktop Kiosk Activ');
+          } else if (state.isFullscreen) {
+            setWindowState('Desktop Fullscreen');
+          } else if (state.isMaximized) {
+            setWindowState('Desktop Maximizat');
+          } else {
+            setWindowState('Desktop Fereastră');
+          }
+        } catch (e) {
+          console.error(e);
+          setWindowState('Eroare detecție');
+        }
+      } else {
+        setWindowState('Web Browser');
+      }
+    };
+    fetchWindowState();
+    const interval = setInterval(fetchWindowState, 2500);
+    return () => clearInterval(interval);
   }, []);
 
   // ─── Forbidden state (casier/gestionar) ────────────────────
@@ -224,7 +254,7 @@ export const StoreSettingsPage: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
             ℹ️ Sistem și Informații Aplicație
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
               <span className="text-xs text-slate-400 font-bold uppercase">Versiune Aplicație</span>
               <span data-testid="settings-app-version-label" className="text-base font-black text-slate-700">
@@ -237,11 +267,22 @@ export const StoreSettingsPage: React.FC = () => {
                 {((window as any).electronAPI?.isElectron) ? 'Electron Desktop' : 'Web Browser'}
               </span>
             </div>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
+              <span className="text-xs text-slate-400 font-bold uppercase">Stare Fereastră (Kiosk)</span>
+              <span data-testid="app-window-state-indicator" className="text-base font-black text-slate-700">
+                {windowState}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Centru de Actualizări (Auto-Update) */}
         <AppUpdatePanel />
+
+        {/* Audit Evenimente Coș POS */}
+        {storeInfo.storeId && (
+          <PosCartEventsPanel storeId={storeInfo.storeId} />
+        )}
       </div>
 
 

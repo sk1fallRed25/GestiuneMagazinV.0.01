@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -7,15 +7,18 @@ import {
     initDb, saveCacheBundle, searchLocalProducts, getLocalProductByBarcode, 
     getLocalCacheStatus, saveLocalShiftState, getLocalShiftState, getOrCreateDeviceInfo,
     validateCartItemsLocal, enqueueOfflineSale, listOfflineSales, getOfflineSale, 
-    updateOfflineSaleStatus, deleteOfflineSale, getOfflineSalesSummary 
+    updateOfflineSaleStatus, deleteOfflineSale, getOfflineSalesSummary,
+    getAllLocalProducts, logPosCartEvent, listLocalPosCartEvents
 } from './electron-sqlite-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+let win = null;
+
 function createWindow() {
-    const win = new BrowserWindow({
+    win = new BrowserWindow({
         // Setări specifice v0.1.2 pentru securitate POS
-        fullscreen: true,           // Forțează aplicația în ecran complet
+        fullscreen: false,           // Pornire normală, nu forțat în fullscreen
         autoHideMenuBar: true,      // Ascunde bara de meniu (File, Edit, etc.)
         width: 1280,
         height: 800,
@@ -27,6 +30,8 @@ function createWindow() {
         // Iconița pentru fereastra de Windows
         icon: path.join(__dirname, 'public/vite.svg')
     });
+
+    win.maximize();
 
     // Gestionare URL în funcție de mediu (Dev vs Producție)
     const startUrl = process.env.NODE_ENV === 'development'
@@ -326,5 +331,97 @@ ipcMain.handle('sqlite:get-offline-sales-summary', async (event, { storeId }) =>
     } catch (err) {
         console.error('[Electron SQLite IPC] Error getting offline sales summary:', err);
         return { queuedCount: 0, queuedTotal: 0, lastSale: null };
+    }
+});
+
+// POS Kiosk/Fullscreen/Resolution and Custom SQLite Handlers
+ipcMain.handle('app:set-kiosk-mode', async (event, enabled) => {
+    try {
+        const value = !!enabled;
+        console.log(`[AppControls] Setting kiosk mode: ${value}`);
+        if (win) {
+            win.setKiosk(value);
+            if (!value) {
+                win.setFullScreen(false);
+                win.maximize();
+            }
+        }
+        return { success: true };
+    } catch (err) {
+        console.error('[AppControls] Error setting kiosk mode:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('app:set-fullscreen-mode', async (event, enabled) => {
+    try {
+        const value = !!enabled;
+        console.log(`[AppControls] Setting fullscreen mode: ${value}`);
+        if (win) {
+            win.setFullScreen(value);
+            if (!value) {
+                win.maximize();
+            }
+        }
+        return { success: true };
+    } catch (err) {
+        console.error('[AppControls] Error setting fullscreen mode:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('app:get-window-state', async () => {
+    try {
+        if (win) {
+            return {
+                isKiosk: win.isKiosk(),
+                isFullscreen: win.isFullScreen(),
+                isMaximized: win.isMaximized()
+            };
+        }
+        return { isKiosk: false, isFullscreen: false, isMaximized: false };
+    } catch (err) {
+        console.error('[AppControls] Error getting window state:', err);
+        return { isKiosk: false, isFullscreen: false, isMaximized: false };
+    }
+});
+
+ipcMain.handle('app:get-screen-size', async () => {
+    try {
+        const primaryDisplay = screen.getPrimaryDisplay();
+        return {
+            width: primaryDisplay.workAreaSize.width,
+            height: primaryDisplay.workAreaSize.height
+        };
+    } catch (err) {
+        console.error('[AppControls] Error getting screen size:', err);
+        return { width: 1024, height: 768 };
+    }
+});
+
+ipcMain.handle('sqlite:get-all-products', async (event, { storeId }) => {
+    try {
+        return getAllLocalProducts(storeId);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error getting all products:', err);
+        return [];
+    }
+});
+
+ipcMain.handle('sqlite:log-cart-event', async (event, cartEvent) => {
+    try {
+        return logPosCartEvent(cartEvent);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error logging cart event:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:list-cart-events', async (event, { storeId }) => {
+    try {
+        return listLocalPosCartEvents(storeId);
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error listing cart events:', err);
+        return [];
     }
 });

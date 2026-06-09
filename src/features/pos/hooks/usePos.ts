@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../auth/useAuth';
 import { posService } from '../services/posService';
 import { savePosCartDraft, clearPosCartDraft, CartDraftContext } from '../services/posCartRecoveryService';
+import { logCartEvent } from '../services/posCartEventService';
 import { PosProduct, CartItem, PaymentMethod, ActiveShift, CashRegister } from '../types';
 import { tryWriteFiscalNetAfterCheckout, isFiscalNetDesktopRuntime } from '../../fiscal-net';
 import { useNetworkStatus } from '../../../shared/network/useNetworkStatus';
@@ -196,6 +197,20 @@ export const usePos = () => {
                     : item
             ));
             toast.success(`Cantitate actualizată: ${existing.quantity + 1}`);
+
+            // Log event: item_quantity_changed
+            if (currentStoreId && user?.id) {
+                logCartEvent({
+                    storeId: currentStoreId,
+                    cashierProfileId: user.id,
+                    eventType: 'item_quantity_changed',
+                    productId: product.id,
+                    productName: product.name,
+                    barcode: product.barcode,
+                    quantityBefore: existing.quantity,
+                    quantityAfter: existing.quantity + 1
+                });
+            }
         } else {
             const newItem: CartItem = {
                 productId: product.id,
@@ -214,11 +229,25 @@ export const usePos = () => {
             };
             setCart(prev => [...prev, newItem]);
             toast.success(`Produs adăugat: ${product.name}`);
+
+            // Log event: item_added
+            if (currentStoreId && user?.id) {
+                logCartEvent({
+                    storeId: currentStoreId,
+                    cashierProfileId: user.id,
+                    eventType: 'item_added',
+                    productId: product.id,
+                    productName: product.name,
+                    barcode: product.barcode,
+                    quantityBefore: 0,
+                    quantityAfter: 1
+                });
+            }
         }
         
         setQuery('');
         setSearchResults([]);
-    }, [cart]);
+    }, [cart, currentStoreId, user]);
 
     const isBarcodeLike = (val: string): boolean => {
         const clean = val.trim();
@@ -265,31 +294,69 @@ export const usePos = () => {
         }
     }, [currentStoreId, isOnline, addToCart]);
 
-    const removeFromCart = (productId: string) => {
-        setCart(prev => prev.filter(item => item.productId !== productId));
-    };
+    const removeFromCart = useCallback((productId: string) => {
+        const item = cart.find(i => i.productId === productId);
+        if (item && currentStoreId && user?.id) {
+            logCartEvent({
+                storeId: currentStoreId,
+                cashierProfileId: user.id,
+                eventType: 'item_removed',
+                productId: item.productId,
+                productName: item.name,
+                barcode: item.barcode,
+                quantityBefore: item.quantity,
+                quantityAfter: 0
+            });
+        }
+        setCart(prev => prev.filter(i => i.productId !== productId));
+    }, [cart, currentStoreId, user]);
 
-    const updateQuantity = (productId: string, qty: number) => {
+    const updateQuantity = useCallback((productId: string, qty: number) => {
         if (isNaN(qty) || qty <= 0) return;
         
-        setCart(prev => prev.map(item => {
-            if (item.productId === productId) {
-                if (qty > item.stockAvailable) {
-                    toast.error(`Stoc insuficient! Maxim disponibil: ${item.stockAvailable}`);
-                    return item;
-                }
+        const item = cart.find(i => i.productId === productId);
+        if (item) {
+            if (qty > item.stockAvailable) {
+                toast.error(`Stoc insuficient! Maxim disponibil: ${item.stockAvailable}`);
+                return;
+            }
+            if (currentStoreId && user?.id) {
+                logCartEvent({
+                    storeId: currentStoreId,
+                    cashierProfileId: user.id,
+                    eventType: 'item_quantity_changed',
+                    productId: item.productId,
+                    productName: item.name,
+                    barcode: item.barcode,
+                    quantityBefore: item.quantity,
+                    quantityAfter: qty
+                });
+            }
+        }
+
+        setCart(prev => prev.map(i => {
+            if (i.productId === productId) {
                 return { 
-                    ...item, 
+                    ...i, 
                     quantity: qty, 
-                    total: qty * item.price,
-                    sgrTotalAmount: item.sgrEnabled ? qty * 0.50 : 0
+                    total: qty * i.price,
+                    sgrTotalAmount: i.sgrEnabled ? qty * 0.50 : 0
                 };
             }
-            return item;
+            return i;
         }));
-    };
+    }, [cart, currentStoreId, user]);
 
-    const clearCart = () => {
+    const clearCart = useCallback(() => {
+        if (cart.length > 0 && currentStoreId && user?.id) {
+            logCartEvent({
+                storeId: currentStoreId,
+                cashierProfileId: user.id,
+                eventType: 'cart_cleared',
+                quantityBefore: cart.reduce((acc, i) => acc + i.quantity, 0),
+                quantityAfter: 0
+            });
+        }
         setCart([]);
         setCashAmount('0.00');
         setCardAmount('0.00');
@@ -299,12 +366,21 @@ export const usePos = () => {
         if (currentStoreId && user?.id) {
             clearPosCartDraft({ storeId: currentStoreId, profileId: user.id });
         }
-    };
+    }, [cart, currentStoreId, user]);
 
     /** Restore cart items from a recovered draft. Totals are recalculated by the cart. */
-    const restoreCartFromDraft = (items: CartItem[]) => {
+    const restoreCartFromDraft = useCallback((items: CartItem[]) => {
+        if (currentStoreId && user?.id) {
+            logCartEvent({
+                storeId: currentStoreId,
+                cashierProfileId: user.id,
+                eventType: 'cart_restored',
+                quantityBefore: 0,
+                quantityAfter: items.reduce((acc, i) => acc + i.quantity, 0)
+            });
+        }
         setCart(items);
-    };
+    }, [currentStoreId, user]);
 
     const SGR_CHECKOUT_BACKEND_ENABLED = typeof window !== 'undefined' && (window as any).SGR_CHECKOUT_BACKEND_ENABLED !== undefined
         ? (window as any).SGR_CHECKOUT_BACKEND_ENABLED

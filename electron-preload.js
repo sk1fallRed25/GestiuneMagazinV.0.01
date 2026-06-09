@@ -6,7 +6,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     isElectron: true,
     appControls: {
-        quitApp: () => ipcRenderer.invoke('app:quit')
+        quitApp: () => ipcRenderer.invoke('app:quit'),
+        setKioskMode: (enabled) => ipcRenderer.invoke('app:set-kiosk-mode', enabled),
+        setFullscreenMode: (enabled) => ipcRenderer.invoke('app:set-fullscreen-mode', enabled),
+        getWindowState: () => ipcRenderer.invoke('app:get-window-state'),
+        getScreenSize: () => ipcRenderer.invoke('app:get-screen-size')
     },
     sqlite: {
         saveCacheBundle: (args) => ipcRenderer.invoke('sqlite:save-bundle', args),
@@ -22,7 +26,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getOfflineSale: (args) => ipcRenderer.invoke('sqlite:get-offline-sale', args),
         updateOfflineSaleStatus: (args) => ipcRenderer.invoke('sqlite:update-offline-sale-status', args),
         deleteOfflineSale: (args) => ipcRenderer.invoke('sqlite:delete-offline-sale', args),
-        getOfflineSalesSummary: (args) => ipcRenderer.invoke('sqlite:get-offline-sales-summary', args)
+        getOfflineSalesSummary: (args) => ipcRenderer.invoke('sqlite:get-offline-sales-summary', args),
+        getAllProducts: (args) => ipcRenderer.invoke('sqlite:get-all-products', args),
+        logCartEvent: (args) => ipcRenderer.invoke('sqlite:log-cart-event', args),
+        listCartEvents: (args) => ipcRenderer.invoke('sqlite:list-cart-events', args)
     },
     updater: {
         checkForUpdates: () => ipcRenderer.invoke('updater:check-for-updates'),

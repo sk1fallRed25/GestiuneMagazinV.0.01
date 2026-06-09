@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../features/auth/useAuth';
 import { UserRole } from '../features/auth/types';
 import ProtectedRoute from '../features/auth/ProtectedRoute';
@@ -36,6 +36,24 @@ const DefaultLandingRoute: React.FC = () => {
 
 const AppRoutes = () => {
     const { role: authRole, logout: authLogout } = useAuth();
+    const location = useLocation();
+
+    React.useEffect(() => {
+        const isDesktop = typeof window !== 'undefined' && !!(window as any).electronAPI?.appControls;
+        if (!isDesktop) return;
+
+        const path = location.pathname.toLowerCase();
+        const isPosRoute = path === '/pos' || path === '/vanzare';
+        const isCashier = authRole === 'casier';
+
+        if (isCashier && isPosRoute) {
+            console.log('[AppRoutes] Cashier on POS route: enabling Kiosk mode.');
+            (window as any).electronAPI.appControls.setKioskMode(true);
+        } else {
+            console.log('[AppRoutes] Exiting Kiosk mode.');
+            (window as any).electronAPI.appControls.setKioskMode(false);
+        }
+    }, [location.pathname, authRole]);
 
     const handleLogout = async () => {
         if (confirm("Deconectare MagazinPro?")) {

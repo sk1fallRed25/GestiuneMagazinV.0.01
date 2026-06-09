@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { logCartEvent } from './services/posCartEventService';
 import { usePos } from './hooks/usePos';
 import { usePosCategories } from './hooks/usePosCategories';
 import { useScannerFocus } from './hooks/useScannerFocus';
@@ -165,6 +166,21 @@ const PosPage: React.FC = () => {
     const [recoveryDraft, setRecoveryDraft] = useState<PosCartDraft | null>(null);
     const recoveryCheckedRef = useRef(false);
 
+    // Kiosk active detection state
+    const [isKioskActive, setIsKioskActive] = useState(false);
+
+    useEffect(() => {
+        const checkKiosk = async () => {
+            if (window.electronAPI?.appControls?.getWindowState) {
+                const state = await window.electronAPI.appControls.getWindowState();
+                setIsKioskActive(!!state.isKiosk);
+            }
+        };
+        checkKiosk();
+        const interval = setInterval(checkKiosk, 2000);
+        return () => clearInterval(interval);
+    }, []);
+
     // Toate produsele pentru browser categorii
     const [allProducts, setAllProducts] = useState<PosProduct[]>([]);
     const [loadingAllProducts, setLoadingAllProducts] = useState(false);
@@ -173,14 +189,21 @@ const PosPage: React.FC = () => {
         if (!currentStoreId) return;
         setLoadingAllProducts(true);
         try {
-            const prods = await posService.listAllProducts(currentStoreId);
-            setAllProducts(prods);
+            const isDesktop = !!window.electronAPI;
+            if (isDesktop && !isOnline && window.electronAPI?.sqlite?.getAllProducts) {
+                console.log("[PosPage] Offline mode: loading all products from SQLite cache");
+                const prods = await window.electronAPI.sqlite.getAllProducts({ storeId: currentStoreId });
+                setAllProducts(prods);
+            } else {
+                const prods = await posService.listAllProducts(currentStoreId);
+                setAllProducts(prods);
+            }
         } catch (err) {
             console.error('PosPage.loadAllProducts error:', err);
         } finally {
             setLoadingAllProducts(false);
         }
-    }, [currentStoreId]);
+    }, [currentStoreId, isOnline]);
 
     useEffect(() => {
         loadAllProducts();
@@ -190,6 +213,7 @@ const PosPage: React.FC = () => {
     useEffect(() => {
         if (recoveryCheckedRef.current) return;
         if (!currentStoreId || !user?.id) return;
+        if (loadingAllProducts) return; // Wait until catalog products are loaded
 
         const ctx: CartDraftContext = {
             storeId: currentStoreId,
@@ -204,7 +228,7 @@ const PosPage: React.FC = () => {
             }
         }
         recoveryCheckedRef.current = true;
-    }, [currentStoreId, user?.id, cart.length]);
+    }, [currentStoreId, user?.id, cart.length, loadingAllProducts]);
 
     const handleRestoreCart = useCallback(() => {
         if (!recoveryDraft) return;
@@ -250,13 +274,22 @@ const PosPage: React.FC = () => {
     }, [recoveryDraft, allProducts, restoreCartFromDraft, currentStoreId, user?.id]);
 
     const handleDiscardDraft = useCallback(() => {
+        if (recoveryDraft && currentStoreId && user?.id) {
+            logCartEvent({
+                storeId: currentStoreId,
+                cashierProfileId: user.id,
+                eventType: 'cart_discarded',
+                quantityBefore: recoveryDraft.items.reduce((acc, i) => acc + i.quantity, 0),
+                quantityAfter: 0
+            });
+        }
         if (currentStoreId && user?.id) {
             clearPosCartDraft({ storeId: currentStoreId, profileId: user.id });
         }
         toast.success('Coșul salvat a fost șters.');
         setShowRecoveryDialog(false);
         setRecoveryDraft(null);
-    }, [currentStoreId, user?.id]);
+    }, [recoveryDraft, currentStoreId, user?.id]);
 
     const handleDraftLater = useCallback(() => {
         setShowRecoveryDialog(false);
@@ -309,7 +342,7 @@ const PosPage: React.FC = () => {
     const showBrowser = !query.trim();
 
     return (
-        <div className="flex h-screen bg-gray-100 overflow-hidden font-sans relative">
+        <div data-testid="pos-layout-root" className="flex h-screen bg-gray-100 overflow-hidden font-sans relative">
             {/* Cart Recovery Dialog */}
             {showRecoveryDialog && recoveryDraft && (
                 <PosCartRecoveryDialog
@@ -353,7 +386,15 @@ const PosPage: React.FC = () => {
             />
 
             {/* Buton Ieșire Global (z-50 pentru a fi accesibil si peste lock screen) */}
-            <div className="absolute top-6 right-6 z-50">
+            <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
+                {isKioskActive && (
+                    <span 
+                        data-testid="pos-kiosk-active-indicator" 
+                        className="px-3 py-1.5 bg-rose-600 border border-rose-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md animate-pulse"
+                    >
+                        🔒 Kiosk Activ
+                    </span>
+                )}
                 <Link
                     to="/"
                     className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white rounded-xl shadow-lg border border-slate-700 transition-all transform hover:scale-105 active:scale-95 text-sm font-bold"

@@ -20,6 +20,10 @@ export interface ElectronAPI {
   getAppVersion: () => Promise<string>;
   appControls?: {
     quitApp: () => Promise<void>;
+    setKioskMode: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
+    setFullscreenMode: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
+    getWindowState: () => Promise<{ isKiosk: boolean; isFullscreen: boolean; isMaximized: boolean }>;
+    getScreenSize: () => Promise<{ width: number; height: number }>;
   };
   sqlite?: {
     saveCacheBundle: (args: {
@@ -92,6 +96,19 @@ export interface ElectronAPI {
       queuedTotal: number;
       lastSale: { createdAtLocal: string; grandTotal: number } | null;
     }>;
+    getAllProducts: (args: { storeId: string }) => Promise<any[]>;
+    logCartEvent: (args: {
+      storeId: string;
+      cashierProfileId: string;
+      eventType: string;
+      productId?: string;
+      productName?: string;
+      barcode?: string;
+      quantityBefore?: number;
+      quantityAfter?: number;
+      reason?: string;
+    }) => Promise<{ success: boolean; error?: string }>;
+    listCartEvents: (args: { storeId: string }) => Promise<any[]>;
   };
   updater?: {
     checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; error?: string }>;

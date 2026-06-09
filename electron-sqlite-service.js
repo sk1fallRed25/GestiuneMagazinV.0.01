@@ -158,6 +158,25 @@ function createSchemas() {
         console.error('[SQLite Service] Migration of local_offline_sales_queue failed:', err);
     }
 
+    // 9. Local POS Cart Events
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS local_pos_cart_events (
+            id TEXT PRIMARY KEY,
+            store_id TEXT,
+            cashier_profile_id TEXT,
+            device_fingerprint TEXT,
+            event_type TEXT,
+            product_id TEXT,
+            product_name TEXT,
+            barcode TEXT,
+            quantity_before REAL,
+            quantity_after REAL,
+            reason TEXT,
+            created_at_local TEXT,
+            synced_status TEXT DEFAULT 'local_only'
+        )
+    `);
+
     // Indexes
     db.exec(`CREATE INDEX IF NOT EXISTS idx_products_barcode ON local_products (barcode)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_products_name ON local_products (name)`);
@@ -166,6 +185,8 @@ function createSchemas() {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_offline_sales_status ON local_offline_sales_queue (status)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_offline_sales_created ON local_offline_sales_queue (created_at_local DESC)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_offline_sales_store_status ON local_offline_sales_queue (store_id, status)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_cart_events_store ON local_pos_cart_events (store_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_cart_events_created ON local_pos_cart_events (created_at_local DESC)`);
 }
 
 /**
@@ -754,5 +775,95 @@ export function getOfflineSalesSummary(storeId) {
             grandTotal: lastSaleRow.grandTotal
         } : null
     };
+}
+
+/**
+ * Gets all active products for a store from the local SQLite cache (no limit).
+ */
+export function getAllLocalProducts(storeId) {
+    if (!db) throw new Error('Database not initialized.');
+    if (!storeId) throw new Error('storeId is required.');
+
+    const stmt = db.prepare(`
+        SELECT 
+            p.product_id AS id,
+            p.name,
+            p.barcode,
+            p.unit,
+            p.category_id,
+            p.active,
+            p.sgr_enabled,
+            p.sgr_type,
+            pr.price_sale,
+            pr.vat_group,
+            pr.vat_percent,
+            COALESCE(st.total_stock, 0) AS total_stock
+        FROM local_products p
+        JOIN local_product_prices pr ON p.product_id = pr.product_id AND pr.store_id = ?
+        LEFT JOIN local_stock_snapshot st ON p.product_id = st.product_id AND st.store_id = ?
+        WHERE p.active = 1
+    `);
+
+    const rows = stmt.all(storeId, storeId);
+    return rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        barcode: r.barcode,
+        unit: r.unit || 'buc',
+        priceSale: r.price_sale || 0,
+        vatPercent: r.vat_percent || 19,
+        stockMagazin: r.total_stock || 0,
+        sgrEnabled: !!r.sgr_enabled,
+        sgrType: r.sgr_type,
+        categoryId: r.category_id
+    }));
+}
+
+/**
+ * Inserts a POS cart event log to the local SQLite database.
+ */
+export function logPosCartEvent(event) {
+    if (!db) throw new Error('Database not initialized.');
+    
+    const id = event.id || (globalThis.crypto && globalThis.crypto.randomUUID ? globalThis.crypto.randomUUID() : 'evt_' + Math.random().toString(36).substring(2, 15));
+    const store_id = event.store_id;
+    const cashier_profile_id = event.cashier_profile_id;
+    const device_fingerprint = event.device_fingerprint || 'unknown';
+    const event_type = event.event_type;
+    const product_id = event.product_id || null;
+    const product_name = event.product_name || null;
+    const barcode = event.barcode || null;
+    const quantity_before = event.quantity_before !== undefined ? event.quantity_before : 0;
+    const quantity_after = event.quantity_after !== undefined ? event.quantity_after : 0;
+    const reason = event.reason || null;
+    const created_at_local = new Date().toISOString();
+
+    db.prepare(`
+        INSERT INTO local_pos_cart_events (
+            id, store_id, cashier_profile_id, device_fingerprint, event_type,
+            product_id, product_name, barcode, quantity_before, quantity_after,
+            reason, created_at_local, synced_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'local_only')
+    `).run(
+        id, store_id, cashier_profile_id, device_fingerprint, event_type,
+        product_id, product_name, barcode, quantity_before, quantity_after,
+        reason, created_at_local
+    );
+
+    return { success: true, id };
+}
+
+/**
+ * Lists the cart audit events for a store in reverse chronological order.
+ */
+export function listLocalPosCartEvents(storeId) {
+    if (!db) throw new Error('Database not initialized.');
+    if (!storeId) throw new Error('storeId is required.');
+
+    return db.prepare(`
+        SELECT * FROM local_pos_cart_events
+        WHERE store_id = ?
+        ORDER BY created_at_local DESC
+    `).all(storeId);
 }
 

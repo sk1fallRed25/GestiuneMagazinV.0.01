@@ -8,7 +8,7 @@ import { useAuth } from './features/auth/useAuth';
 
 export default function Login() {
     const navigate = useNavigate();
-    const { login, user, loading: authLoading } = useAuth();
+    const { login, user, role, loading: authLoading } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -16,9 +16,13 @@ export default function Login() {
 
     useEffect(() => {
         if (user) {
-            navigate('/');
+            if (role === 'casier') {
+                navigate('/pos');
+            } else {
+                navigate('/');
+            }
         }
-    }, [user, navigate]);
+    }, [user, role, navigate]);
 
     const getErrorMessage = (err: unknown): string => {
         return err instanceof Error ? err.message : "Eroare necunoscută la autentificare.";
@@ -41,7 +45,7 @@ export default function Login() {
             }
 
             toast.success("Autentificare reușită");
-            navigate('/');
+            // useEffect redirects properly based on user & role change
 
         } catch (err: unknown) {
             const message = getErrorMessage(err);

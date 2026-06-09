@@ -10,7 +10,7 @@ interface PosCartProps {
 
 export const PosCart: React.FC<PosCartProps> = ({ items, onUpdateQuantity, onRemoveItem }) => {
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div data-testid="pos-cart-panel" className="flex flex-col h-full overflow-hidden">
             <div className="p-6 bg-gray-900 text-white flex justify-between items-center shadow-lg">
                 <h2 className="text-2xl font-bold flex items-center gap-2">
                     <ShoppingCart size={24} className="text-indigo-400" />

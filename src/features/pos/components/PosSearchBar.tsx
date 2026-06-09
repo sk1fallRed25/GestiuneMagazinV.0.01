@@ -11,7 +11,7 @@ interface PosSearchBarProps {
 export const PosSearchBar = forwardRef<HTMLInputElement, PosSearchBarProps>(
     ({ query, onQueryChange, onKeyDown, isScannerReady = false }, ref) => {
         return (
-            <div className="relative mb-6">
+            <div className="relative mb-6" data-testid="pos-scan-input">
                 <Search 
                     className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${
                         isScannerReady ? 'text-emerald-500' : 'text-gray-400'

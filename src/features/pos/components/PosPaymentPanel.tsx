@@ -34,7 +34,7 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
 }) => {
     const { isOnline } = useNetworkStatus();
     return (
-        <div className="p-6 bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div data-testid="pos-payment-panel" className="p-6 bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             {/* Metoda Plată */}
             <div className="flex gap-2 mb-6">
                 <button
@@ -86,7 +86,7 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
                 </div>
             )}
 
-            <div className="flex justify-between items-end mb-6">
+            <div className="flex justify-between items-end mb-6" data-testid="pos-total-display">
                 <span className="text-gray-500 font-medium">TOTAL DE PLATĂ</span>
                 <span className="text-5xl font-black text-gray-900 tracking-tight" data-testid="pos-cart-total">
                     {total.toFixed(2)} <span className="text-lg text-gray-400 font-normal">LEI</span>
