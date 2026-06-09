@@ -217,6 +217,28 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - **Rezultate**: Build OK, teste statice PASS. `.exe`-ul NU a fost generat.
   - Raport detaliat: `docs/access_denied_controls_hotfix_6app64_report.md`.
 
+---
+
+## Stadiu Design System & UI/UX Audit Polish (Etapa 6UX)
+
+- **Etapa 6UX.0 (UI/UX Audit Baseline)**: **PASS**
+  - Finalizat auditul complet al interfețelor aplicației axat pe lizibilitate, contrast, butoane, spacing, responsive layout și ușurință în utilizare.
+  - Raport generat în `docs/ui_ux_audit_baseline_6ux0_report.md`. Plan etapizat generat în `docs/ui_ux_staged_plan_6ux0.md`.
+
+- **Etapa 6UX.1 (Foundations, Design Tokens & Core Components)**: **PASS**
+  - Implementat design tokens reutilizabili (culori, umbre, tipografie, spacing) în `src/shared/components/ui/` și asigurat consistența cu stilurile CSS de bază ale aplicației.
+
+- **Etapa 6UX.2 (Layout, Navigation & Access Denied Polish)**: **PASS**
+  - Polish vizual al ecranului Access Denied și implementarea de acțiuni rapide ("Înapoi la POS" / "Deconectare" / "Închide aplicația" în runtime desktop).
+  - Testat automat prin `test_access_denied_controls_6app64.py`. Raport detaliat în `docs/ui_layout_navigation_access_denied_6ux2_report.md`.
+
+- **Etapa 6UX.3 (POS Workspace, Cart & Payments Polish)**: **PASS**
+  - Mărit dimensiunile touch targets (butoanele +/- și de ștergere din coș) la `w-11 h-11` (>=44px).
+  - Redesegnat modulul de selectare a plăților (cash/card/mixt) și afișajul sumei rămase la plata mixtă.
+  - Integrat componenta de Empty State la coș gol și insignele de status pentru scaner și driverul FiscalNet.
+  - Creat și trecut cu succes suita de teste Playwright `test_ui_pos_workspace_cart_payments_6ux3.py` și validat build-ul de producție.
+  - Raport detaliat în `docs/ui_pos_workspace_cart_payments_6ux3_report.md`.
+
 
 
 

@@ -11,7 +11,7 @@ interface PosSearchBarProps {
 export const PosSearchBar = forwardRef<HTMLInputElement, PosSearchBarProps>(
     ({ query, onQueryChange, onKeyDown, isScannerReady = false }, ref) => {
         return (
-            <div className="relative mb-6" data-testid="pos-scan-input">
+            <div className="relative mb-6" data-testid="pos-scan-area">
                 <Search 
                     className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${
                         isScannerReady ? 'text-emerald-500' : 'text-gray-400'
@@ -21,7 +21,7 @@ export const PosSearchBar = forwardRef<HTMLInputElement, PosSearchBarProps>(
                 <input
                     ref={ref}
                     type="text"
-                    placeholder="Caută produs (nume sau cod)..."
+                    placeholder="Scanează codul de bare sau caută produs..."
                     className={`w-full pl-12 pr-4 py-4 border-2 rounded-xl text-xl outline-none transition-all shadow-sm ${
                         isScannerReady
                             ? 'border-emerald-400 ring-4 ring-emerald-500/15 shadow-emerald-100'
@@ -31,13 +31,13 @@ export const PosSearchBar = forwardRef<HTMLInputElement, PosSearchBarProps>(
                     onChange={e => onQueryChange(e.target.value)}
                     onKeyDown={onKeyDown}
                     autoFocus
-                    data-testid="pos-barcode-input"
+                    data-testid="pos-scan-input"
                 />
                 {/* Scanner Ready Indicator */}
                 {isScannerReady && (
                     <div 
                         className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-emerald-600 animate-pulse"
-                        data-testid="pos-scanner-ready-badge"
+                        data-testid="pos-scan-status-badge"
                     >
                         <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm shadow-emerald-300"></span>
                         <span className="text-xs font-bold uppercase tracking-wider">Scanner Pregătit</span>

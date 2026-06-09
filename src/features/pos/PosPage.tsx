@@ -65,7 +65,10 @@ const PosPage: React.FC = () => {
         saveOfflineSale,
         barcodeNotFound,
         setBarcodeNotFound,
-        handleBarcodeEnter
+        handleBarcodeEnter,
+        clearCart,
+        productsSubtotal,
+        cartSgrTotal
     } = usePos();
 
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
@@ -408,7 +411,7 @@ const PosPage: React.FC = () => {
             {/* --- STANGA: CATALOG --- */}
             <div className="w-3/5 p-6 flex flex-col gap-2 pt-20 md:pt-6">
                 {!isOnline && (
-                    <div data-testid="pos-offline-banner" className="mb-4 p-3 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm animate-in slide-in-from-top duration-300">
+                    <div data-testid="pos-offline-cache-badge" className="mb-4 p-3 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm animate-in slide-in-from-top duration-300">
                         <span>⚠️ Mod Offline Activ. Vânzările sunt salvate local.</span>
                     </div>
                 )}
@@ -501,6 +504,8 @@ const PosPage: React.FC = () => {
 
                 <PosPaymentPanel
                     total={totalBon}
+                    productsSubtotal={productsSubtotal}
+                    sgrTotal={cartSgrTotal}
                     paymentMethod={paymentMethod}
                     onPaymentMethodChange={setPaymentMethod}
                     cashAmount={cashAmount}
@@ -510,6 +515,7 @@ const PosPage: React.FC = () => {
                     onCashBlur={onCashBlur}
                     onCardBlur={onCardBlur}
                     onFinalize={handleFinalizeClick}
+                    onClearCart={clearCart}
                     loading={submitting}
                     disabled={cart.length === 0 || !activeShift || isSgrBlocked}
                 />

@@ -163,11 +163,11 @@ export const PosCartEventsPanel: React.FC<PosCartEventsPanelProps> = ({ storeId 
                       <div className="flex flex-col">
                         <span className="font-semibold text-gray-800">{e.product_name}</span>
                         <span className="text-xs text-gray-400 font-mono">
-                          Cod: {e.barcode || 'N/A'} | Cant: {e.quantity_before} &rarr; {e.quantity_after}
+                          Cod: {e.barcode || 'N/A'} | <span data-testid="pos-cart-event-quantity-change">Cant: {e.quantity_before} &rarr; {e.quantity_after}</span>
                         </span>
                       </div>
                     ) : (
-                      <span className="text-gray-400 italic">
+                      <span className="text-gray-400 italic" data-testid="pos-cart-event-quantity-change">
                         Acțiune globală coș (Cant: {e.quantity_before} &rarr; {e.quantity_after})
                       </span>
                     )}

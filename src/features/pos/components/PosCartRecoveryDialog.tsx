@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShoppingCart, RotateCcw, Trash2, Clock } from 'lucide-react';
 import { PosCartDraft, CartDraftSummary, getCartDraftSummary } from '../services/posCartRecoveryService';
+import { Button } from '../../../shared/components/ui';
 
 interface PosCartRecoveryDialogProps {
   draft: PosCartDraft;
@@ -80,31 +81,36 @@ export const PosCartRecoveryDialog: React.FC<PosCartRecoveryDialogProps> = ({
 
         {/* Actions */}
         <div className="p-6 pt-0 space-y-3">
-          <button
+          <Button
             data-testid="pos-cart-recovery-restore-button"
             onClick={onRestore}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 transition-all active:scale-[0.98]"
+            variant="primary"
+            fullWidth
+            leftIcon={<RotateCcw size={16} />}
+            className="shadow-lg shadow-indigo-200"
           >
-            <RotateCcw size={16} />
             Restaurează coșul
-          </button>
+          </Button>
 
-          <button
+          <Button
             data-testid="pos-cart-recovery-discard-button"
             onClick={onDiscard}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-bold text-sm border border-red-100 transition-all active:scale-[0.98]"
+            variant="danger"
+            fullWidth
+            leftIcon={<Trash2 size={16} />}
           >
-            <Trash2 size={16} />
             Șterge coșul salvat
-          </button>
+          </Button>
 
-          <button
+          <Button
             data-testid="pos-cart-recovery-later-button"
             onClick={onLater}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl font-medium text-sm transition-all"
+            variant="ghost"
+            fullWidth
+            className="text-slate-500 hover:text-slate-700"
           >
             Amintește-mi mai târziu
-          </button>
+          </Button>
         </div>
       </div>
     </div>

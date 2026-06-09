@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShoppingCart, Trash2, Plus, Minus } from 'lucide-react';
 import { CartItem } from '../types';
+import { EmptyState } from '../../../shared/components/ui';
 
 interface PosCartProps {
     items: CartItem[];
@@ -21,17 +22,26 @@ export const PosCart: React.FC<PosCartProps> = ({ items, onUpdateQuantity, onRem
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50">
                 {items.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-50">
-                        <ShoppingCart size={48} className="mb-2" />
-                        <p>Coșul este gol</p>
+                    <div data-testid="pos-cart-empty-state" className="h-full flex items-center justify-center p-4">
+                        <EmptyState
+                            title="Coșul este gol"
+                            description="Scanează produse sau folosește catalogul pentru a le adăuga în coș."
+                            icon={<ShoppingCart size={48} />}
+                            compact
+                            className="w-full"
+                        />
                     </div>
                 ) : (
                     items.map((item) => (
-                        <div key={item.productId} data-testid={`pos-cart-line-${item.productId}`} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3 animate-in slide-in-from-right-4 duration-300">
-                            <div className="flex-1 min-w-0">
-                                <div className="font-bold text-gray-800 truncate">{item.name}</div>
+                        <div 
+                            key={item.productId} 
+                            data-testid={`pos-cart-line-${item.productId}`} 
+                            className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center gap-3 animate-in slide-in-from-right-4 duration-300"
+                        >
+                            <div className="flex-1 min-w-0" data-testid="pos-cart-item-row">
+                                <div data-testid="pos-cart-item-name" className="font-bold text-gray-800 truncate">{item.name}</div>
                                 <div className="text-sm text-gray-500 font-mono mt-1">
-                                    {item.price.toFixed(2)} x {item.quantity}
+                                    {item.price.toFixed(2)} x <span data-testid="pos-cart-item-quantity">{item.quantity}</span>
                                 </div>
                                 {item.sgrEnabled && (
                                     <div 
@@ -53,25 +63,36 @@ export const PosCart: React.FC<PosCartProps> = ({ items, onUpdateQuantity, onRem
                                 {item.total.toFixed(2)}
                             </div>
 
-                            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                            <div className="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1">
                                 <button 
                                     onClick={() => onUpdateQuantity(item.productId, item.quantity - 1)} 
-                                    className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors disabled:opacity-30"
+                                    className="w-11 h-11 flex items-center justify-center bg-white rounded-lg shadow-sm hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors disabled:opacity-30 focus:ring-2 focus:ring-red-500/20"
                                     disabled={item.quantity <= 1}
+                                    data-testid="pos-cart-decrement-button"
                                 >
-                                    <Minus size={14} />
+                                    <Minus size={16} />
                                 </button>
-                                <span data-testid={`pos-cart-qty-${item.productId}`} className="w-8 text-center font-bold text-sm">{item.quantity}</span>
+                                <span 
+                                    data-testid={`pos-cart-qty-${item.productId}`} 
+                                    className="w-8 text-center font-bold text-sm text-gray-800"
+                                >
+                                    {item.quantity}
+                                </span>
                                 <button 
                                     onClick={() => onUpdateQuantity(item.productId, item.quantity + 1)} 
-                                    className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm hover:bg-green-50 text-gray-600 hover:text-green-600 transition-colors disabled:opacity-30"
+                                    className="w-11 h-11 flex items-center justify-center bg-white rounded-lg shadow-sm hover:bg-green-50 text-gray-600 hover:text-green-600 transition-colors disabled:opacity-30 focus:ring-2 focus:ring-green-500/20"
                                     disabled={item.quantity >= item.stockAvailable}
+                                    data-testid="pos-cart-increment-button"
                                 >
-                                    <Plus size={14} />
+                                    <Plus size={16} />
                                 </button>
                             </div>
 
-                            <button onClick={() => onRemoveItem(item.productId)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                            <button 
+                                onClick={() => onRemoveItem(item.productId)} 
+                                className="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus:ring-2 focus:ring-red-500/20"
+                                data-testid="pos-cart-remove-button"
+                            >
                                 <Trash2 size={18} />
                             </button>
                         </div>
