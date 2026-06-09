@@ -75,7 +75,7 @@ export default function Login() {
                         M
                     </div>
                     <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Magazin<span className="text-indigo-600">Pro</span></h1>
-                    <p className="text-gray-500 font-medium mt-1 text-sm uppercase tracking-widest">Sistem de Gestiune v0.2.0</p>
+                    <p className="text-slate-600 font-medium mt-1 text-sm uppercase tracking-widest">Sistem de Gestiune v0.2.0</p>
                 </div>
 
                 {error && (
@@ -87,14 +87,14 @@ export default function Login() {
 
                 <form onSubmit={handleLogin} className="space-y-5">
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider ml-1">Email / Identificator</label>
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider ml-1">Email / Identificator</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <User className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                                <User className="h-5 w-5 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
                             </div>
                             <input
                                 type="text"
-                                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all sm:text-sm font-bold text-gray-700"
+                                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl leading-5 bg-gray-50 placeholder-slate-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all sm:text-sm font-bold text-gray-700"
                                 placeholder="Introduceți email"
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
@@ -104,14 +104,14 @@ export default function Login() {
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider ml-1">Parolă de acces</label>
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-wider ml-1">Parolă de acces</label>
                         <div className="relative group">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Lock className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                                <Lock className="h-5 w-5 text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
                             </div>
                             <input
                                 type="password"
-                                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all sm:text-sm font-bold text-gray-700"
+                                className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl leading-5 bg-gray-50 placeholder-slate-500 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 transition-all sm:text-sm font-bold text-gray-700"
                                 placeholder="••••••••"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}

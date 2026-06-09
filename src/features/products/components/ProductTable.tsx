@@ -20,7 +20,7 @@ const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig, emptySt
     return (
         <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
             <table className="w-full text-left">
-                <thead className="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-gray-100">
+                <thead className="bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-widest border-b border-gray-100">
                     <tr>
                         <th className="px-6 py-5">Denumire Produs</th>
                         <th className="px-6 py-5">Preț Vânzare</th>

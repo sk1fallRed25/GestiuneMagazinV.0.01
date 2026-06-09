@@ -419,8 +419,15 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a generat planul detaliat pe etape de execuție de la 6UX.1 la 6UX.6 în `docs/ui_ux_staged_plan_6ux0.md`, cu specificarea fișierelor vizate, riscurilor, metodelor de testare și restricțiilor stricte de ne-modificare.
   - S-a implementat testul static de verificare `test_ui_ux_audit_baseline_6ux0.py`.
 
+- **Etapa 6UX.1 (Foundations, Design Tokens & Core Components)**: **PASS**
+  - S-a definit setul complet de design tokens în `src/index.css` și s-a configurat `tailwind.config.js` pentru integrarea claselor utilitare `ui-*`.
+  - S-au implementat 13 componente UI reutilizabile în folderul `src/shared/components/ui/` (Button, Input, Select, Card, Badge, Modal, Table, Alert, Tooltip, Tabs, PageHeader, EmptyState, LoadingState) exportate centralizat.
+  - S-au aplicat corecții de contrast sigure în `ProductTable` și `Login.tsx` conform standardelor WCAG.
+  - S-a implementat testul de validare static `test_ui_foundations_design_system_6ux1.py`.
+  - Raport oficial generat la `docs/ui_foundations_design_system_6ux1_report.md`.
+
 ### Următorul pas recomandat:
-- **`6UX.1 Foundations, Design Tokens & Core Components`** (Inițializarea sistemului unificat de tokens în index.css și construirea celor 13 componente fundamentale reutilizabile).
+- **`6UX.2 Layout, Navigation & Access Denied`** (Refactorizarea layout-urilor globale și restilizarea AccessDeniedCard).
 - **`6APP.6 Local SQLite Cache Engine`** (Implementarea motorului SQLite local din Electron Main Process pentru caching date în client).
 
 
