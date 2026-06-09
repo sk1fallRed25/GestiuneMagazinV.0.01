@@ -48,10 +48,14 @@ const AppRoutes = () => {
 
         if (isCashier && isPosRoute) {
             console.log('[AppRoutes] Cashier on POS route: enabling Kiosk mode.');
-            (window as any).electronAPI.appControls.setKioskMode(true);
+            if ((window as any).electronAPI?.appControls?.setKioskMode) {
+                (window as any).electronAPI.appControls.setKioskMode(true);
+            }
         } else {
             console.log('[AppRoutes] Exiting Kiosk mode.');
-            (window as any).electronAPI.appControls.setKioskMode(false);
+            if ((window as any).electronAPI?.appControls?.setKioskMode) {
+                (window as any).electronAPI.appControls.setKioskMode(false);
+            }
         }
     }, [location.pathname, authRole]);
 

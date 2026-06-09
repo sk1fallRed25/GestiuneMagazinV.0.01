@@ -31,20 +31,20 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyle = 'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed select-none';
     
     const variantStyles = {
-      primary: 'bg-ui-primary text-white hover:bg-ui-primary-hover focus:ring-ui-primary border border-transparent disabled:bg-slate-200 disabled:text-slate-400 disabled:border-transparent',
-      secondary: 'bg-white text-ui-text border border-ui-border hover:bg-ui-surface-muted focus:ring-ui-primary disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200',
-      danger: 'bg-ui-danger text-white hover:bg-ui-danger-hover focus:ring-ui-danger border border-transparent disabled:bg-slate-200 disabled:text-slate-400',
-      success: 'bg-ui-success text-white hover:bg-ui-success-hover focus:ring-ui-success border border-transparent disabled:bg-slate-200 disabled:text-slate-400',
-      warning: 'bg-ui-warning text-white hover:bg-ui-warning-hover focus:ring-ui-warning border border-transparent disabled:bg-slate-200 disabled:text-slate-400',
-      ghost: 'text-ui-text hover:bg-ui-surface-muted focus:ring-ui-primary border border-transparent disabled:text-slate-400 disabled:bg-transparent',
-      link: 'text-ui-primary hover:underline bg-transparent border-none p-0 focus:ring-ui-primary disabled:text-slate-400 hover:bg-transparent focus:ring-0 focus:ring-offset-0 disabled:no-underline'
+      primary: 'bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500 border border-transparent disabled:bg-slate-200 disabled:text-slate-400 disabled:border-transparent',
+      secondary: 'bg-white text-slate-900 border border-slate-300 hover:bg-slate-100 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400 disabled:border-slate-200',
+      danger: 'bg-rose-600 text-white hover:bg-rose-700 focus:ring-rose-500 border border-transparent disabled:bg-slate-200 disabled:text-slate-400',
+      success: 'bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 border border-transparent disabled:bg-slate-200 disabled:text-slate-400',
+      warning: 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500 border border-transparent disabled:bg-slate-200 disabled:text-slate-400',
+      ghost: 'text-slate-900 hover:bg-slate-100 focus:ring-indigo-500 border border-transparent disabled:text-slate-400 disabled:bg-transparent',
+      link: 'text-indigo-600 hover:underline bg-transparent border-none p-0 focus:ring-indigo-500 disabled:text-slate-400 hover:bg-transparent focus:ring-0 focus:ring-offset-0 disabled:no-underline'
     };
 
     const sizeStyles = {
-      sm: 'h-9 px-3 text-xs rounded-ui-md',
-      md: 'h-11 px-4 text-sm rounded-ui-lg min-h-[44px]', // minimum 44px for touch targets
-      lg: 'h-12 px-6 text-base rounded-ui-xl min-h-[44px]', // minimum 44px for touch targets
-      xl: 'h-14 px-8 text-lg rounded-ui-2xl min-h-[48px]'
+      sm: 'h-9 px-3 text-xs rounded-md',
+      md: 'h-11 px-4 text-sm rounded-lg min-h-[44px]', // minimum 44px for touch targets
+      lg: 'h-12 px-6 text-base rounded-xl min-h-[44px]', // minimum 44px for touch targets
+      xl: 'h-14 px-8 text-lg rounded-2xl min-h-[48px]'
     };
 
     const widthStyle = fullWidth ? 'w-full' : '';

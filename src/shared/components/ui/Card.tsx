@@ -6,12 +6,12 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className = '', variant = 'default', ...props }, ref) => {
-    const baseStyle = 'rounded-ui-2xl overflow-hidden transition-all duration-200';
+    const baseStyle = 'rounded-2xl overflow-hidden transition-all duration-200';
     
     const variantStyles = {
-      default: 'bg-white border border-ui-border text-ui-text shadow-sm',
-      elevated: 'bg-white border border-ui-border text-ui-text shadow-md hover:shadow-lg',
-      muted: 'bg-ui-surface-muted border border-ui-border text-ui-text',
+      default: 'bg-white border border-slate-300 text-slate-900 shadow-sm',
+      elevated: 'bg-white border border-slate-300 text-slate-900 shadow-md hover:shadow-lg',
+      muted: 'bg-slate-50 border border-slate-300 text-slate-900',
       warning: 'bg-amber-50/50 border border-amber-200 text-amber-950',
       danger: 'bg-rose-50/50 border border-rose-200 text-rose-950',
       success: 'bg-emerald-50/50 border border-emerald-200 text-emerald-950'
@@ -33,7 +33,7 @@ export const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   ({ className = '', ...props }, ref) => (
     <div
       ref={ref}
-      className={`px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-ui-border ${className}`}
+      className={`px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-300 ${className}`}
       {...props}
     />
   )
@@ -45,7 +45,7 @@ export const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttribut
   ({ className = '', ...props }, ref) => (
     <h3
       ref={ref}
-      className={`text-base font-bold text-ui-text tracking-tight ${className}`}
+      className={`text-base font-bold text-slate-900 tracking-tight ${className}`}
       {...props}
     />
   )
@@ -57,7 +57,7 @@ export const CardDescription = React.forwardRef<HTMLParagraphElement, React.HTML
   ({ className = '', ...props }, ref) => (
     <p
       ref={ref}
-      className={`text-xs text-ui-text-muted mt-1 ${className}`}
+      className={`text-xs text-slate-600 mt-1 ${className}`}
       {...props}
     />
   )
@@ -81,7 +81,7 @@ export const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<
   ({ className = '', ...props }, ref) => (
     <div
       ref={ref}
-      className={`px-6 py-4 bg-ui-surface-muted/50 border-t border-ui-border flex items-center justify-end gap-3 ${className}`}
+      className={`px-6 py-4 bg-slate-50/50 border-t border-slate-300 flex items-center justify-end gap-3 ${className}`}
       {...props}
     />
   )

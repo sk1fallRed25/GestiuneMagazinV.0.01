@@ -426,8 +426,15 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a implementat testul de validare static `test_ui_foundations_design_system_6ux1.py`.
   - Raport oficial generat la `docs/ui_foundations_design_system_6ux1_report.md`.
 
+- **Etapa 6UX.2 (Layout, Navigation & Access Denied Polish)**: **PASS**
+  - S-a modularizat și restilizat pagina de acces interzis într-o componentă izolată `AccessDeniedCard.tsx` utilizând exclusiv stiluri Tailwind standard compatibile cu noua variantă simplificată.
+  - S-au adăugat controale funcționale în pagina Access Denied: buton de "Deconectare" cu protecții împotriva pierderii coșului de cumpărături, buton de navigare rapidă înapoi la POS (pentru casieri) sau Dashboard (pentru alte roluri), și buton de "Închide aplicația" cu integrare securizată Electron `quitApp` și dialog de confirmare.
+  - S-a implementat fallback de securitate în modul web pentru a bloca și dezactiva butonul de închidere a aplicației cu un tooltip informativ corespunzător.
+  - S-a corectat managementul modului Kiosk la nivel de navigare în `AppRoutes.tsx` adăugând verificări defensive împotriva erorilor în medii de testare fără Electron API.
+  - Suita de teste automate E2E Playwright `test_access_denied_controls_6app64.py` a fost rulată cu succes, trecând 100% toate verificările de prezență, vizibilitate, navigare și fallback-uri.
+
 ### Următorul pas recomandat:
-- **`6UX.2 Layout, Navigation & Access Denied`** (Refactorizarea layout-urilor globale și restilizarea AccessDeniedCard).
+- **`6UX.3 Products & Catalog UI/UX`** (Refactorizarea paginii de catalog produse).
 - **`6APP.6 Local SQLite Cache Engine`** (Implementarea motorului SQLite local din Electron Main Process pentru caching date în client).
 
 

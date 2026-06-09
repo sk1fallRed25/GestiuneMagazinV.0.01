@@ -15,6 +15,7 @@ import { useNetworkStatus } from '../shared/network/useNetworkStatus';
 import { LogoutCartWarningDialog } from '../components/dialogs/LogoutCartWarningDialog';
 import { AppCloseCartWarningDialog } from '../components/dialogs/AppCloseCartWarningDialog';
 import { clearPosCartDraft } from '../features/pos/services/posCartRecoveryService';
+import { Badge, Button } from '../shared/components/ui';
 
 
 interface Notification {
@@ -223,7 +224,18 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
     const NavLink = ({ to, label, icon, className = "", badge }: NavLinkProps) => {
         const isActive = location.pathname === to;
         return (
-            <Link to={to} className={`relative flex items-center justify-between px-4 py-3 mx-2 rounded-xl transition-all duration-200 text-sm font-medium group ${isActive ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'} ${className}`}>
+            <Link
+                to={to}
+                className={`
+                    relative flex items-center justify-between px-4 py-3 mx-2 rounded-xl transition-all duration-200 text-sm font-semibold group outline-none
+                    focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900
+                    ${isActive 
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-950/40' 
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }
+                    ${className}
+                `}
+            >
                 <div className="flex items-center gap-3">
                     {icon}
                     <span>{label}</span>
@@ -276,10 +288,10 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
             {/* SIDEBAR */}
             <aside className="w-72 bg-[#0f172a] text-white flex flex-col shadow-2xl z-30 shrink-0 transition-all duration-300">
                 <div className="p-8 pb-4 flex items-center gap-4">
-                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-xl">M</div>
+                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center font-bold text-xl select-none">M</div>
                     <div>
-                        <h2 className="text-lg font-bold tracking-tight">MagazinPro</h2>
-                        <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">
+                        <h2 className="text-lg font-bold tracking-tight select-none">MagazinPro</h2>
+                        <span className="text-[10px] text-indigo-400 uppercase font-bold tracking-widest select-none">
                             {role || 'rol necunoscut'}
                         </span>
                     </div>
@@ -378,27 +390,33 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                     )}
                 </nav>
                 <div className="p-4 bg-[#0a0f1c] flex flex-col gap-2">
-                    <div className="flex flex-col px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-800 text-[10px] text-slate-400 font-semibold gap-1 mb-2">
-                        <div className="flex justify-between">
+                    <div className="flex flex-col px-4 py-2 bg-slate-900/50 rounded-xl border border-slate-800 text-[10px] text-slate-300 font-semibold gap-1 mb-2">
+                        <div className="flex justify-between select-none">
                             <span>VERSIUNE</span>
                             <span data-testid="app-version-label" className="font-bold text-slate-200">{appVersion}</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between select-none">
                             <span>RUNTIME</span>
                             <span data-testid="app-runtime-label" className="font-bold text-slate-200">
                                 {import.meta.env.DEV ? 'development' : 'production'} / {((window as any).electronAPI?.isElectron) ? 'electron' : 'web'}
                             </span>
                         </div>
                     </div>
-                    <button onClick={handleLogoutClick} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all text-sm font-medium border border-transparent hover:border-red-500/20"><LogOut size={18} /><span>Deconectare</span></button>
+                    <button
+                        onClick={handleLogoutClick}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-350 transition-all text-sm font-bold border border-transparent hover:border-red-500/20 outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                    >
+                        <LogOut size={18} />
+                        <span>Deconectare</span>
+                    </button>
                     <button
                         data-testid="app-close-button"
                         onClick={handleCloseAppClick}
                         disabled={!isElectron}
                         title={isElectron ? 'Închide aplicația desktop' : 'Închiderea aplicației este disponibilă doar în versiunea desktop.'}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium border transition-all ${
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold border transition-all outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
                             isElectron 
-                                ? 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200 border-transparent hover:border-slate-600/30 cursor-pointer' 
+                                ? 'text-slate-300 hover:bg-slate-700/50 hover:text-slate-100 border-transparent hover:border-slate-600/30 cursor-pointer' 
                                 : 'text-slate-600 border-transparent opacity-40 cursor-not-allowed'
                         }`}
                     >
@@ -434,10 +452,15 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
                     <div className="flex items-center gap-4">
                         {isOnline && !isReconnecting && (
-                            <div data-testid="network-status-indicator" className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-black uppercase tracking-wider">
-                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            <Badge
+                                data-testid="network-status-indicator"
+                                variant="online"
+                                size="sm"
+                                showDot
+                                className="uppercase font-bold tracking-wider"
+                            >
                                 Online
-                            </div>
+                            </Badge>
                         )}
                         <div className="relative" ref={notifMenuRef}>
                             <button onClick={() => setShowNotifMenu(!showNotifMenu)} className={`p-2 rounded-full hover:bg-gray-100 relative transition-colors ${showNotifMenu ? 'bg-indigo-50 text-indigo-600' : 'text-gray-500'}`}>
@@ -473,11 +496,13 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                                 <p className="text-sm font-bold text-gray-700">{profile?.full_name || 'Platform Owner'}</p>
                                 <div className="flex items-center justify-end gap-1.5 mt-0.5">
                                     {role === 'platform_owner' && !currentStoreId && (
-                                        <span className="text-[9px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100">
+                                        <Badge variant="info" size="sm" className="uppercase font-bold tracking-tight">
                                             Platform Administration
-                                        </span>
+                                        </Badge>
                                     )}
-                                    <span className="text-xs text-indigo-600 font-semibold">{role || 'rol necunoscut'}</span>
+                                    <Badge variant="default" size="sm" className="bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase font-bold tracking-tight">
+                                        {role || 'rol necunoscut'}
+                                    </Badge>
                                 </div>
                             </div>
                             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center border-2 border-white shadow-sm text-indigo-600 font-bold">

@@ -148,7 +148,7 @@ def run_e2e_tests():
 
             # Navigate to a restricted route (Store Settings — admin/manager only)
             page.goto("http://localhost:5174/#/setari-magazin")
-            page.wait_for_timeout(2000)
+            page.locator('[data-testid="access-denied-page"]').wait_for(state="visible", timeout=15000)
 
             # Check Access Denied page appears
             access_denied = page.locator('[data-testid="access-denied-page"]')
@@ -190,7 +190,7 @@ def run_e2e_tests():
         try:
             back_btn = page.locator('[data-testid="access-denied-back-pos-button"]')
             back_btn.click()
-            page.wait_for_timeout(2000)
+            page.wait_for_url("**/pos", timeout=15000)
 
             # Should be on POS page now
             current_url = page.url
@@ -210,12 +210,12 @@ def run_e2e_tests():
         try:
             # Go back to restricted page
             page.goto("http://localhost:5174/#/setari-magazin")
-            page.wait_for_timeout(2000)
+            page.locator('[data-testid="access-denied-page"]').wait_for(state="visible", timeout=15000)
 
             logout_btn = page.locator('[data-testid="access-denied-logout-button"]')
             if logout_btn.is_visible():
                 logout_btn.click()
-                page.wait_for_timeout(3000)
+                page.wait_for_url("**/login", timeout=15000)
                 # Should redirect to login
                 current_url = page.url
                 assert "login" in current_url, f"Expected login route after logout, got {current_url}"
@@ -254,7 +254,7 @@ def run_e2e_tests():
 
             # Navigate to restricted route
             browser_page.goto("http://localhost:5174/#/setari-magazin")
-            browser_page.wait_for_timeout(2000)
+            browser_page.locator('[data-testid="access-denied-page"]').wait_for(state="visible", timeout=15000)
 
             close_btn = browser_page.locator('[data-testid="access-denied-close-app-button"]')
             if close_btn.count() > 0:
@@ -301,7 +301,7 @@ def run_e2e_tests():
 
             # Navigate to restricted route
             electron_page.goto("http://localhost:5174/#/setari-magazin")
-            electron_page.wait_for_timeout(2000)
+            electron_page.locator('[data-testid="access-denied-page"]').wait_for(state="visible", timeout=15000)
 
             # Click close app
             close_btn = electron_page.locator('[data-testid="access-denied-close-app-button"]')
@@ -362,7 +362,7 @@ def run_e2e_tests():
 
             # Go to store settings to verify no access denied for admin
             reg_page.goto("http://localhost:5174/#/setari-magazin")
-            reg_page.wait_for_timeout(3000)
+            reg_page.locator('[data-testid="settings-app-version-label"]').wait_for(state="visible", timeout=15000)
             
             access_denied = reg_page.locator('[data-testid="access-denied-page"]')
             if access_denied.count() > 0 and access_denied.is_visible():
