@@ -413,7 +413,14 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Testele Playwright din `test_offline_data_cache_sql_apply_6app5.py` rulează și trec cu succes.
   - Raport oficial generat la `docs/offline_data_cache_sql_apply_verification_6app5_report.md`.
 
+- **Etapa 6UX.0 (UI/UX Audit Baseline & Staged Plan)**: **PASS**
+  - S-a realizat auditul baseline complet pe contrast,Spacing, butoane, responsivitate și unificarea componentelor pentru cele 15 ecrane cheie ale aplicației.
+  - S-a creat raportul de audit detaliat în `docs/ui_ux_audit_baseline_6ux0_report.md` cu severitate (Critic/Major/Minor) și recomandări concrete.
+  - S-a generat planul detaliat pe etape de execuție de la 6UX.1 la 6UX.6 în `docs/ui_ux_staged_plan_6ux0.md`, cu specificarea fișierelor vizate, riscurilor, metodelor de testare și restricțiilor stricte de ne-modificare.
+  - S-a implementat testul static de verificare `test_ui_ux_audit_baseline_6ux0.py`.
+
 ### Următorul pas recomandat:
+- **`6UX.1 Foundations, Design Tokens & Core Components`** (Inițializarea sistemului unificat de tokens în index.css și construirea celor 13 componente fundamentale reutilizabile).
 - **`6APP.6 Local SQLite Cache Engine`** (Implementarea motorului SQLite local din Electron Main Process pentru caching date în client).
 
 
