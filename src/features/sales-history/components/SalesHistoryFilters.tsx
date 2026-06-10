@@ -9,12 +9,12 @@ interface SalesHistoryFiltersProps {
 
 export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({ filters, onFilterChange }) => {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+        <div data-testid="sales-history-filter-panel" className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
             {/* Căutare */}
             <div className="lg:col-span-1">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 px-1">CĂUTARE</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">CĂUTARE</label>
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <input
                         type="text"
                         placeholder="ID sau Casier..."
@@ -27,9 +27,9 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({ filter
 
             {/* Metodă Plată */}
             <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 px-1">METODĂ PLATĂ</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">METODĂ PLATĂ</label>
                 <div className="relative">
-                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <select
                         className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-indigo-500 transition-all text-sm font-bold appearance-none cursor-pointer"
                         value={filters.paymentMethod}
@@ -45,7 +45,7 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({ filter
 
             {/* Status */}
             <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 px-1">STATUS</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">STATUS</label>
                 <select
                     className="w-full px-4 py-2.5 bg-gray-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-indigo-500 transition-all text-sm font-bold appearance-none cursor-pointer"
                     value={filters.status}
@@ -61,9 +61,9 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({ filter
             {/* Interval Date */}
             <div className="md:col-span-1 lg:col-span-2 grid grid-cols-2 gap-2">
                 <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 px-1">DE LA</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">DE LA</label>
                     <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                             type="date"
                             className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-indigo-500 transition-all text-sm font-bold cursor-pointer"
@@ -73,9 +73,9 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({ filter
                     </div>
                 </div>
                 <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2 px-1">PÂNĂ LA</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">PÂNĂ LA</label>
                     <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                         <input
                             type="date"
                             className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-indigo-500 transition-all text-sm font-bold cursor-pointer"

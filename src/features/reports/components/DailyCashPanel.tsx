@@ -1,6 +1,7 @@
 import React from 'react';
 import { DailyCashReport, ShiftReport } from '../types';
 import { Calendar, User, Layout, ArrowRight, DollarSign, Wallet, ShieldAlert, CheckCircle2, RefreshCw, X } from 'lucide-react';
+import { LoadingState } from '../../../shared/components/ui';
 
 interface Props {
   dailyCash: DailyCashReport | null;
@@ -57,7 +58,7 @@ export const DailyCashPanel: React.FC<Props> = ({
           </div>
           <div>
             <h4 className="text-lg font-bold text-gray-800">Reconciliere Zilnică Casă</h4>
-            <p className="text-sm text-gray-400 font-medium">Auditul turelor și verificarea soldurilor monetare</p>
+            <p className="text-sm text-slate-500 font-medium">Auditul turelor și verificarea soldurilor monetare</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -109,11 +110,11 @@ export const DailyCashPanel: React.FC<Props> = ({
             <h5 className="font-bold text-gray-800 mb-4">Ture înregistrate pe {formatDate(selectedDate)}</h5>
             
             {!dailyCash || dailyCash.shifts.length === 0 ? (
-              <div className="py-8 text-center text-gray-400 font-medium">
+              <div className="py-8 text-center text-slate-500 font-medium">
                 Nicio tură deschisă în această zi.
               </div>
             ) : (
-              <div className="space-y-3">
+              <div data-testid="reports-table" className="space-y-3">
                 {dailyCash.shifts.map((shift) => {
                   const isSelected = selectedShiftId === shift.shiftId;
                   const diff = shift.cashDifference ?? 0;
@@ -138,7 +139,7 @@ export const DailyCashPanel: React.FC<Props> = ({
                           <User size={12} />
                           {shift.cashierName || 'Operator'}
                         </div>
-                        <div className="text-[10px] font-mono text-gray-400">
+                        <div className="text-[10px] font-mono text-slate-500">
                           ID: {shift.shiftId.slice(0, 8)}...
                         </div>
                       </div>
@@ -166,9 +167,8 @@ export const DailyCashPanel: React.FC<Props> = ({
         {/* Selected Shift Details (Right) */}
         <div className="lg:col-span-7">
           {loadingShift ? (
-            <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
-              <RefreshCw className="text-indigo-600 animate-spin mb-4" size={36} />
-              <p className="text-gray-400 font-black uppercase tracking-wider text-xs">Se încarcă jurnalul de tură...</p>
+            <div data-testid="reports-loading-state" className="bg-white rounded-3xl border border-gray-100 shadow-sm min-h-[400px] flex items-center justify-center">
+              <LoadingState message="Se încarcă jurnalul de tură..." size="lg" />
             </div>
           ) : shiftReport ? (
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
@@ -183,7 +183,7 @@ export const DailyCashPanel: React.FC<Props> = ({
                       {shiftReport.status === 'open' ? 'Activă' : 'Închisă'}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 font-medium mt-1">ID: {shiftReport.shiftId}</p>
+                  <p className="text-xs text-slate-500 font-medium mt-1">ID: {shiftReport.shiftId}</p>
                 </div>
                 <button 
                   onClick={clearShiftReport}
@@ -197,7 +197,7 @@ export const DailyCashPanel: React.FC<Props> = ({
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 border-b border-gray-100">
                 {/* Control audit information */}
                 <div className="space-y-4">
-                  <h6 className="text-xs font-black uppercase text-gray-400 tracking-wider">Audit Monetar (Cash)</h6>
+                  <h6 className="text-xs font-black uppercase text-slate-500 tracking-wider">Audit Monetar (Cash)</h6>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between py-1 border-b border-gray-50 font-medium text-gray-600">
                       <span>Fond Sertar (Opening)</span>
@@ -232,7 +232,7 @@ export const DailyCashPanel: React.FC<Props> = ({
 
                 {/* Card and transaction counts */}
                 <div className="space-y-4">
-                  <h6 className="text-xs font-black uppercase text-gray-400 tracking-wider">Tranzacții & POS Card</h6>
+                  <h6 className="text-xs font-black uppercase text-slate-500 tracking-wider">Tranzacții & POS Card</h6>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between py-1 border-b border-gray-50 font-medium text-gray-600">
                       <span>Vânzări Card</span>
@@ -272,20 +272,20 @@ export const DailyCashPanel: React.FC<Props> = ({
 
               {/* Sales List within shift */}
               <div className="p-6 space-y-3">
-                <h6 className="text-xs font-black uppercase text-gray-400 tracking-wider">Tranzacții Recente din Tură ({shiftReport.salesList.length})</h6>
+                <h6 className="text-xs font-black uppercase text-slate-500 tracking-wider">Tranzacții Recente din Tură ({shiftReport.salesList.length})</h6>
                 {shiftReport.salesList.length === 0 ? (
-                  <div className="text-center py-6 text-gray-400 text-sm">
+                  <div className="text-center py-6 text-slate-500 text-sm">
                     Nicio vânzare înregistrată în această tură.
                   </div>
                 ) : (
-                  <div className="max-h-[220px] overflow-y-auto border border-gray-100 rounded-2xl divide-y divide-gray-50">
+                  <div data-testid="reports-table" className="max-h-[220px] overflow-y-auto border border-gray-100 rounded-2xl divide-y divide-gray-50">
                     {shiftReport.salesList.map((sale) => (
                       <div key={sale.saleId} className="p-3 flex justify-between items-center hover:bg-gray-50 transition-colors">
                         <div>
                           <div className="text-sm font-bold text-gray-900">
                             {formatCurrency(sale.total)}
                           </div>
-                          <div className="text-[10px] text-gray-400 font-mono">
+                          <div className="text-[10px] text-slate-500 font-mono">
                             ID: {sale.saleId.slice(0, 8)}... | {formatDateTime(sale.createdAt)}
                           </div>
                         </div>
@@ -307,7 +307,7 @@ export const DailyCashPanel: React.FC<Props> = ({
             <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
               <ArrowRight className="text-gray-300 mb-4 animate-pulse" size={48} />
               <h5 className="font-bold text-gray-700">Audit Tură</h5>
-              <p className="text-sm text-gray-400 mt-2 max-w-xs">
+              <p className="text-sm text-slate-500 mt-2 max-w-xs">
                 Selectează o tură din lista din stânga pentru a-i vedea auditul monetar, vânzările detaliate și declarările.
               </p>
             </div>

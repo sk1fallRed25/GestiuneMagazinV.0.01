@@ -46,7 +46,7 @@ const SalesHistoryPage: React.FC = () => {
     } = useSalesHistory();
 
     return (
-        <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50/50 pb-20 font-sans">
+        <div data-testid="sales-history-page" className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50/50 pb-20 font-sans">
             <SalesHistoryHeader loading={loading} onRefresh={fetchSales} />
 
             {/* Sumar Cards */}

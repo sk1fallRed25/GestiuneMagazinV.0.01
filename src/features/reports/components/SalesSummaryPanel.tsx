@@ -46,7 +46,7 @@ export const SalesSummaryPanel: React.FC<Props> = ({ data }) => {
   return (
     <div className="space-y-8">
       {/* Primary KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div data-testid="reports-kpi-grid" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
           <ReportKpiCard
             key={idx}
@@ -62,7 +62,7 @@ export const SalesSummaryPanel: React.FC<Props> = ({ data }) => {
       {/* Payment Splits & Operational KPIs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Cash Breakdown */}
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+        <div data-testid="reports-chart-card" className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
               <DollarSign size={20} />
@@ -86,7 +86,7 @@ export const SalesSummaryPanel: React.FC<Props> = ({ data }) => {
         </div>
 
         {/* Card Breakdown */}
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+        <div data-testid="reports-chart-card" className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
               <CreditCard size={20} />
@@ -110,7 +110,7 @@ export const SalesSummaryPanel: React.FC<Props> = ({ data }) => {
         </div>
 
         {/* Coș Mediu & Alte Info */}
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+        <div data-testid="reports-chart-card" className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
               <Activity size={20} />

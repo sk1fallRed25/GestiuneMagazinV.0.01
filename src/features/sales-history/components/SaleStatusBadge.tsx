@@ -16,7 +16,7 @@ export const SaleStatusBadge: React.FC<SaleStatusBadgeProps> = ({ status }) => {
     const s = config[status] || { label: status, classes: 'bg-gray-50 text-gray-700 border-gray-100' };
 
     return (
-        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${s.classes}`}>
+        <span data-testid="sales-history-fiscal-status-badge" className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${s.classes}`}>
             {s.label}
         </span>
     );

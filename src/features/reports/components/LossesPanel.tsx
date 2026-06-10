@@ -1,6 +1,7 @@
 import React from 'react';
 import { LossesReport } from '../types';
 import { Trash2, TrendingDown, Clipboard, AlertCircle } from 'lucide-react';
+import { EmptyState } from '../../../shared/components/ui';
 
 interface Props {
   data: LossesReport;
@@ -19,10 +20,12 @@ export const LossesPanel: React.FC<Props> = ({ data }) => {
 
   if (!hasLosses) {
     return (
-      <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm">
-        <Trash2 className="mx-auto text-emerald-300 mb-4" size={48} />
-        <h4 className="text-lg font-bold text-gray-700">Fără pierderi înregistrate</h4>
-        <p className="text-gray-400 mt-2">Nu s-au înregistrat note de rebut, degradare sau alte pierderi în perioada selectată.</p>
+      <div data-testid="reports-empty-state" className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
+        <EmptyState
+          title="Fără pierderi înregistrate"
+          description="Nu s-au înregistrat note de rebut, degradare sau alte pierderi în perioada selectată."
+          icon={<Trash2 size={48} />}
+        />
       </div>
     );
   }
@@ -41,7 +44,7 @@ export const LossesPanel: React.FC<Props> = ({ data }) => {
           <div>
             <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Cantitate Totală Casată</p>
             <h3 className="text-2xl font-black text-gray-900 mt-1">{formatNumber(data.totalWasteQuantity)}</h3>
-            <p className="text-xs text-gray-400 mt-1 font-medium">Numărul de unități scoase din gestiune</p>
+            <p className="text-xs text-slate-500 mt-1 font-medium">Numărul de unități scoase din gestiune</p>
           </div>
         </div>
 
@@ -52,7 +55,7 @@ export const LossesPanel: React.FC<Props> = ({ data }) => {
           <div>
             <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Valoare Pierderi (Achiziție)</p>
             <h3 className="text-2xl font-black text-rose-600 mt-1">{formatCurrency(data.estimatedWasteValue)}</h3>
-            <p className="text-xs text-gray-400 mt-1 font-medium">Costul total suportat de magazin</p>
+            <p className="text-xs text-slate-500 mt-1 font-medium">Costul total suportat de magazin</p>
           </div>
         </div>
       </div>
@@ -84,7 +87,7 @@ export const LossesPanel: React.FC<Props> = ({ data }) => {
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-[11px] text-gray-400 font-semibold">
+                  <div className="flex justify-between text-[11px] text-slate-500 font-semibold">
                     <span>{reasonItem.count} evenimente înregistrate</span>
                     <span>Cantitate: {formatNumber(reasonItem.quantity)}</span>
                   </div>
@@ -108,7 +111,7 @@ export const LossesPanel: React.FC<Props> = ({ data }) => {
               <div key={prod.productId || idx} className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-2xl transition-colors border border-gray-50">
                 <div className="space-y-0.5">
                   <span className="font-bold text-gray-900 text-sm block">{prod.name}</span>
-                  <span className="text-[10px] text-gray-400 font-mono">
+                  <span className="text-[10px] text-slate-500 font-mono">
                     {prod.barcode || 'N/A'} | ID: {prod.productId?.slice(0, 8)}
                   </span>
                 </div>

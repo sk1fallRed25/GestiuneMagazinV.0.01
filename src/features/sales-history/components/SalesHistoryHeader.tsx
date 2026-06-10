@@ -8,7 +8,7 @@ interface SalesHistoryHeaderProps {
 
 export const SalesHistoryHeader: React.FC<SalesHistoryHeaderProps> = ({ loading, onRefresh }) => {
     return (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+        <div data-testid="sales-history-header" className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
             <div>
                 <h1 className="text-4xl font-black text-gray-900 flex items-center gap-4 tracking-tight">
                     <span className="bg-indigo-600 p-3 rounded-2xl text-white shadow-xl shadow-indigo-100 flex items-center justify-center">
@@ -16,7 +16,7 @@ export const SalesHistoryHeader: React.FC<SalesHistoryHeaderProps> = ({ loading,
                     </span>
                     Istoric Vânzări
                 </h1>
-                <p className="text-gray-400 mt-2 font-medium text-lg ml-1">Registrul digital al tranzacțiilor din magazin (v2).</p>
+                <p className="text-slate-500 mt-2 font-medium text-lg ml-1">Registrul digital al tranzacțiilor din magazin (v2).</p>
             </div>
 
             <button

@@ -245,3 +245,13 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Polish vizual al Setărilor Magazinului: convertit panourile plate în carduri cu contrast crescut, grupat secțiunile de Coadă Offline, System Info și Audit Coș POS.
   - Creat și trecut cu succes scriptul de test `test_ui_catalog_forms_settings_6ux4.py` (verificări statice + E2E Playwright).
   - Raport detaliat în `docs/ui_catalog_forms_settings_6ux4_report.md`.
+
+- **Etapa 6UX.5 (Owner Console & AI Consultant Polish)**: **PASS**
+  - Polish vizual și ergonomic complet al Consolei Proprietar: carduri administrative premium, tab-uri cu selectare elegantă, carduri KPI responsive cu contrast sporit și tabele bine structurate pentru magazine și utilizatori.
+  - Polish al Consultantului AI: implementat stări clare de loading (`ai-loading-state`), empty (`ai-empty-state`) și erori diferențiate (`ai-error-alert`), stilizat cardurile de recomandări cu prioritizare vizuală prin badge-uri de severitate/tip.
+  - Validat automat prin suita de teste Playwright `test_ui_owner_ai_consultant_6ux5.py`. Raport detaliat în `docs/ui_owner_ai_consultant_6ux5_report.md`.
+
+- **Etapa 6UX.6 (Reports, History & Final Visual QA)**: **PASS**
+  - Polish vizual al istoricului de vânzări: adăugat `sales-history-page` cu `PageHeader` standardizat, contrast crescut al filtrelor și componentelor de badging, și înlocuit structurile de loading/empty cu componentele globale (`LoadingState`, `EmptyState`).
+  - Polish al secțiunii de Rapoarte comerciale și Analytics: taburi cu contrast ridicat pentru modul inactiv, grilă KPI interactivă cu carduri detaliate, și tabele administrative/financiare standardizate cu stări empty.
+  - Validat automat prin suita de teste Playwright `test_ui_reports_history_final_qa_6ux6.py` și testarea vizuală pe viewports de control. Raport detaliat în `docs/ui_reports_history_final_qa_6ux6_report.md`.

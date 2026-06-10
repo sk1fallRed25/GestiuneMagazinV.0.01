@@ -68,7 +68,7 @@ export const InventoryValuePanel: React.FC<Props> = ({ data }) => {
             </div>
             <div>
               <h4 className="text-xl font-black text-gray-900">{formatNumber(data.totalStockMagazin)}</h4>
-              <p className="text-sm text-gray-400 font-medium">Stoc total aflat pe rafturi (Magazin)</p>
+              <p className="text-sm text-slate-500 font-medium">Stoc total aflat pe rafturi (Magazin)</p>
             </div>
           </div>
           <span className="px-4 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-black uppercase">Zona Magazin</span>
@@ -81,7 +81,7 @@ export const InventoryValuePanel: React.FC<Props> = ({ data }) => {
             </div>
             <div>
               <h4 className="text-xl font-black text-gray-900">{formatNumber(data.totalStockDepozit)}</h4>
-              <p className="text-sm text-gray-400 font-medium">Stoc total depozitat în spate (Depozit)</p>
+              <p className="text-sm text-slate-500 font-medium">Stoc total depozitat în spate (Depozit)</p>
             </div>
           </div>
           <span className="px-4 py-1.5 bg-purple-50 text-purple-700 rounded-xl text-xs font-black uppercase">Zona Depozit</span>
@@ -96,17 +96,17 @@ export const InventoryValuePanel: React.FC<Props> = ({ data }) => {
               <FileWarning className="text-amber-500" size={20} />
               Candidați Dead Stock (Slow Movers)
             </h4>
-            <p className="text-sm text-gray-400 font-medium">Produse cu stoc pozitiv, fără vânzări în ultimele 30 de zile</p>
+            <p className="text-sm text-slate-500 font-medium">Produse cu stoc pozitiv, fără vânzări în ultimele 30 de zile</p>
           </div>
         </div>
 
         {!data.deadStockCandidates || data.deadStockCandidates.length === 0 ? (
-          <div className="py-12 text-center text-gray-400 font-medium">
+          <div className="py-12 text-center text-slate-500 font-medium">
             Felicitări! Nu există produse inactive (dead stock) cu stoc în acest magazin.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table data-testid="reports-table" className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider">
                   <th className="py-3 px-6">Produs</th>
@@ -119,7 +119,7 @@ export const InventoryValuePanel: React.FC<Props> = ({ data }) => {
                   <tr key={item.productId || idx} className="hover:bg-gray-50/50 transition-colors">
                     <td className="py-4 px-6">
                       <div className="font-bold text-gray-900">{item.name}</div>
-                      <div className="text-xs text-gray-400">ID: {item.productId}</div>
+                      <div className="text-xs text-slate-500">ID: {item.productId}</div>
                     </td>
                     <td className="py-4 px-6 font-mono text-xs text-gray-500">
                       {item.barcode || 'N/A'}

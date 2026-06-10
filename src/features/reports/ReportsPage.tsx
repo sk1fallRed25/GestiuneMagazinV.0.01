@@ -17,6 +17,7 @@ import {
   RefreshCw 
 } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
+import { LoadingState, Alert } from '../../shared/components/ui';
 
 type TabType = 'sales' | 'products' | 'cash' | 'inventory' | 'losses';
 
@@ -81,12 +82,12 @@ export const ReportsPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-8 max-w-7xl mx-auto pb-20 font-sans bg-gray-50/30 min-h-screen">
+    <div data-testid="reports-page" className="p-8 max-w-7xl mx-auto pb-20 font-sans bg-gray-50/30 min-h-screen">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-center gap-6 mb-8">
+      <div data-testid="reports-header" className="flex flex-wrap justify-between items-center gap-6 mb-8">
         <div>
           <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Rapoarte Comerciale</h1>
-          <p className="text-gray-400 font-medium mt-1">Sinteză financiară și operațională completă pentru management</p>
+          <p className="text-slate-500 font-medium mt-1">Sinteză financiară și operațională completă pentru management</p>
         </div>
         <button
           onClick={fetchAllReports}
@@ -100,7 +101,7 @@ export const ReportsPage: React.FC = () => {
 
       {/* Global Date Filter for tabs (except cash report which has its own daily selector) */}
       {activeTab !== 'cash' && activeTab !== 'inventory' && (
-        <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-wrap items-center gap-6 mb-8">
+        <div data-testid="reports-filter-panel" className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-wrap items-center gap-6 mb-8">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
               <Calendar size={18} />
@@ -109,7 +110,7 @@ export const ReportsPage: React.FC = () => {
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 font-bold uppercase">De la:</span>
+              <span className="text-xs text-slate-500 font-bold uppercase">De la:</span>
               <input
                 type="date"
                 value={dateFrom}
@@ -118,7 +119,7 @@ export const ReportsPage: React.FC = () => {
               />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 font-bold uppercase">Până la:</span>
+              <span className="text-xs text-slate-500 font-bold uppercase">Până la:</span>
               <input
                 type="date"
                 value={dateTo}
@@ -141,7 +142,7 @@ export const ReportsPage: React.FC = () => {
               className={`flex items-center gap-2 px-6 py-4 font-bold border-b-2 transition-all whitespace-nowrap text-sm ${
                 isActive 
                   ? 'border-indigo-600 text-indigo-600 bg-indigo-50/20' 
-                  : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300'
+                  : 'border-transparent text-slate-500 hover:text-gray-600 hover:border-gray-300'
               }`}
             >
               {tab.icon}
@@ -153,21 +154,16 @@ export const ReportsPage: React.FC = () => {
 
       {/* Error state display (non-store specific error) */}
       {error && !error.includes('Selectează un magazin') && (
-        <div className="bg-red-50 text-red-700 p-6 rounded-3xl mb-8 flex items-start gap-4 border border-red-100">
-          <AlertTriangle size={24} className="flex-shrink-0" />
-          <div>
-            <h5 className="font-bold">Eroare la încărcarea datelor</h5>
-            <p className="text-sm mt-1">{error}</p>
-          </div>
-        </div>
+        <Alert variant="danger" title="Eroare la încărcarea datelor" data-testid="reports-error-alert" className="mb-8">
+          {error}
+        </Alert>
       )}
 
       {/* Tab Panels content */}
       <div className="transition-all duration-300">
         {loading && !salesSummary && (
-          <div className="flex flex-col items-center justify-center py-40">
-            <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-6" />
-            <p className="text-gray-400 font-black uppercase tracking-widest text-sm">Se generează raportul comercial...</p>
+          <div data-testid="reports-loading-state" className="bg-white rounded-3xl border border-gray-100 shadow-sm py-40">
+            <LoadingState message="Se generează raportul comercial..." size="lg" />
           </div>
         )}
 
