@@ -31,18 +31,28 @@ export const StoreSettingsSaveBar: React.FC<Props> = ({ isDirty, saving, saveSuc
             ) : (
               <>
                 <div className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse" />
-                <span className="text-sm font-bold text-gray-700">Ai modificări nesalvate</span>
+                <span className="text-sm font-bold text-slate-700">Ai modificări nesalvate</span>
               </>
             )}
           </div>
           {isDirty && (
             <div className="flex items-center gap-3">
-              <button type="button" onClick={onReset} disabled={saving}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm font-bold transition-all disabled:opacity-50">
+              <button 
+                type="button" 
+                data-testid="store-settings-reset-button"
+                onClick={onReset} 
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+              >
                 <X size={16} />Renunță
               </button>
-              <button type="button" onClick={onSave} disabled={saving}
-                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-indigo-200 disabled:opacity-50 active:scale-95">
+              <button 
+                type="button" 
+                data-testid="store-settings-save-button"
+                onClick={onSave} 
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-indigo-200 disabled:opacity-50 active:scale-95"
+              >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 {saving ? 'Se salvează...' : 'Salvează'}
               </button>

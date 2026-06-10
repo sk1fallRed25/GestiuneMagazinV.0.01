@@ -8,6 +8,7 @@ import { Product } from './types';
 import ProductSearchBar from './components/ProductSearchBar';
 import ProductTable from './components/ProductTable';
 import ProductEditModal from './components/ProductEditModal';
+import { PageHeader } from '../../shared/components/ui';
 
 
 const ProductsPage = () => {
@@ -97,7 +98,7 @@ const ProductsPage = () => {
     }
 
     return (
-        <div className="p-8 max-w-[1400px] mx-auto min-h-screen bg-slate-50/30">
+        <div data-testid="products-page" className="p-8 max-w-[1400px] mx-auto min-h-screen bg-slate-50/30">
             {/* Offline Warning Banner */}
             {!isOnline && (
                 <div data-testid="products-offline-warning-banner" className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-3xl text-amber-800 text-sm font-semibold flex items-center gap-3">
@@ -107,23 +108,19 @@ const ProductsPage = () => {
             )}
 
             {/* Header Secțiune */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3 flex-wrap">
-                        <span className="bg-indigo-600 p-2 rounded-xl text-white shadow-lg shadow-indigo-200">
-                            <Database size={28} />
-                        </span>
-                        Monitorizare Stocuri & Produse
-                        {!isOnline && (
-                            <span data-testid="products-offline-badge" className="ml-3 px-3 py-1 bg-amber-500 text-white rounded-full text-xs font-black uppercase tracking-wider animate-pulse">
+            <div data-testid="products-page-header">
+                <PageHeader
+                    title="Monitorizare Stocuri & Produse"
+                    description={`Sincronizare în timp real (Schema v2). Rol: ${userRole || 'Nedefinit'}`}
+                    icon={<Database size={24} />}
+                    actions={
+                        !isOnline ? (
+                            <span data-testid="products-offline-badge" className="px-3 py-1 bg-amber-500 text-white rounded-full text-xs font-black uppercase tracking-wider animate-pulse">
                                 Date posibil neactualizate
                             </span>
-                        )}
-                    </h1>
-                    <p className="text-gray-500 mt-2 ml-1 text-sm italic">
-                        Sincronizare în timp real (Schema v2). Rol: <span className="font-bold text-indigo-600 uppercase">{userRole || 'Nedefinit'}</span>
-                    </p>
-                </div>
+                        ) : undefined
+                    }
+                />
             </div>
 
             {/* Banner Filtru AI */}

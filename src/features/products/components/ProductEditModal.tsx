@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Save, X } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { Product, ProductUpdateInput, ProductVatConfig, VatGroupKey } from '../types';
 import { ProductVatGroupSelector } from './ProductVatGroupSelector';
 import { ProductSgrSelector } from './ProductSgrSelector';
 import { selectionFromSgr, payloadFromSgrSelection, SgrSelection } from '../utils/sgr';
 import { normalizeVatGroupForStore, productService } from '../services/productService';
 import toast from 'react-hot-toast';
+import { Modal } from '../../../shared/components/ui';
 
 interface ProductEditModalProps {
     product: Product | null;
@@ -130,121 +131,174 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-[2rem] p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-8 pb-4 border-b border-slate-100">
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-800">Parametri Produs</h2>
-                        <p className="text-slate-400 text-[10px] mt-1 font-mono">UUID: {product.id}</p>
-                    </div>
-                    <button onClick={onClose} className="text-slate-300 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full transition-all">
-                        <X size={24} />
+        <Modal
+            open={isOpen}
+            onClose={onClose}
+            title="Parametri Produs"
+            description={`UUID: ${product.id}`}
+            size="md"
+            footer={
+                <div className="flex justify-end gap-3 w-full">
+                    <button
+                        type="button"
+                        data-testid="product-edit-cancel-button"
+                        onClick={onClose}
+                        className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-slate-300"
+                    >
+                        Anulează
+                    </button>
+                    <button
+                        type="submit"
+                        data-testid="product-edit-save-button"
+                        form="product-edit-form"
+                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-indigo-150 flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        <Save size={16} /> Salvează
                     </button>
                 </div>
-
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Denumire Nomenclator</label>
-                        <input
-                            className="w-full border border-slate-200 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700"
-                            value={localState.nume}
-                            onChange={e => setLocalState({ ...localState, nume: e.target.value })}
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Cod de Bare</label>
-                        <input
-                            className="w-full border border-slate-200 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-mono font-bold text-slate-600"
-                            value={localState.cod_bare}
-                            onChange={e => setLocalState({ ...localState, cod_bare: e.target.value })}
-                            required
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Preț Vânzare</label>
-                            <input
-                                type="text"
-                                className="w-full border border-slate-200 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-mono font-bold"
-                                value={localState.pret_vanzare}
-                                onChange={e => handleNumberChange('pret_vanzare', e.target.value)}
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Preț Achiziție</label>
-                            <input
-                                type="text"
-                                className="w-full border border-slate-200 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-mono font-bold"
-                                value={localState.pret_achizitie}
-                                onChange={e => handleNumberChange('pret_achizitie', e.target.value)}
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    <ProductVatGroupSelector 
-                        value={localState.vatGroup}
-                        onChange={handleVatGroupChange}
-                        config={vatConfig}
-                    />
-
-                    <ProductSgrSelector 
-                        value={localState.sgrSelection}
-                        onChange={(val) => setLocalState(prev => ({ ...prev, sgrSelection: val }))}
-                    />
-
-                    <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Unitate de Măsură (U.M.)</label>
-                        <input
-                            className="w-full border border-slate-200 p-4 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold"
-                            value={localState.um}
-                            onChange={e => setLocalState({ ...localState, um: e.target.value })}
-                            required
-                        />
-                    </div>
-
-                    <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
-                        <div className="grid grid-cols-2 gap-6">
+            }
+        >
+            <div data-testid="product-edit-modal" className="max-h-[60vh] overflow-y-auto pr-2">
+                <form id="product-edit-form" onSubmit={handleSubmit} className="space-y-6">
+                    {/* Secțiunea 1: Identificare Produs */}
+                    <div className="space-y-4">
+                        <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider border-b border-indigo-50 pb-1">
+                            1. Identificare Produs
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Stoc Depozit</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                    Denumire Nomenclator
+                                </label>
                                 <input
-                                    type="text"
-                                    className={`w-full border border-indigo-100 p-4 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 font-bold text-indigo-600 shadow-sm ${hasRealBatches ? 'bg-slate-100 cursor-not-allowed opacity-75' : ''}`}
-                                    value={localState.stoc_depozit}
-                                    onChange={e => handleNumberChange('stoc_depozit', e.target.value)}
+                                    className="w-full border border-slate-300 p-3.5 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700 bg-white"
+                                    value={localState.nume}
+                                    onChange={e => setLocalState({ ...localState, nume: e.target.value })}
                                     required
-                                    disabled={hasRealBatches}
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-purple-400 uppercase tracking-widest mb-2">Stoc Magazin</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                    Cod de Bare
+                                </label>
                                 <input
-                                    type="text"
-                                    className={`w-full border border-purple-100 p-4 rounded-xl outline-none focus:ring-4 focus:ring-purple-500/10 font-bold text-purple-600 shadow-sm ${hasRealBatches ? 'bg-slate-100 cursor-not-allowed opacity-75' : ''}`}
-                                    value={localState.stoc_magazin}
-                                    onChange={e => handleNumberChange('stoc_magazin', e.target.value)}
+                                    className="w-full border border-slate-300 p-3.5 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-mono font-bold text-slate-600 bg-white"
+                                    value={localState.cod_bare}
+                                    onChange={e => setLocalState({ ...localState, cod_bare: e.target.value })}
                                     required
-                                    disabled={hasRealBatches}
                                 />
                             </div>
                         </div>
-                        {hasRealBatches && (
-                            <p className="text-amber-600 text-[11px] font-bold text-center mt-1">
-                                Stocul este calculat din loturi și se modifică doar prin Recepție / Transfer.
-                            </p>
-                        )}
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                Unitate de Măsură (U.M.)
+                            </label>
+                            <input
+                                className="w-full border border-slate-300 p-3.5 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700 bg-white"
+                                value={localState.um}
+                                onChange={e => setLocalState({ ...localState, um: e.target.value })}
+                                required
+                            />
+                        </div>
                     </div>
 
-                    <button type="submit" className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl mt-4 hover:bg-indigo-700 transition shadow-xl shadow-indigo-100 flex justify-center items-center gap-3 text-sm uppercase tracking-widest">
-                        <Save size={20} /> Actualizare Nomenclator
-                    </button>
+                    {/* Secțiunea 2: Prețuri și TVA */}
+                    <div className="space-y-4">
+                        <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider border-b border-indigo-50 pb-1">
+                            2. Prețuri & TVA
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                    Preț Vânzare (RON)
+                                </label>
+                                <input
+                                    type="text"
+                                    className="w-full border border-slate-300 p-3.5 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-mono font-bold text-slate-700 bg-white"
+                                    value={localState.pret_vanzare}
+                                    onChange={e => handleNumberChange('pret_vanzare', e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                    Preț Achiziție (RON)
+                                </label>
+                                <input
+                                    type="text"
+                                    className="w-full border border-slate-300 p-3.5 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-mono font-bold text-slate-700 bg-white"
+                                    value={localState.pret_achizitie}
+                                    onChange={e => handleNumberChange('pret_achizitie', e.target.value)}
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <ProductVatGroupSelector 
+                            value={localState.vatGroup}
+                            onChange={handleVatGroupChange}
+                            config={vatConfig}
+                        />
+                    </div>
+
+                    {/* Secțiunea 3: SGR */}
+                    <div className="space-y-4">
+                        <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider border-b border-indigo-50 pb-1">
+                            3. Garanție Retur SGR
+                        </h3>
+                        <ProductSgrSelector 
+                            value={localState.sgrSelection}
+                            onChange={(val) => setLocalState(prev => ({ ...prev, sgrSelection: val }))}
+                        />
+                    </div>
+
+                    {/* Secțiunea 4: Stoc & Distribuție */}
+                    <div className="space-y-4">
+                        <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider border-b border-indigo-50 pb-1">
+                            4. Stoc & Distribuție
+                        </h3>
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1.5">
+                                        Stoc Depozit
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className={`w-full border border-indigo-200 p-3 rounded-lg outline-none focus:ring-4 focus:ring-indigo-500/10 font-bold text-indigo-600 shadow-sm ${
+                                            hasRealBatches ? 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-75' : 'bg-white'
+                                        }`}
+                                        value={localState.stoc_depozit}
+                                        onChange={e => handleNumberChange('stoc_depozit', e.target.value)}
+                                        required
+                                        disabled={hasRealBatches}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-purple-600 uppercase tracking-widest mb-1.5">
+                                        Stoc Magazin
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className={`w-full border border-purple-200 p-3 rounded-lg outline-none focus:ring-4 focus:ring-purple-500/10 font-bold text-purple-600 shadow-sm ${
+                                            hasRealBatches ? 'bg-slate-100 border-slate-200 cursor-not-allowed opacity-75' : 'bg-white'
+                                        }`}
+                                        value={localState.stoc_magazin}
+                                        onChange={e => handleNumberChange('stoc_magazin', e.target.value)}
+                                        required
+                                        disabled={hasRealBatches}
+                                    />
+                                </div>
+                            </div>
+                            {hasRealBatches && (
+                                <p className="text-amber-700 text-[11px] font-bold text-center bg-amber-50 p-2.5 rounded-xl border border-amber-200/50">
+                                    ⚠️ Stocul este calculat automat din loturile de recepție și poate fi modificat exclusiv prin modulele de Recepție / Transfer.
+                                </p>
+                            )}
+                        </div>
+                    </div>
                 </form>
             </div>
-        </div>
+        </Modal>
     );
 };
 

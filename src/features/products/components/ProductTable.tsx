@@ -2,6 +2,7 @@ import React from 'react';
 import { Edit3, Trash2, Package } from 'lucide-react';
 import { Product, ProductVatConfig } from '../types';
 import { normalizeVatGroupForStore, getStandardVatRate } from '../services/productService';
+import { Tooltip } from '../../../shared/components/ui';
 
 interface ProductTableProps {
     products: Product[];
@@ -18,9 +19,9 @@ const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig, emptySt
     const canDelete = ['admin', 'platform_owner'].includes(userRole || '');
 
     return (
-        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-            <table className="w-full text-left">
-                <thead className="bg-slate-50 text-slate-600 text-[10px] font-bold uppercase tracking-widest border-b border-gray-100">
+        <div className="bg-white rounded-3xl shadow-md border border-slate-300 overflow-hidden">
+            <table data-testid="products-table" className="w-full text-left">
+                <thead className="bg-slate-100 text-slate-700 text-[10px] font-bold uppercase tracking-widest border-b border-slate-300">
                     <tr>
                         <th className="px-6 py-5">Denumire Produs</th>
                         <th className="px-6 py-5">Preț Vânzare</th>
@@ -31,18 +32,18 @@ const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig, emptySt
                         <th className="px-6 py-5 text-center">Acțiuni</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-slate-200">
                     {products.map((produs) => (
-                        <tr key={produs.id} className="hover:bg-slate-50/50 transition-colors group">
+                        <tr key={produs.id} data-testid="products-table-row" className="hover:bg-slate-50 transition-colors group">
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="bg-indigo-50 p-2 rounded-lg text-indigo-400 group-hover:text-indigo-600 transition-colors">
+                                    <div className="bg-indigo-50 p-2 rounded-lg text-indigo-500 group-hover:text-indigo-600 transition-colors">
                                         <Package size={20} />
                                     </div>
                                     <div>
-                                         <p className="font-bold text-gray-800 leading-tight">{produs.nume}</p>
+                                         <p className="font-bold text-slate-900 leading-tight">{produs.nume}</p>
                                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                                             <span className="text-[10px] font-mono text-gray-400">{produs.cod_bare}</span>
+                                             <span className="text-[10px] font-mono text-slate-500">{produs.cod_bare}</span>
                                              {produs.sgrEnabled && produs.sgrType && (
                                                  <span 
                                                      data-testid="product-sgr-badge"
@@ -56,19 +57,22 @@ const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig, emptySt
                                      </div>
                                 </div>
                             </td>
-                            <td className="px-6 py-4 font-bold text-gray-700">
-                                {produs.pret_vanzare.toFixed(2)} <span className="text-[10px] text-gray-400">LEI</span>
+                            <td className="px-6 py-4 font-bold text-slate-800">
+                                {produs.pret_vanzare.toFixed(2)} <span className="text-[10px] text-slate-500 font-bold">LEI</span>
                             </td>
                             <td className="px-6 py-4">
                                 {(() => {
                                     const finalVatGroup = normalizeVatGroupForStore(produs.vatGroup, vatConfig ?? null);
                                     const finalVatPercent = getStandardVatRate(finalVatGroup);
                                     return (
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold leading-none font-mono ${
-                                            finalVatGroup === 'E' 
-                                                ? 'bg-amber-50 text-amber-700 border border-amber-100'
-                                                : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
-                                        }`}>
+                                        <span 
+                                            data-testid="product-vat-badge"
+                                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold leading-none font-mono ${
+                                                finalVatGroup === 'E' 
+                                                    ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                                    : 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+                                            }`}
+                                        >
                                             {finalVatGroup} ({finalVatPercent}%)
                                         </span>
                                     );
@@ -80,27 +84,31 @@ const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig, emptySt
                             <td className="px-6 py-4 text-center font-bold text-purple-600">
                                 {produs.stoc_magazin}
                             </td>
-                            <td className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-tighter">
+                            <td className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-tighter">
                                 {produs.um}
                             </td>
                             <td className="px-6 py-4 text-center">
                                 <div className="flex justify-center gap-2">
-                                    <button
-                                        onClick={() => onEdit(produs)}
-                                        className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                        title="Editează produs"
-                                    >
-                                        <Edit3 size={18} />
-                                    </button>
+                                    <Tooltip content="Editează produs">
+                                        <button
+                                            data-testid="product-edit-button"
+                                            onClick={() => onEdit(produs)}
+                                            className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                        >
+                                            <Edit3 size={18} />
+                                        </button>
+                                    </Tooltip>
 
                                     {canDelete && (
-                                        <button
-                                            onClick={() => onDelete(produs.id)}
-                                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                            title="Arhivează produs (ADMIN)"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
+                                        <Tooltip content="Arhivează produs (ADMIN)">
+                                            <button
+                                                data-testid="product-archive-button"
+                                                onClick={() => onDelete(produs.id)}
+                                                className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </Tooltip>
                                     )}
                                 </div>
                             </td>
@@ -110,11 +118,11 @@ const ProductTable = ({ products, onEdit, onDelete, userRole, vatConfig, emptySt
             </table>
             {products.length === 0 && (
                 <div className="p-16 flex flex-col items-center justify-center text-center">
-                    <div className="p-4 bg-gray-50 rounded-2xl text-gray-300 mb-3">
+                    <div className="p-4 bg-slate-50 rounded-2xl text-slate-400 mb-3 border border-slate-200">
                         <Package size={32} />
                     </div>
-                    <p className="text-sm font-bold text-gray-700 mb-1">Nu există înregistrări disponibile</p>
-                    <p className="text-xs text-gray-400 max-w-sm">
+                    <p className="text-sm font-bold text-slate-800 mb-1">Nu există înregistrări disponibile</p>
+                    <p className="text-xs text-slate-500 max-w-sm">
                         {emptyStateDescription || "Nu au fost găsite produse care să corespundă criteriilor de căutare în acest magazin."}
                     </p>
                 </div>

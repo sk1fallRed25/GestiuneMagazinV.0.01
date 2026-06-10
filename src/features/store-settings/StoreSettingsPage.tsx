@@ -17,6 +17,7 @@ import { useNetworkStatus } from '../../shared/network/useNetworkStatus';
 import { AppUpdatePanel } from '../app-update/AppUpdatePanel';
 import { OfflineCacheSyncPanel } from '../pos/components/OfflineCacheSyncPanel';
 import { PosCartEventsPanel } from '../pos/components/PosCartEventsPanel';
+import { PageHeader, Card } from '../../shared/components/ui';
 
 export const StoreSettingsPage: React.FC = () => {
 
@@ -78,8 +79,8 @@ export const StoreSettingsPage: React.FC = () => {
         <div className="w-20 h-20 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-rose-100">
           <ShieldAlert size={40} />
         </div>
-        <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Acces Interzis</h2>
-        <p className="text-gray-600 font-medium max-w-md">Nu ai permisiunea necesară pentru setările magazinului.</p>
+        <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">Acces Interzis</h2>
+        <p className="text-slate-600 font-medium max-w-md">Nu ai permisiunea necesară pentru setările magazinului.</p>
       </div>
     );
   }
@@ -92,8 +93,8 @@ export const StoreSettingsPage: React.FC = () => {
         <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-indigo-100">
           <BrainCircuit size={40} />
         </div>
-        <h2 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">Setări Magazin</h2>
-        <p className="text-gray-600 font-medium max-w-md">Selectează un magazin pentru a configura setările operaționale.</p>
+        <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">Setări Magazin</h2>
+        <p className="text-slate-600 font-medium max-w-md">Selectează un magazin pentru a configura setările operaționale.</p>
       </div>
     );
   }
@@ -104,7 +105,7 @@ export const StoreSettingsPage: React.FC = () => {
       <div className="p-8 max-w-5xl mx-auto font-sans">
         <div className="flex flex-col items-center justify-center py-40">
           <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-6" />
-          <p className="text-gray-400 font-black uppercase tracking-widest text-sm">Se încarcă setările magazinului...</p>
+          <p className="text-slate-400 font-black uppercase tracking-widest text-sm">Se încarcă setările magazinului...</p>
         </div>
       </div>
     );
@@ -133,37 +134,44 @@ export const StoreSettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto pb-32 font-sans bg-gray-50/30 min-h-screen">
+    <div data-testid="store-settings-page" className="p-8 max-w-5xl mx-auto pb-32 font-sans bg-gray-50/30 min-h-screen">
       {/* Header */}
-      <div className="flex flex-wrap justify-between items-start gap-6 mb-8">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tight flex items-center gap-3">
-            <Settings size={28} className="text-indigo-600" />
-            Setări Magazin
-          </h1>
-          <p className="text-gray-400 font-medium mt-1">Configurează date fiscale, TVA, stoc, POS și alerte operaționale.</p>
-          {storeInfo.storeName && (
-            <div className="flex items-center gap-2 mt-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl">
-                <Store size={14} className="text-indigo-600" />
-                <span className="text-xs font-black text-indigo-700 uppercase">{storeInfo.storeName}</span>
-              </div>
-              {!canEdit && (
-                <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl">
-                  <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider">
-                    Mod vizualizare — doar admin sau platform owner poate modifica setările
-                  </span>
-                </div>
-              )}
+      <div data-testid="store-settings-header">
+        <PageHeader
+          title="Setări Magazin"
+          description="Configurează date fiscale, TVA, stoc, POS și alerte operaționale."
+          icon={<Settings size={24} className="text-indigo-600" />}
+          actions={
+            <div className="flex items-center gap-3">
+              <button
+                data-testid="store-settings-reload-button"
+                onClick={reload}
+                disabled={loading}
+                className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50 shadow-md shadow-indigo-100 text-sm"
+              >
+                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                {loading ? 'Se încarcă...' : 'Reîncarcă'}
+              </button>
+            </div>
+          }
+        />
+      </div>
+      
+      {storeInfo.storeName && (
+        <div className="flex flex-wrap items-center gap-2 mb-6 -mt-2">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-xl">
+            <Store size={14} className="text-indigo-600" />
+            <span className="text-xs font-black text-indigo-700 uppercase">{storeInfo.storeName}</span>
+          </div>
+          {!canEdit && (
+            <div className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl">
+              <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider">
+                Mod vizualizare — doar admin sau platform owner poate modifica setările
+              </span>
             </div>
           )}
         </div>
-        <button onClick={reload} disabled={loading}
-          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50 shadow-md shadow-indigo-100 text-sm">
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          {loading ? 'Se încarcă...' : 'Reîncarcă'}
-        </button>
-      </div>
+      )}
       
       {/* Offline warning notice */}
       {!isOnline && (
@@ -232,49 +240,49 @@ export const StoreSettingsPage: React.FC = () => {
         <OfflineCacheSyncPanel storeId={storeInfo.storeId} />
 
         {/* Coadă Vânzări Offline */}
-        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col gap-4">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+        <Card className="p-6 border border-slate-300 shadow-sm flex flex-col gap-4">
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             🛍️ Administrare Coadă Vânzări Offline
           </h2>
-          <p className="text-sm text-gray-500 font-medium leading-relaxed">
+          <p className="text-sm text-slate-500 font-medium leading-relaxed">
             Monitorizează și gestionează vânzările salvate local în timp ce stația de vânzare (POS) a rulat fără conexiune la internet.
           </p>
           <div className="flex gap-4 mt-2">
             <Link
               to="/offline-sales"
-              className="px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-sm transition-all border border-indigo-100 text-center"
+              className="px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-sm transition-all border border-indigo-150 text-center shadow-sm"
             >
               Vizualizează Vânzări în Așteptare
             </Link>
           </div>
-        </div>
+        </Card>
 
         {/* System & Application Info Card */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <Card className="p-6 border border-slate-300 shadow-sm">
+          <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
             ℹ️ Sistem și Informații Aplicație
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-              <span className="text-xs text-slate-400 font-bold uppercase">Versiune Aplicație</span>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-1">
+              <span className="text-xs text-slate-500 font-bold uppercase">Versiune Aplicație</span>
               <span data-testid="settings-app-version-label" className="text-base font-black text-slate-700">
                 {appVersion}
               </span>
             </div>
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-              <span className="text-xs text-slate-400 font-bold uppercase">Mediu Runtime</span>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-1">
+              <span className="text-xs text-slate-500 font-bold uppercase">Mediu Runtime</span>
               <span data-testid="settings-app-runtime-label" className="text-base font-black text-slate-700">
                 {((window as any).electronAPI?.isElectron) ? 'Electron Desktop' : 'Web Browser'}
               </span>
             </div>
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-              <span className="text-xs text-slate-400 font-bold uppercase">Stare Fereastră (Kiosk)</span>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col gap-1">
+              <span className="text-xs text-slate-500 font-bold uppercase">Stare Fereastră (Kiosk)</span>
               <span data-testid="app-window-state-indicator" className="text-base font-black text-slate-700">
                 {windowState}
               </span>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Centru de Actualizări (Auto-Update) */}
         <AppUpdatePanel />

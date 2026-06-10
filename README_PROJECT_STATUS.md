@@ -239,6 +239,9 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Creat și trecut cu succes suita de teste Playwright `test_ui_pos_workspace_cart_payments_6ux3.py` și validat build-ul de producție.
   - Raport detaliat în `docs/ui_pos_workspace_cart_payments_6ux3_report.md`.
 
-
-
-
+- **Etapa 6UX.4 (Catalog, Forms & Settings Polish)**: **PASS**
+  - Polish vizual complet al catalogului de produse: integrat `PageHeader`, asigurat contrastul border-elor inputurilor, adăugat tooltips pe butoanele din tabel, badges unificate și modal de editare grupat în secțiuni tematice.
+  - Polish vizual al paginii de Adăugare Rapidă: standardizat cu `PageHeader` și `Card`, înlocuit elementele custom cu componentele centrale `Alert` și `Modal`.
+  - Polish vizual al Setărilor Magazinului: convertit panourile plate în carduri cu contrast crescut, grupat secțiunile de Coadă Offline, System Info și Audit Coș POS.
+  - Creat și trecut cu succes scriptul de test `test_ui_catalog_forms_settings_6ux4.py` (verificări statice + E2E Playwright).
+  - Raport detaliat în `docs/ui_catalog_forms_settings_6ux4_report.md`.
