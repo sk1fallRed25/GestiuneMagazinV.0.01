@@ -266,3 +266,10 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Confirmată pornirea corectă a executabilului fără JS errors sau white screens, validând inițializarea pe disc a bazei de date native SQLite locale sub `%APPDATA%`, precum și configurările WAL, tabelele cache și fluxurile de rutare ale aplicației.
   - Actualizat regulile `.gitignore` pentru a proteja depozitul GitHub de adăugarea accidentală a fișierelor binare `.exe`, `.blockmap` și `.yml`.
   - Raport detaliat în `docs/local_desktop_exe_test_6rel1_report.md`.
+
+- **Etapa 6REL.2 (Real POS Device QA & Bug Capture)**: **PASS**
+  - S-a testat executabilul `.exe` pe un laptop de test cu Windows 11 Pro și rezoluție nativă 1920x1080.
+  - S-a verificat că aplicația pornește fără JS errors sau white screens și se conectează la baza de date nativă cache SQLite `%APPDATA%\Sistem Gestiune Magazin\offline_cache.db`.
+  - S-au validat toate fluxurile majore (Login casier/admin/owner, Kiosk mode, selectare categorii/subcategorii cu normalizare UUID-uri case-insensitive, adăugare în coș cu touch targets de 44px, calcul SGR și modalul de plată mixtă).
+  - S-a testat și verificat manual recuperarea coșului (Cart Recovery) la închiderea neașteptată și fallback-urile corecte la deconectarea internetului (folosind cache-ul SQLite) și în absența driverului FiscalNet.
+  - Raport oficial de testare generat la `docs/real_pos_device_qa_6rel2_report.md`.

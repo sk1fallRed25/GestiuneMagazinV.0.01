@@ -477,8 +477,15 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a generat local pachetul executabil desktop `.exe` (NSIS installer și portable) prin `electron-builder`.
   - S-a testat manual pornirea executabilului, confirmându-se inițializarea bazei de date native SQLite locale, optimizările de WAL/synchronous, absența erorilor JavaScript și încărcarea cu succes a rutelor aplicației.
 
+- **Etapa 6REL.2 (Real POS Device QA & Bug Capture)**: **PASS**
+  - S-a testat executabilul `.exe` pe un laptop de test cu Windows 11 Pro și rezoluție nativă 1920x1080.
+  - S-a verificat că aplicația pornește fără JS errors sau white screens și se conectează la baza de date nativă cache SQLite `%APPDATA%\Sistem Gestiune Magazin\offline_cache.db`.
+  - S-au validat toate fluxurile majore (Login casier/admin/owner, Kiosk mode, selectare categorii/subcategorii cu normalizare UUID-uri case-insensitive, adăugare în coș cu touch targets de 44px, calcul SGR și modalul de plată mixtă).
+  - S-a testat și verificat manual recuperarea coșului (Cart Recovery) la închiderea neașteptată și fallback-urile corecte la deconectarea internetului (folosind cache-ul SQLite) și în absența driverului FiscalNet.
+  - Raport oficial de testare generat la `docs/real_pos_device_qa_6rel2_report.md`.
+
 ### Următorul pas recomandat:
-- **`Etapa 6REL.2 — Auto-Update Security Hardening`** (Verificarea și securizarea fluxului de actualizare automată pe server de producție).
+- **`Etapa 6REL.3 — Auto-Update Pipeline Preparation`** (Configurarea canalului de actualizare automată pe GitHub Releases și pregătirea certificatelor locale).
 
 
 
