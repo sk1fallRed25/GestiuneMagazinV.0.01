@@ -53,6 +53,23 @@ def run_e2e_tests(role_to_test):
     safe_print(f"RUNNING E2E TESTS FOR ROLE: {role_to_test} (6UX.3.1)")
     safe_print(f"======================================================================\n")
 
+    # Dynamic Port Discovery
+    port = "5173"
+    for p in ["5176", "5174", "5175", "5173"]:
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.5)
+            s.connect(("localhost", int(p)))
+            s.close()
+            port = p
+            break
+        except Exception:
+            pass
+
+    app_url = f"http://localhost:{port}"
+    safe_print(f"Connecting to app at {app_url}")
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
 
@@ -155,7 +172,7 @@ def run_e2e_tests(role_to_test):
 
         try:
             # Login role simulation
-            page.goto("http://localhost:5174/#/login")
+            page.goto(f"{app_url}/#/login")
             page.locator("input[type='text']").wait_for(state="visible", timeout=10000)
             
             if role_to_test == 'casier':
@@ -170,7 +187,7 @@ def run_e2e_tests(role_to_test):
                 # Admins land on dashboard (/) by default
                 page.wait_for_url("**/#/", timeout=15000)
                 # Navigate to POS
-                page.goto("http://localhost:5174/#/pos")
+                page.goto(f"{app_url}/#/pos")
                 page.wait_for_url("**/pos", timeout=10000)
             
             safe_print(f"PASS: Logged in as {role_to_test} successfully.")

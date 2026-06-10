@@ -82,6 +82,23 @@ def run_e2e_tests():
     safe_print("RUNNING E2E TESTS FOR POS WORKSPACE, CART & PAYMENTS (6UX.3)")
     safe_print("======================================================================\n")
 
+    # Dynamic Port Discovery
+    port = "5173"
+    for p in ["5176", "5174", "5175", "5173"]:
+        try:
+            import socket
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.5)
+            s.connect(("localhost", int(p)))
+            s.close()
+            port = p
+            break
+        except Exception:
+            pass
+
+    app_url = f"http://localhost:{port}"
+    safe_print(f"Connecting to app at {app_url}")
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
 
@@ -130,7 +147,7 @@ def run_e2e_tests():
 
         try:
             # Login as Casier
-            page.goto("http://localhost:5174/#/login")
+            page.goto(f"{app_url}/#/login")
             page.locator("input[type='text']").wait_for(state="visible", timeout=10000)
             page.locator("input[type='text']").fill("casier@casier.com")
             page.locator("input[type='password']").fill("casier123")

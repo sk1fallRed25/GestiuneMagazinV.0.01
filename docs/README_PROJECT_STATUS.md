@@ -447,9 +447,18 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a adăugat o redirecționare contextuală securizată ("Mergi la Catalog Produse") pentru rolurile administrative în cazul subcategoriilor goale, ascunsă pentru rolul de casier.
   - S-a dezvoltat și executat cu succes testul Playwright dedicat `test_pos_category_subcategory_filter_6ux31.py` care acoperă scenariile pentru ambele roluri.
 
+- **Etapa 6UX.3.2 (Real Data POS Category/Subcategory Mapping Fix)**: **PASS**
+  - S-a rezolvat problema de mapare a produselor în POS pe date reale prin adăugarea suportului offline SQLite pentru categorii în Main, Preload și `categoryService.ts`, alături de normalizarea UUID-urilor cu comparație case-insensitive (`normalizeId`, `sameId`) în `usePosCategories.ts`.
+  - S-au rulat testele automate `test_pos_real_category_mapping_6ux32.py` cu 100% succes.
+
+- **Etapa 6UX.3.2.1 (Real Category Mapping Verification Alignment)**: **PASS**
+  - S-a realizat alinierea codului și a verificărilor prin utilizarea standardizată a helperilor `normalizeId` și `sameId` în hook-ul `usePosCategories.ts` și componenta `PosCategoryBrowser.tsx`.
+  - S-a asigurat imunitatea la casing a UUID-urilor și s-a completat documentația oficială în `docs/pos_real_category_mapping_fix_6ux32_report.md`.
+
 ### Următorul pas recomandat:
 - **`6UX.4 Products & Catalog UI/UX`** (Refactorizarea paginii de catalog produse).
 - **`6APP.6 Local SQLite Cache Engine`** (Implementarea motorului SQLite local din Electron Main Process pentru caching date în client).
+
 
 
 

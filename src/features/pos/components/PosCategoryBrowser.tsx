@@ -10,6 +10,7 @@ import { FolderOpen, Tag, Package, ChevronLeft, Layers } from 'lucide-react';
 import { CategoryWithSubs, CategoryOption } from '../../catalog/types';
 import { PosProduct } from '../types';
 import { useAuth } from '../../auth/useAuth';
+import { sameId } from '../hooks/usePosCategories';
 
 interface PosCategoryBrowserProps {
     categoriesTree: CategoryWithSubs[];
@@ -36,7 +37,7 @@ export const PosCategoryBrowser: React.FC<PosCategoryBrowserProps> = ({
 }) => {
     const { role } = useAuth();
     const isAdminOrManager = role === 'admin' || role === 'manager' || role === 'platform_owner';
-    const activeCategory = categoriesTree.find(c => c.id === activeCategoryId) ?? null;
+    const activeCategory = categoriesTree.find(c => sameId(c.id, activeCategoryId)) ?? null;
 
     // ── Stare loading ──
     if (loadingCategories) {
@@ -61,7 +62,7 @@ export const PosCategoryBrowser: React.FC<PosCategoryBrowserProps> = ({
 
     // ── View: produse din subcategorie selectată ──
     if (activeSubcategoryId) {
-        const subName = activeSubcategories.find(s => s.id === activeSubcategoryId)?.name;
+        const subName = activeSubcategories.find(s => sameId(s.id, activeSubcategoryId))?.name;
         return (
             <div>
                 {/* Breadcrumb */}

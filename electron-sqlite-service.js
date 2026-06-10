@@ -867,3 +867,12 @@ export function listLocalPosCartEvents(storeId) {
     `).all(storeId);
 }
 
+/**
+ * Gets all categories from the local SQLite cache.
+ */
+export function getLocalCategories() {
+    if (!db) throw new Error('Database not initialized.');
+    return db.prepare('SELECT id, parent_id, name FROM local_categories ORDER BY name ASC').all();
+}
+
+

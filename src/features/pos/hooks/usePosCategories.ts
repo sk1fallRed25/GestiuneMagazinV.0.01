@@ -8,6 +8,27 @@ import { categoryService } from '../../catalog/categoryService';
 import { CategoryWithSubs } from '../../catalog/types';
 import { PosProduct } from '../types';
 
+// Case-insensitive ID comparison helpers
+export const normalizeId = (val: any): string | null => {
+    if (val === null || val === undefined) return null;
+    const s = String(val).trim().toLowerCase();
+    return s || null;
+};
+
+export const sameId = (a: any, b: any): boolean => {
+    const normA = normalizeId(a);
+    const normB = normalizeId(b);
+    if (!normA || !normB) return false;
+    return normA === normB;
+};
+
+export const includesId = (arr: any[], id: any): boolean => {
+    if (!Array.isArray(arr)) return false;
+    const normId = normalizeId(id);
+    if (!normId) return false;
+    return arr.some(x => normalizeId(x) === normId);
+};
+
 interface UsePosCategoriesOptions {
     storeId: string | null;
     allProducts: PosProduct[];   // toate produsele deja încărcate
@@ -46,7 +67,7 @@ export const usePosCategories = ({ storeId, allProducts }: UsePosCategoriesOptio
     const browseProducts = (() => {
         if (!activeCategoryId) return [];
 
-        const activeCategory = categoriesTree.find(c => c.id === activeCategoryId);
+        const activeCategory = categoriesTree.find(c => sameId(c.id, activeCategoryId));
         if (!activeCategory) return [];
 
         // Helper defensiv pentru extragerea tuturor ID-urilor posibile de categorii dintr-un produs
@@ -72,10 +93,10 @@ export const usePosCategories = ({ storeId, allProducts }: UsePosCategoriesOptio
                 }
             }
 
-            if (categoryId && !allIds.includes(categoryId)) {
+            if (categoryId && !includesId(allIds, categoryId)) {
                 allIds.push(categoryId);
             }
-            if (subcategoryId && !allIds.includes(subcategoryId)) {
+            if (subcategoryId && !includesId(allIds, subcategoryId)) {
                 allIds.push(subcategoryId);
             }
 
@@ -87,17 +108,17 @@ export const usePosCategories = ({ storeId, allProducts }: UsePosCategoriesOptio
             return allProducts.filter(p => {
                 const { categoryId, subcategoryId, allIds } = getProductCategoryIds(p);
                 
-                // 1. Direct subcategory ID match
-                if (subcategoryId === activeSubcategoryId) return true;
+                // 1. Direct subcategory ID match (case-insensitive)
+                if (sameId(subcategoryId, activeSubcategoryId)) return true;
                 
-                // 2. Category ID match (dacă category_id ține ID-ul subcategoriei)
-                if (categoryId === activeSubcategoryId) return true;
+                // 2. Category ID match (dacă category_id ține ID-ul subcategoriei, case-insensitive)
+                if (sameId(categoryId, activeSubcategoryId)) return true;
                 
-                // 3. Includere în path/vectori
-                if (allIds.includes(activeSubcategoryId)) return true;
+                // 3. Includere în path/vectori (case-insensitive)
+                if (includesId(allIds, activeSubcategoryId)) return true;
                 
                 // 4. Fallback pe numele subcategoriei
-                const subName = activeCategory.subcategories.find(s => s.id === activeSubcategoryId)?.name;
+                const subName = activeCategory.subcategories.find(s => sameId(s.id, activeSubcategoryId))?.name;
                 if (subName) {
                     const pCatName = (p as any).categoryName || (p as any).category_name || null;
                     if (pCatName && String(pCatName).trim().toLowerCase() === subName.trim().toLowerCase()) {
@@ -110,7 +131,7 @@ export const usePosCategories = ({ storeId, allProducts }: UsePosCategoriesOptio
         }
 
         // Arată produsele din categoria principală SAU din oricare din subcategoriile ei
-        const subIds = new Set(activeCategory.subcategories.map(s => s.id));
+        const subIds = activeCategory.subcategories.map(s => s.id);
         const activeCategoryName = activeCategory.name;
         const subNames = new Set(activeCategory.subcategories.map(s => s.name.trim().toLowerCase()));
 
@@ -118,12 +139,12 @@ export const usePosCategories = ({ storeId, allProducts }: UsePosCategoriesOptio
             const { categoryId, subcategoryId, allIds } = getProductCategoryIds(p);
             
             // 1. Direct parent category match
-            if (categoryId === activeCategoryId || allIds.includes(activeCategoryId)) return true;
+            if (sameId(categoryId, activeCategoryId) || includesId(allIds, activeCategoryId)) return true;
             
             // 2. Subcategory match by ID
-            if (subcategoryId && subIds.has(subcategoryId)) return true;
-            if (categoryId && subIds.has(categoryId)) return true;
-            if (allIds.some(id => subIds.has(id))) return true;
+            if (subcategoryId && subIds.some(id => sameId(subcategoryId, id))) return true;
+            if (categoryId && subIds.some(id => sameId(categoryId, id))) return true;
+            if (allIds.some(id => subIds.some(subId => sameId(id, subId)))) return true;
             
             // 3. Fallback pe nume
             const pCatName = (p as any).categoryName || (p as any).category_name || null;
@@ -152,7 +173,7 @@ export const usePosCategories = ({ storeId, allProducts }: UsePosCategoriesOptio
         setActiveSubcategoryId(null);
     };
 
-    const activeCategory = categoriesTree.find(c => c.id === activeCategoryId) ?? null;
+    const activeCategory = categoriesTree.find(c => sameId(c.id, activeCategoryId)) ?? null;
     const activeSubcategories = activeCategory?.subcategories ?? [];
 
     return {

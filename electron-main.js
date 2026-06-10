@@ -8,7 +8,7 @@ import {
     getLocalCacheStatus, saveLocalShiftState, getLocalShiftState, getOrCreateDeviceInfo,
     validateCartItemsLocal, enqueueOfflineSale, listOfflineSales, getOfflineSale, 
     updateOfflineSaleStatus, deleteOfflineSale, getOfflineSalesSummary,
-    getAllLocalProducts, logPosCartEvent, listLocalPosCartEvents
+    getAllLocalProducts, logPosCartEvent, listLocalPosCartEvents, getLocalCategories
 } from './electron-sqlite-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -422,6 +422,15 @@ ipcMain.handle('sqlite:list-cart-events', async (event, { storeId }) => {
         return listLocalPosCartEvents(storeId);
     } catch (err) {
         console.error('[Electron SQLite IPC] Error listing cart events:', err);
+        return [];
+    }
+});
+
+ipcMain.handle('sqlite:get-categories', async (event) => {
+    try {
+        return getLocalCategories();
+    } catch (err) {
+        console.error('[Electron SQLite IPC] Error getting local categories:', err);
         return [];
     }
 });

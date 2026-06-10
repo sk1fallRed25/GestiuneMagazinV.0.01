@@ -29,7 +29,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getOfflineSalesSummary: (args) => ipcRenderer.invoke('sqlite:get-offline-sales-summary', args),
         getAllProducts: (args) => ipcRenderer.invoke('sqlite:get-all-products', args),
         logCartEvent: (args) => ipcRenderer.invoke('sqlite:log-cart-event', args),
-        listCartEvents: (args) => ipcRenderer.invoke('sqlite:list-cart-events', args)
+        listCartEvents: (args) => ipcRenderer.invoke('sqlite:list-cart-events', args),
+        getCategories: () => ipcRenderer.invoke('sqlite:get-categories')
     },
     updater: {
         checkForUpdates: () => ipcRenderer.invoke('updater:check-for-updates'),

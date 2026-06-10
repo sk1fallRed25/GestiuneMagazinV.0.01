@@ -64,29 +64,63 @@ export const categoryService = {
      * Util pentru POS category browser.
      */
     async listAllGrouped(storeId: string): Promise<CategoryWithSubs[]> {
-        if (!storeId) return [];
+        const isDesktop = typeof window !== 'undefined' && !!(window as any).electronAPI?.sqlite?.getCategories;
+        const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
-        const { data, error } = await supabase
-            .from('categories')
-            .select('id, name, parent_id, store_id, created_at')
-            .eq('store_id', storeId)
-            .order('name', { ascending: true });
+        const loadOffline = async () => {
+            if (isDesktop) {
+                try {
+                    const rows = await (window as any).electronAPI.sqlite.getCategories();
+                    const roots = rows.filter((r: any) => !r.parent_id);
+                    return roots.map((root: any) => ({
+                        id: root.id,
+                        name: root.name,
+                        subcategories: rows
+                            .filter((r: any) => r.parent_id === root.id)
+                            .map((sub: any) => ({ id: sub.id, name: sub.name, parentId: sub.parent_id }))
+                    }));
+                } catch (err) {
+                    console.error('[categoryService] listAllGrouped offline fallback error:', err);
+                }
+            }
+            return [];
+        };
 
-        if (error) {
-            console.error('categoryService.listAllGrouped error:', error);
-            throw error;
+        if (isDesktop && !isOnline) {
+            console.log('[categoryService] Offline mode: loading categories from SQLite cache');
+            return loadOffline();
         }
 
-        const rows: CategoryRow[] = data ?? [];
-        const roots = rows.filter(r => r.parent_id === null);
+        if (!storeId) return [];
 
-        return roots.map(root => ({
-            id: root.id,
-            name: root.name,
-            subcategories: rows
-                .filter(r => r.parent_id === root.id)
-                .map(sub => ({ id: sub.id, name: sub.name, parentId: sub.parent_id }))
-        }));
+        try {
+            const { data, error } = await supabase
+                .from('categories')
+                .select('id, name, parent_id, store_id, created_at')
+                .eq('store_id', storeId)
+                .order('name', { ascending: true });
+
+            if (error) {
+                console.error('categoryService.listAllGrouped error, falling back:', error);
+                if (isDesktop) return loadOffline();
+                throw error;
+            }
+
+            const rows: CategoryRow[] = data ?? [];
+            const roots = rows.filter(r => r.parent_id === null);
+
+            return roots.map(root => ({
+                id: root.id,
+                name: root.name,
+                subcategories: rows
+                    .filter(r => r.parent_id === root.id)
+                    .map(sub => ({ id: sub.id, name: sub.name, parentId: sub.parent_id }))
+            }));
+        } catch (err) {
+            console.error('categoryService.listAllGrouped failed, trying offline fallback:', err);
+            if (isDesktop) return loadOffline();
+            throw err;
+        }
     },
 
     /**
