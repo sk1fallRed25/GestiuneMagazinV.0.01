@@ -256,7 +256,7 @@ def run_e2e_tests(role_to_test):
             # Test search text still works (regression)
             page.locator('input[placeholder*="Scanează"]').fill("Test Alcool")
             page.wait_for_timeout(500)
-            search_card = page.locator('[data-testid="pos-product-card-p1"]')
+            search_card = page.locator('button:has-text("Test Alcool 1")')
             assert search_card.is_visible(), "Search query should still filter and display correct product"
             safe_print("PASS: Text search regression passed.")
 

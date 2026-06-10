@@ -109,7 +109,7 @@ def run_e2e_tests():
 
     # Find the port from process environment or try standard ports
     port = "5173"
-    for p in ["5174", "5175", "5173"]:
+    for p in ["5176", "5174", "5175", "5173"]:
         try:
             import socket
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
