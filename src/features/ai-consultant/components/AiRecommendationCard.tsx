@@ -119,15 +119,28 @@ export const AiRecommendationCard: React.FC<AiRecommendationCardProps> = ({
     const details = getRecommendationDetails(recommendation.id, recommendation.title, recommendation.description);
 
     return (
-        <div className={`bg-white bg-gradient-to-br ${style.bg} border ${style.border} p-6 rounded-3xl shadow-sm transition-all duration-300 hover:shadow-md flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6`}>
+        <div 
+            data-testid="ai-recommendation-row"
+            className={`bg-white bg-gradient-to-br ${style.bg} border ${style.border} p-6 rounded-3xl shadow-sm transition-all duration-300 hover:shadow-md flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6`}
+        >
             <div className="flex items-start gap-4 min-w-0 flex-1">
                 <div className={`w-11 h-11 rounded-2xl ${style.iconColor} bg-white flex items-center justify-center shrink-0 shadow-sm border border-slate-100`}>
                     {style.icon}
                 </div>
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2.5 mb-1">
-                        <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider ${style.iconColor} border border-current bg-white/80`}>
+                        <span 
+                            data-testid="ai-recommendation-severity-badge"
+                            className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider ${style.iconColor} border border-current bg-white/80`}
+                        >
                             {style.badge}
+                        </span>
+                        <span 
+                            data-testid="ai-recommendation-type-badge"
+                            data-recommendation-type={recommendation.id}
+                            className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider text-indigo-500 border border-indigo-200 bg-indigo-50/50"
+                        >
+                            {recommendation.id.toUpperCase()}
                         </span>
                     </div>
                     <h3 className={`text-lg font-black tracking-tight ${style.text} truncate`}>{details.title}</h3>

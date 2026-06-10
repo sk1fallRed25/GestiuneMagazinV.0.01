@@ -40,6 +40,7 @@ export const OwnerTabs: React.FC<OwnerTabsProps> = ({
     <nav
       className="mb-8 animate-fade-in"
       aria-label="Navigare Owner Console"
+      data-testid="owner-console-tabs"
     >
       {/* Tab strip */}
       <div className="flex flex-wrap items-center gap-2 border-b border-gray-200 dark:border-gray-700/60 pb-3">
@@ -51,6 +52,7 @@ export const OwnerTabs: React.FC<OwnerTabsProps> = ({
             <button
               key={tab.id}
               id={`owner-tab-${tab.id}`}
+              data-testid={`owner-console-tab-${tab.id}`}
               role="tab"
               aria-selected={isSelected}
               aria-controls={`owner-tabpanel-${tab.id}`}

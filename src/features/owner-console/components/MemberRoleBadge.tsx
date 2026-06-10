@@ -49,7 +49,10 @@ export const MemberRoleBadge: React.FC<MemberRoleBadgeProps> = ({ role }) => {
   const styles = getBadgeStyles();
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${styles.bg} ${styles.text} ${styles.border} shadow-sm backdrop-blur-xs transition-all`}>
+    <span 
+      data-testid="owner-console-user-role-badge"
+      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${styles.bg} ${styles.text} ${styles.border} shadow-sm backdrop-blur-xs transition-all`}
+    >
       {styles.label}
     </span>
   );

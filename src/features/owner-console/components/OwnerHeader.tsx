@@ -8,7 +8,7 @@ interface OwnerHeaderProps {
 
 export const OwnerHeader: React.FC<OwnerHeaderProps> = ({ onRefresh, loading }) => {
   return (
-    <div className="mb-8 relative overflow-hidden rounded-3xl shadow-xl animate-fade-in">
+    <div className="mb-8 relative overflow-hidden rounded-3xl shadow-xl animate-fade-in" data-testid="owner-console-header">
       {/* Background gradient */}
       <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-6 md:p-8 text-white">
         {/* Decorative glows */}

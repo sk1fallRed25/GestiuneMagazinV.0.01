@@ -17,6 +17,7 @@ interface StatCardProps {
   accentColor: 'indigo' | 'blue' | 'emerald' | 'amber' | 'red' | 'violet';
   footer?: React.ReactNode;
   isAlert?: boolean;
+  testId?: string;
 }
 
 const accentMap = {
@@ -65,15 +66,18 @@ const accentMap = {
 };
 
 const StatCard: React.FC<StatCardProps> = ({
-  title, value, description, icon: Icon, accentColor, footer, isAlert
+  title, value, description, icon: Icon, accentColor, footer, isAlert, testId
 }) => {
   const colors = accentMap[accentColor];
   return (
-    <div className={`
-      bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border
-      ${isAlert && Number(value) > 0 ? 'border-amber-200 dark:border-amber-500/30' : 'border-gray-100 dark:border-gray-700/60'}
-      relative overflow-hidden group hover:shadow-md transition-all duration-200
-    `}>
+    <div 
+      data-testid={testId || "owner-global-stat-card"}
+      className={`
+        bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border
+        ${isAlert && Number(value) > 0 ? 'border-amber-200 dark:border-amber-500/30' : 'border-gray-100 dark:border-gray-700/60'}
+        relative overflow-hidden group hover:shadow-md transition-all duration-200
+      `}
+    >
       {/* Decorative corner glow */}
       <div className={`absolute -top-8 -right-8 w-28 h-28 ${colors.glow} rounded-full transition-transform group-hover:scale-125 duration-500`} aria-hidden="true" />
 
@@ -91,10 +95,16 @@ const StatCard: React.FC<StatCardProps> = ({
         </div>
 
         {/* Value */}
-        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5">
+        <p 
+          data-testid="owner-global-stat-label"
+          className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-0.5"
+        >
           {title}
         </p>
-        <h3 className={`text-3xl font-extrabold ${isAlert && Number(value) > 0 ? colors.value : 'text-gray-900 dark:text-white'} leading-none mb-1`}>
+        <h3 
+          data-testid="owner-global-stat-value"
+          className={`text-3xl font-extrabold ${isAlert && Number(value) > 0 ? colors.value : 'text-gray-900 dark:text-white'} leading-none mb-1`}
+        >
           {value ?? '—'}
         </h3>
         <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
@@ -116,10 +126,14 @@ export const OwnerGlobalStatsCards: React.FC<OwnerGlobalStatsCardsProps> = ({ st
   const alertCount = (stats?.unassignedProfiles ?? 0) + (stats?.storesWithoutAdmin ?? 0);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6 animate-fade-in">
+    <div 
+      data-testid="owner-global-stats"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6 animate-fade-in"
+    >
       {/* Total Magazine */}
       <div className="sm:col-span-1 xl:col-span-1">
         <StatCard
+          testId="total-stores-card"
           title="Total Magazine"
           value={stats?.totalStores ?? '—'}
           description="Puncte de lucru înregistrate"
@@ -140,6 +154,7 @@ export const OwnerGlobalStatsCards: React.FC<OwnerGlobalStatsCardsProps> = ({ st
       {/* Magazine Active */}
       <div className="sm:col-span-1 xl:col-span-1">
         <StatCard
+          testId="active-stores-card"
           title="Magazine Active"
           value={stats?.activeStores ?? '—'}
           description="Puncte operaționale"
@@ -159,6 +174,7 @@ export const OwnerGlobalStatsCards: React.FC<OwnerGlobalStatsCardsProps> = ({ st
       {/* Total Utilizatori */}
       <div className="sm:col-span-1 xl:col-span-1">
         <StatCard
+          testId="total-profiles-card"
           title="Utilizatori"
           value={stats?.totalProfiles ?? '—'}
           description="Profile înregistrate în sistem"
@@ -176,6 +192,7 @@ export const OwnerGlobalStatsCards: React.FC<OwnerGlobalStatsCardsProps> = ({ st
       {/* Membri Alocați */}
       <div className="sm:col-span-1 xl:col-span-1">
         <StatCard
+          testId="active-members-card"
           title="Membri Alocați"
           value={stats?.activeStoreMembers ?? '—'}
           description="Asocieri active în magazine"
@@ -196,6 +213,7 @@ export const OwnerGlobalStatsCards: React.FC<OwnerGlobalStatsCardsProps> = ({ st
       {/* Alerte Globale */}
       <div className="sm:col-span-1 xl:col-span-1">
         <StatCard
+          testId="global-alerts-card"
           title="Alerte Globale"
           value={alertCount}
           description={alertCount === 0 ? 'Nicio alertă activă' : 'Necesită atenție'}
@@ -217,9 +235,10 @@ export const OwnerGlobalStatsCards: React.FC<OwnerGlobalStatsCardsProps> = ({ st
         />
       </div>
 
-      {/* Tendință Platformă */}
+      {/* Sănătate Platformă */}
       <div className="sm:col-span-2 xl:col-span-1">
         <StatCard
+          testId="platform-health-card"
           title="Sănătate Platformă"
           value={alertCount === 0 ? '✓ OK' : `${alertCount} alerte`}
           description={alertCount === 0 ? 'Toate serviciile funcționează' : 'Verificați alertele de mai jos'}

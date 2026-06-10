@@ -64,7 +64,7 @@ export const StoreMembersTable: React.FC<StoreMembersTableProps> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 overflow-hidden mt-8">
+    <div data-testid="owner-console-user-table" className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 overflow-hidden mt-8">
       <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gray-50/50 dark:bg-gray-800/50">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-purple-50 dark:bg-purple-500/10 rounded-xl text-purple-600 dark:text-purple-400">
@@ -93,7 +93,7 @@ export const StoreMembersTable: React.FC<StoreMembersTableProps> = ({
       )}
 
       {loading && members.length === 0 ? (
-        <div className="p-12 text-center">
+        <div data-testid="owner-console-loading-state" className="p-12 text-center">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-3" />
           <p className="text-sm text-gray-500 dark:text-gray-400">Se încarcă membrii magazinului...</p>
         </div>
@@ -113,7 +113,7 @@ export const StoreMembersTable: React.FC<StoreMembersTableProps> = ({
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 text-sm">
               {members.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 px-6 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} data-testid="owner-console-empty-state" className="py-8 px-6 text-center text-gray-500 dark:text-gray-400">
                     Nu există membri asociați acestui magazin.
                   </td>
                 </tr>

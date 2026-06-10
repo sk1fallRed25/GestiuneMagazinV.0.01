@@ -31,7 +31,10 @@ export const StoresTable: React.FC<StoresTableProps> = ({
   const [openMenuStoreId, setOpenMenuStoreId] = useState<string | null>(null);
   if (loading && stores.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700/60 flex flex-col items-center justify-center min-h-[300px] animate-fade-in">
+      <div 
+        data-testid="owner-console-loading-state"
+        className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700/60 flex flex-col items-center justify-center min-h-[300px] animate-fade-in"
+      >
         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" role="status" aria-label="Se încarcă" />
         <p className="text-sm text-gray-500 dark:text-gray-400">Se încarcă lista magazinelor...</p>
       </div>
@@ -39,7 +42,12 @@ export const StoresTable: React.FC<StoresTableProps> = ({
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 overflow-hidden animate-fade-in" role="region" aria-label="Magazine și puncte de lucru">
+    <div 
+      data-testid="owner-console-store-table"
+      className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 overflow-hidden animate-fade-in" 
+      role="region" 
+      aria-label="Magazine și puncte de lucru"
+    >
       {/* Header */}
       <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/50 dark:bg-gray-800/50">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -90,7 +98,7 @@ export const StoresTable: React.FC<StoresTableProps> = ({
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 text-sm">
             {stores.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-16 px-6 text-center">
+                <td colSpan={8} data-testid="owner-console-empty-state" className="py-16 px-6 text-center">
                   <Store className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" aria-hidden="true" />
                   <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">
                     Nu există magazine înregistrate în sistem.

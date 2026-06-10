@@ -22,7 +22,7 @@ export default function AiConsultantPage() {
     // Loading State Skeleton
     if (loading) {
         return (
-            <div className="p-8 max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 mx-auto font-sans" data-testid="ai-consultant-loading">
+            <div className="p-8 max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 mx-auto font-sans" data-testid="ai-loading-state">
                 {/* Header Skeleton */}
                 <div className="h-44 bg-slate-900 rounded-3xl mb-8 animate-pulse flex flex-col justify-center px-8 gap-3 border border-slate-800">
                     <div className="h-8 bg-slate-800 w-1/4 rounded-xl"></div>
@@ -78,7 +78,7 @@ export default function AiConsultantPage() {
     if (error) {
         if (errorType === 'store_missing') {
             return (
-                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-consultant-store-missing">
+                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-error-alert">
                     <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-3xl border border-amber-100 flex items-center justify-center mb-2 shadow-sm">
                         <StoreIcon size={36} />
                     </div>
@@ -97,7 +97,7 @@ export default function AiConsultantPage() {
 
         if (errorType === 'permission_error') {
             return (
-                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-consultant-permission-error">
+                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-error-alert">
                     <div className="w-20 h-20 bg-orange-50 text-orange-600 rounded-3xl border border-orange-100 flex items-center justify-center mb-2 shadow-sm">
                         <ShieldAlert size={36} />
                     </div>
@@ -116,7 +116,7 @@ export default function AiConsultantPage() {
 
         // Technical / data error (default)
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-consultant-error">
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center" data-testid="ai-error-alert">
                 <div className="w-20 h-20 bg-red-50 text-red-600 rounded-3xl border border-red-100 flex items-center justify-center mb-2 shadow-sm">
                     <AlertTriangle size={36} />
                 </div>
@@ -146,7 +146,7 @@ export default function AiConsultantPage() {
                     isRefreshing={loading}
                 />
 
-                <div className="flex flex-col items-center justify-center min-h-[40vh] gap-6 p-12 text-center" data-testid="ai-consultant-empty-state">
+                <div className="flex flex-col items-center justify-center min-h-[40vh] gap-6 p-12 text-center" data-testid="ai-empty-state">
                     <div className="w-20 h-20 bg-indigo-50 text-indigo-500 rounded-3xl border border-indigo-100 flex items-center justify-center shadow-sm">
                         <Database size={40} />
                     </div>
@@ -170,7 +170,7 @@ export default function AiConsultantPage() {
     }
 
     return (
-        <div className="p-8 max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 mx-auto font-sans" data-testid="ai-consultant-dashboard">
+        <div className="p-8 max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 mx-auto font-sans" data-testid="ai-consultant-page">
             {/* Header */}
             <AiConsultantHeader 
                 generatedAt={snapshot.generatedAt}
@@ -188,7 +188,7 @@ export default function AiConsultantPage() {
             </div>
 
             {/* KPI Cards Grid (6 columns responsive) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8" data-testid="ai-kpi-grid">
                 <AiKpiCard 
                     icon={<Package />} 
                     label="Produse Active" 
@@ -244,7 +244,7 @@ export default function AiConsultantPage() {
                 {/* Left Side: Recommendations and Top Selling */}
                 <div className="md:col-span-1 xl:col-span-7 space-y-8">
                     {/* Recommendations Section */}
-                    <div data-testid="ai-recommendations-section" className="space-y-4">
+                    <div data-testid="ai-recommendations-panel" className="space-y-4">
                         <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 mb-4">
                             <Activity size={24} className="text-indigo-600" /> Recomandări Prioritare
                         </h2>

@@ -60,7 +60,10 @@ export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles
 
   if (loading && profiles.length === 0) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700/60 flex flex-col items-center justify-center min-h-[300px] animate-fade-in">
+      <div 
+        data-testid="owner-console-loading-state"
+        className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700/60 flex flex-col items-center justify-center min-h-[300px] animate-fade-in"
+      >
         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" role="status" aria-label="Se încarcă" />
         <p className="text-sm text-gray-500 dark:text-gray-400">Se încarcă lista profilelor...</p>
       </div>
@@ -68,7 +71,12 @@ export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 overflow-hidden animate-fade-in" role="region" aria-label="Profile utilizatori">
+    <div 
+      data-testid="owner-console-user-table"
+      className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700/60 overflow-hidden animate-fade-in" 
+      role="region" 
+      aria-label="Profile utilizatori"
+    >
       {/* Table Header */}
       <div className="px-6 py-5 border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/50 dark:bg-gray-800/50">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
@@ -170,7 +178,7 @@ export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 text-sm">
             {filteredProfiles.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-16 px-6 text-center">
+                <td colSpan={7} data-testid="owner-console-empty-state" className="py-16 px-6 text-center">
                   <Users className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" aria-hidden="true" />
                   <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     {searchTerm || roleFilter !== 'all'
@@ -216,7 +224,10 @@ export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles
 
                     {/* Rol Global */}
                     <td className="py-4 px-5">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${roleInfo.className}`}>
+                      <span 
+                        data-testid="owner-console-user-role-badge"
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${roleInfo.className}`}
+                      >
                         <Shield className="w-3 h-3" aria-hidden="true" />
                         {roleInfo.label}
                       </span>
