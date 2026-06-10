@@ -455,9 +455,30 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a realizat alinierea codului și a verificărilor prin utilizarea standardizată a helperilor `normalizeId` și `sameId` în hook-ul `usePosCategories.ts` și componenta `PosCategoryBrowser.tsx`.
   - S-a asigurat imunitatea la casing a UUID-urilor și s-a completat documentația oficială în `docs/pos_real_category_mapping_fix_6ux32_report.md`.
 
+- **Etapa 6UX.4 (Catalog, Forms & Store Settings Polish)**: **PASS**
+  - S-a refactorizat complet interfața de Catalog Produse, formularul de Adăugare Rapidă (Quick Add) și pagina Setări Magazin (Store Settings).
+  - S-au adăugat validări reactive, stări de încărcare și eroare, elemente adaptive pe rezoluții mici și indicatori expliciți pentru statusul conexiunii/integrărilor (FiscalNet, Offline Cache, AI Consultant).
+  - S-au rulat testele automate `test_ui_catalog_forms_settings_6ux4.py` cu 100% succes.
+
+- **Etapa 6UX.5 (Owner Console & AI Consultant Polish)**: **PASS**
+  - S-au refactorizat Consola de Proprietar (Owner Console) și Asistentul AI (AI Consultant) conform sistemului unificat de design.
+  - S-au implementat KPI cards premium, tabele administrative coerente cu badge-uri de stare, tab-uri responsive și animații micro-interactive.
+  - S-au configurat loader-e și empty states personalizate pentru interogările AI și listele de magazine.
+  - S-au rulat testele automate `test_ui_owner_ai_consultant_6ux5.py` cu 100% succes.
+
+- **Etapa 6UX.6 (Reports, History & Final Visual QA)**: **PASS**
+  - S-au curățat și modernizat paginile de Istoric Vânzări și cele 5 sub-secțiuni din Rapoarte Comerciale (Nete, Performanță, Ture, Inventar, Pierderi).
+  - S-au corectat toate problemele de contrast identificate pe text secundar și indicatori de stare.
+  - S-a efectuat QA vizual pe rezoluțiile desktop/POS țintă (1920x1080, 1366x768, 1280x720, 1024x768).
+  - S-au rulat testele automate `test_ui_reports_history_final_qa_6ux6.py` cu 100% succes.
+
+- **Etapa 6REL.1 (Local Desktop EXE Build & Full Manual QA)**: **PASS**
+  - S-a verificat stabilitatea proiectului în faza pre-build (`npm run build`) și s-au rulat cu succes toate cele 8 suite de testare Python.
+  - S-a generat local pachetul executabil desktop `.exe` (NSIS installer și portable) prin `electron-builder`.
+  - S-a testat manual pornirea executabilului, confirmându-se inițializarea bazei de date native SQLite locale, optimizările de WAL/synchronous, absența erorilor JavaScript și încărcarea cu succes a rutelor aplicației.
+
 ### Următorul pas recomandat:
-- **`6UX.4 Products & Catalog UI/UX`** (Refactorizarea paginii de catalog produse).
-- **`6APP.6 Local SQLite Cache Engine`** (Implementarea motorului SQLite local din Electron Main Process pentru caching date în client).
+- **`Etapa 6REL.2 — Auto-Update Security Hardening`** (Verificarea și securizarea fluxului de actualizare automată pe server de producție).
 
 
 

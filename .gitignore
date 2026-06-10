@@ -21,3 +21,6 @@ release/
 *.png
 *.html
 release.zip
+*.exe
+*.blockmap
+latest.yml

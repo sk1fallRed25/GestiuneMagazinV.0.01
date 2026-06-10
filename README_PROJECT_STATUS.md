@@ -255,3 +255,14 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Polish vizual al istoricului de vânzări: adăugat `sales-history-page` cu `PageHeader` standardizat, contrast crescut al filtrelor și componentelor de badging, și înlocuit structurile de loading/empty cu componentele globale (`LoadingState`, `EmptyState`).
   - Polish al secțiunii de Rapoarte comerciale și Analytics: taburi cu contrast ridicat pentru modul inactiv, grilă KPI interactivă cu carduri detaliate, și tabele administrative/financiare standardizate cu stări empty.
   - Validat automat prin suita de teste Playwright `test_ui_reports_history_final_qa_6ux6.py` și testarea vizuală pe viewports de control. Raport detaliat în `docs/ui_reports_history_final_qa_6ux6_report.md`.
+
+---
+
+## Stadiu Executabil Desktop & Testare Manuală (Etapa 6REL)
+
+- **Etapa 6REL.1 (Local Desktop EXE Build & Full Manual QA)**: **PASS**
+  - Verificat stabilitatea build-ului web (`npm run build`) și rulate toate cele 8 test suite Python de regresie cu succes de 100%.
+  - Generat local executabilul desktop `.exe` (NSIS installer și portable) prin `electron-builder` în directorul `release/`.
+  - Confirmată pornirea corectă a executabilului fără JS errors sau white screens, validând inițializarea pe disc a bazei de date native SQLite locale sub `%APPDATA%`, precum și configurările WAL, tabelele cache și fluxurile de rutare ale aplicației.
+  - Actualizat regulile `.gitignore` pentru a proteja depozitul GitHub de adăugarea accidentală a fișierelor binare `.exe`, `.blockmap` și `.yml`.
+  - Raport detaliat în `docs/local_desktop_exe_test_6rel1_report.md`.
