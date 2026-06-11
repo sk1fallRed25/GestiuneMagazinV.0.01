@@ -89,6 +89,9 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
 
   const currentMembership = availableStores.find(m => m.store_id === currentStoreId) || availableStores[0];
 
+  const activeStores = availableStores.filter(m => m.lifecycleStatus === 'active' || m.store?.active);
+  const inactiveStores = availableStores.filter(m => !(m.lifecycleStatus === 'active' || m.store?.active));
+
   // 2. Single store: static badge return
   if (availableStores.length === 1) {
     return (
@@ -101,7 +104,7 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
           <p className="text-[10px] text-slate-500 font-mono mt-0.5 flex items-center gap-1">
             <span>{currentMembership?.displayCode}</span>
             <span>·</span>
-            <span className="text-indigo-650 font-semibold uppercase text-[9px]">{currentMembership?.role}</span>
+            <span className="text-indigo-655 font-semibold uppercase text-[9px]">{currentMembership?.role}</span>
           </p>
         </div>
       </div>
@@ -114,7 +117,7 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
       <button
         id="store-context-switcher-btn"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2.5 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 group cursor-pointer"
+        className="flex items-center gap-2.5 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-205 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 group cursor-pointer"
         aria-label="Alege context operațional"
         title="Schimbă punctul de lucru"
       >
@@ -156,23 +159,20 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
             </span>
           </div>
           <div className="max-h-64 overflow-y-auto divide-y divide-slate-50 custom-scrollbar">
-            {availableStores.map((store) => {
+            {activeStores.map((store) => {
               const isSelected = store.store_id === currentStoreId;
-              const isActive = store.lifecycleStatus === 'active';
-              
               return (
                 <button
                   key={store.store_id}
-                  disabled={!isActive}
                   onClick={() => handleSelect(store.store_id)}
-                  className={`w-full text-left p-3 flex items-center justify-between transition-colors ${
+                  className={`w-full text-left p-3 flex items-center justify-between transition-colors cursor-pointer ${
                     isSelected ? 'bg-indigo-55/50 hover:bg-indigo-50/80' : 'hover:bg-slate-50'
-                  } ${!isActive ? 'opacity-50 cursor-not-allowed bg-slate-50/50' : 'cursor-pointer'}`}
+                  }`}
                 >
                   <div className="flex items-start gap-3 pr-2 overflow-hidden">
                     <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                       isSelected ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'bg-slate-100 text-slate-500'
-                    } ${!isActive ? 'bg-slate-200 text-slate-450' : ''}`}>
+                    }`}>
                       <Store size={15} />
                     </div>
                     <div className="overflow-hidden">
@@ -180,15 +180,6 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
                         <p className={`text-xs font-bold truncate ${isSelected ? 'text-indigo-950' : 'text-slate-700'}`}>
                           {store.storeName || store.store?.name || 'Magazin'}
                         </p>
-                        {!isActive && (
-                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
-                            store.lifecycleStatus === 'archived' 
-                              ? 'bg-purple-100 text-purple-700' 
-                              : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {store.lifecycleStatus === 'archived' ? 'Arhivat' : 'Suspendat'}
-                          </span>
-                        )}
                       </div>
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className="text-[10px] font-mono font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
@@ -210,6 +201,51 @@ export const StoreContextSwitcher: React.FC<StoreContextSwitcherProps> = ({
                 </button>
               );
             })}
+
+            {inactiveStores.length > 0 && (
+              <>
+                <div className="p-2 bg-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center border-t border-b border-slate-200">
+                  Magazine Inactive / Arhivate
+                </div>
+                {inactiveStores.map((store) => {
+                  const isSelected = store.store_id === currentStoreId;
+                  const isArchived = store.lifecycleStatus === 'archived';
+                  return (
+                    <button
+                      key={store.store_id}
+                      disabled={true}
+                      className="w-full text-left p-3 flex items-center justify-between transition-colors opacity-50 cursor-not-allowed bg-slate-50/50"
+                    >
+                      <div className="flex items-start gap-3 pr-2 overflow-hidden">
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 bg-slate-200 text-slate-450">
+                          <Store size={15} />
+                        </div>
+                        <div className="overflow-hidden">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-xs font-bold truncate text-slate-500">
+                              {store.storeName || store.store?.name || 'Magazin'}
+                            </p>
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wider ${
+                              isArchived ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {isArchived ? 'Arhivat' : 'Suspendat'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[10px] font-mono font-medium text-slate-550 bg-slate-100 px-1.5 py-0.5 rounded">
+                              {store.displayCode}
+                            </span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase bg-slate-100 text-slate-650">
+                              {store.role}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </div>
         </div>
       )}

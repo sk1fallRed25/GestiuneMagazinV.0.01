@@ -50,34 +50,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // 2. Încarcă Magazinele la care are acces
       let memberships = await authService.getUserStoreMemberships(userId);
 
-      if (profile.role === 'platform_owner') {
-        const { data: allStores, error: storesError } = await supabase
-          .from('stores')
-          .select('*')
-          .eq('active', true);
-
-        if (!storesError && allStores) {
-          memberships = allStores.map(store => {
-            const settings = (store.settings as Record<string, any>) || {};
-            const fiscalCode = store.fiscal_code || '';
-            const workpointNumber = settings.workpointNumber !== undefined && settings.workpointNumber !== null ? Number(settings.workpointNumber) : 1;
-            const displayCode = String(settings.displayCode || `${fiscalCode} / ${workpointNumber}`);
-
-            return {
-              store_id: store.id,
-              profile_id: userId,
-              role: 'admin',
-              active: true,
-              store: store as any,
-              storeName: store.name,
-              fiscalCode,
-              workpointNumber,
-              displayCode
-            };
-          });
-        }
-      }
-
       // 3. Verifică accesul (non-platform_owner trebuie să aibă cel puțin un magazin activ)
       const activeMemberships = memberships.filter(m => m.lifecycleStatus === 'active' || m.store?.active);
       if (profile.role !== 'platform_owner' && activeMemberships.length === 0) {

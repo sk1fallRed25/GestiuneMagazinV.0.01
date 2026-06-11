@@ -31,19 +31,40 @@ export const useTransfer = () => {
     // Fetch all stores in network
     useEffect(() => {
         const fetchStores = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('stores')
-                    .select('id, name, active, fiscal_code, lifecycle_status');
-                if (!error && data) {
-                    setAllStores(data);
+            if (user) {
+                try {
+                    const { data: profileData } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', user.id)
+                        .single();
+                    
+                    if (profileData?.role === 'platform_owner') {
+                        const { data, error } = await supabase
+                            .from('stores')
+                            .select('id, name, active, fiscal_code, lifecycle_status');
+                        if (!error && data) {
+                            setAllStores(data);
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error loading profile or stores:", err);
                 }
-            } catch (err) {
-                console.error("Error loading stores:", err);
             }
+            
+            // Fallback for store members: use availableStores
+            const mapped = availableStores.map(m => ({
+                id: m.store_id,
+                name: m.storeName || m.store?.name || '',
+                active: m.store?.active ?? m.active,
+                fiscal_code: m.fiscalCode || '',
+                lifecycle_status: m.lifecycleStatus || (m.store?.active ? 'active' : 'suspended')
+            }));
+            setAllStores(mapped);
         };
         fetchStores();
-    }, []);
+    }, [availableStores, user]);
 
     // Lock sourceStoreId for single-store users
     useEffect(() => {
