@@ -161,6 +161,95 @@ def run_e2e_tests(role_to_test):
                         {"id": "reg-1", "store_id": "store-123", "name": "Casa 1", "code": "C1", "active": true}
                     ]"""
                 )
+            elif "/profiles" in url:
+                role = "casier" if role_to_test == "casier" else "admin"
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body=f"""{{
+                        "id": "{role}-id-123",
+                        "email": "{role}@{role}.com",
+                        "full_name": "{role.capitalize()} Test",
+                        "role": "{role}",
+                        "active": true
+                    }}"""
+                )
+            elif "/store_members" in url:
+                role = "casier" if role_to_test == "casier" else "admin"
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body=f"""[
+                        {{
+                            "store_id": "store-123",
+                            "profile_id": "{role}-id-123",
+                            "role": "{role}",
+                            "active": true,
+                            "store": {{
+                                "id": "store-123",
+                                "name": "Magazin Test",
+                                "active": true,
+                                "fiscal_code": "RO12345678",
+                                "settings": {{"workpointNumber": 1, "displayCode": "MAG-1"}}
+                            }}
+                        }}
+                    ]"""
+                )
+            elif "/rpc/get_store_module_access" in url:
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body="""[
+                        {
+                            "module_key": "pos",
+                            "name": "POS",
+                            "category": "sales",
+                            "route_paths": ["/pos"],
+                            "status": "active",
+                            "default_enabled": true,
+                            "explicit_enabled": true,
+                            "effective_enabled": true,
+                            "requires_store_context": true,
+                            "owner_only": false
+                        },
+                        {
+                            "module_key": "products",
+                            "name": "Produse",
+                            "category": "core",
+                            "route_paths": ["/produse"],
+                            "status": "active",
+                            "default_enabled": true,
+                            "explicit_enabled": true,
+                            "effective_enabled": true,
+                            "requires_store_context": true,
+                            "owner_only": false
+                        },
+                        {
+                            "module_key": "store_settings",
+                            "name": "Setari",
+                            "category": "admin",
+                            "route_paths": ["/setari-magazin"],
+                            "status": "active",
+                            "default_enabled": true,
+                            "explicit_enabled": true,
+                            "effective_enabled": true,
+                            "requires_store_context": true,
+                            "owner_only": false
+                        },
+                        {
+                            "module_key": "quick_add",
+                            "name": "Quick Add",
+                            "category": "core",
+                            "route_paths": ["/fast-add"],
+                            "status": "active",
+                            "default_enabled": true,
+                            "explicit_enabled": true,
+                            "effective_enabled": true,
+                            "requires_store_context": true,
+                            "owner_only": false
+                        }
+                    ]"""
+                )
             else:
                 route.continue_()
 

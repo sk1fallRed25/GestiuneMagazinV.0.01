@@ -143,6 +143,130 @@ def run_e2e_tests():
         # Context Setup
         context = browser.new_context(service_workers="block")
         context.add_init_script(init_script)
+
+        # Intercept Supabase REST APIs via Playwright routing
+        def handle_supabase_requests(route):
+            url = route.request.url
+            if "/rpc/get_active_pos_shift" in url:
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body="""{
+                        "shift_id": "test_shift_123",
+                        "status": "open",
+                        "opening_cash": 100.0,
+                        "opened_at": "2026-06-09T12:00:00Z",
+                        "cash_register_id": "reg-1",
+                        "cash_register_name": "Casa 1",
+                        "current_totals": {
+                            "total_sales": 0,
+                            "total_cash": 0,
+                            "total_card": 0,
+                            "total_mixed": 0,
+                            "expected_cash": 100.0,
+                            "transactions_count": 0
+                        }
+                    }"""
+                )
+            elif "/profiles" in url:
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body="""{
+                        "id": "casier-id-123",
+                        "email": "casier@casier.com",
+                        "full_name": "Casier Test",
+                        "role": "casier",
+                        "active": true
+                    }"""
+                )
+            elif "/store_members" in url:
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body="""[
+                        {
+                            "store_id": "store-123",
+                            "profile_id": "casier-id-123",
+                            "role": "casier",
+                            "active": true,
+                            "store": {
+                                "id": "store-123",
+                                "name": "Magazin Test",
+                                "active": true,
+                                "fiscal_code": "RO12345678",
+                                "settings": {"workpointNumber": 1, "displayCode": "MAG-1"}
+                            }
+                        }
+                    ]"""
+                )
+            elif "/cash_registers" in url:
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body="""[
+                        {"id": "reg-1", "store_id": "store-123", "name": "Casa 1", "code": "C1", "active": true}
+                    ]"""
+                )
+            elif "/rpc/get_store_module_access" in url:
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body="""[
+                        {
+                            "module_key": "pos",
+                            "name": "POS",
+                            "category": "sales",
+                            "route_paths": ["/pos"],
+                            "status": "active",
+                            "default_enabled": true,
+                            "explicit_enabled": true,
+                            "effective_enabled": true,
+                            "requires_store_context": true,
+                            "owner_only": false
+                        },
+                        {
+                            "module_key": "products",
+                            "name": "Produse",
+                            "category": "core",
+                            "route_paths": ["/produse"],
+                            "status": "active",
+                            "default_enabled": true,
+                            "explicit_enabled": true,
+                            "effective_enabled": true,
+                            "requires_store_context": true,
+                            "owner_only": false
+                        },
+                        {
+                            "module_key": "store_settings",
+                            "name": "Setari",
+                            "category": "admin",
+                            "route_paths": ["/setari-magazin"],
+                            "status": "active",
+                            "default_enabled": true,
+                            "explicit_enabled": true,
+                            "effective_enabled": true,
+                            "requires_store_context": true,
+                            "owner_only": false
+                        },
+                        {
+                            "module_key": "quick_add",
+                            "name": "Quick Add",
+                            "category": "core",
+                            "route_paths": ["/fast-add"],
+                            "status": "active",
+                            "default_enabled": true,
+                            "explicit_enabled": true,
+                            "effective_enabled": true,
+                            "requires_store_context": true,
+                            "owner_only": false
+                        }
+                    ]"""
+                )
+            else:
+                route.continue_()
+
+        context.route("**/rest/v1/**", handle_supabase_requests)
         page = context.new_page()
 
         try:
