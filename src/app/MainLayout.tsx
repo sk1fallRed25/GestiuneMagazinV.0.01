@@ -512,6 +512,33 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
                     </div>
                 </header>
 
+                {/* Multi-Store Context Banner */}
+                {role !== 'platform_owner' && availableStores.length >= 2 && currentStore && (
+                    <div 
+                        data-testid="multi-store-context-banner" 
+                        className="w-full bg-indigo-50 border-b border-indigo-100 px-8 py-2.5 flex items-center justify-between text-xs text-indigo-950 font-medium select-none shadow-sm shrink-0"
+                    >
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                            <span>
+                                Activezi în punctul de lucru: <strong className="font-extrabold text-indigo-900">{currentStore.name}</strong> 
+                                <span className="text-slate-400 mx-1.5">|</span> 
+                                CUI: <code className="bg-white px-1.5 py-0.5 rounded border border-indigo-100/60 font-mono text-[10px] text-indigo-800">{currentStore.fiscal_code || 'N/A'}</code>
+                            </span>
+                        </div>
+                        <button
+                            data-testid="multi-store-context-switch-trigger"
+                            onClick={() => {
+                                const btn = document.getElementById('store-context-switcher-btn');
+                                if (btn) btn.click();
+                            }}
+                            className="text-[10px] font-black uppercase tracking-wider text-indigo-755 hover:text-indigo-900 bg-white hover:bg-indigo-100/50 px-2.5 py-1 rounded-lg border border-indigo-200/60 shadow-sm transition-all cursor-pointer"
+                        >
+                            Comută Punct Lucru
+                        </button>
+                    </div>
+                )}
+
                 <main className="flex-1 overflow-y-auto p-0 scroll-smooth">
                     {children}
                 </main>

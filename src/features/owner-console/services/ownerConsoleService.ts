@@ -439,6 +439,7 @@ export const ownerConsoleService = {
     const rawMembers = (membersData || []) as { store_id: string; role: string; active?: boolean | null }[];
 
     return stores
+      .filter(store => store.lifecycleStatus !== 'archived')
       .filter(store => {
         const hasActiveAdmin = rawMembers.some(
           m => m.store_id === store.id && m.role === 'admin' && m.active !== false
@@ -486,6 +487,7 @@ export const ownerConsoleService = {
 
     // Calculăm storesWithoutAdmin
     const storesWithoutAdmin = stores
+      .filter(store => store.lifecycleStatus !== 'archived')
       .filter(store => {
         const hasActiveAdmin = rawAllMembers.some(
           m => m.store_id === store.id && m.role === 'admin' && m.active !== false

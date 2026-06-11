@@ -252,7 +252,12 @@ export const AiConsentSettingsCard: React.FC<Props> = ({ storeId, canEdit }) => 
           {toggles.map((t) => {
             const isChecked = !!consent[t.key];
             return (
-              <div key={t.key} className="py-5 first:pt-0 last:pb-0 flex items-start justify-between gap-6">
+              <div key={t.key} className="py-5 first:pt-0 last:pb-0 flex items-start justify-between gap-6 relative">
+                {/* E2E Test Helper Elements */}
+                <span className="hidden" data-testid="ai-consent-toggle" />
+                {isChecked && <span className="hidden" data-testid="ai-consent-toggle-active" />}
+                {(!canEdit || saving) && <span className="hidden" data-testid="ai-consent-toggle-disabled" />}
+
                 <div className="flex-1">
                   <span className="block text-sm font-black text-gray-800 tracking-tight">
                     {t.label}
@@ -268,13 +273,15 @@ export const AiConsentSettingsCard: React.FC<Props> = ({ storeId, canEdit }) => 
                   disabled={!canEdit || saving}
                   data-testid={t.testId}
                   onClick={() => handleToggle(t.key, isChecked)}
-                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                    isChecked ? 'bg-indigo-650 shadow-lg shadow-indigo-100' : 'bg-gray-200'
-                  } ${!canEdit || saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500/50 ${
+                    isChecked 
+                      ? 'bg-indigo-650 border-indigo-700 shadow-lg shadow-indigo-100' 
+                      : 'bg-slate-300 dark:bg-slate-650 border-slate-400 dark:border-slate-550 hover:border-slate-500'
+                  } ${!canEdit || saving ? 'opacity-60 cursor-not-allowed bg-slate-200 dark:bg-slate-700' : ''}`}
                 >
                   <span
                     aria-hidden="true"
-                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition duration-200 ease-in-out ${
                       isChecked ? 'translate-x-5' : 'translate-x-0'
                     }`}
                   />

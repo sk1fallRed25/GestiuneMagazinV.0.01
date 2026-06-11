@@ -22,6 +22,7 @@ export interface Store {
   fiscal_code: string | null;
   settings?: Record<string, unknown> | null;
   active: boolean;
+  lifecycle_status?: string | null;
 }
 
 export interface StoreMembership {
@@ -34,6 +35,7 @@ export interface StoreMembership {
   fiscalCode?: string;
   workpointNumber?: number;
   displayCode?: string;
+  lifecycleStatus?: string;
 }
 
 export interface AuthState {

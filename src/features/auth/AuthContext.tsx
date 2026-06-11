@@ -78,8 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // 3. Verifică accesul (non-platform_owner trebuie să aibă cel puțin un magazin)
-      if (profile.role !== 'platform_owner' && memberships.length === 0) {
+      // 3. Verifică accesul (non-platform_owner trebuie să aibă cel puțin un magazin activ)
+      const activeMemberships = memberships.filter(m => m.lifecycleStatus === 'active' || m.store?.active);
+      if (profile.role !== 'platform_owner' && activeMemberships.length === 0) {
         setState(prev => ({ 
           ...prev, 
           profile,
@@ -96,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('selected_store_id');
       } else {
         const savedStoreId = localStorage.getItem('selected_store_id');
-        currentMembership = memberships.find(m => m.store_id === savedStoreId) || memberships[0] || null;
+        currentMembership = activeMemberships.find(m => m.store_id === savedStoreId) || activeMemberships[0] || null;
         if (currentMembership) {
           localStorage.setItem('selected_store_id', currentMembership.store_id);
         }

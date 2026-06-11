@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Store, Users, UserCheck, History, Layers } from 'lucide-react';
+import { LayoutDashboard, Store, Users, UserCheck, History, Layers, CreditCard, Archive } from 'lucide-react';
 import { OwnerConsoleTab } from '../hooks/useOwnerConsole';
 
 interface OwnerTabsProps {
@@ -9,6 +9,7 @@ interface OwnerTabsProps {
   profilesCount: number;
   membersCount: number;
   auditCount: number;
+  archivedStoresCount?: number;
 }
 
 interface TabItem {
@@ -17,6 +18,7 @@ interface TabItem {
   icon: React.ElementType;
   count?: number;
   description?: string;
+  testId?: string;
 }
 
 export const OwnerTabs: React.FC<OwnerTabsProps> = ({
@@ -25,15 +27,18 @@ export const OwnerTabs: React.FC<OwnerTabsProps> = ({
   storesCount,
   profilesCount,
   membersCount,
-  auditCount
+  auditCount,
+  archivedStoresCount = 0
 }) => {
   const tabs: TabItem[] = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Dashboard platformă' },
-    { id: 'stores', label: 'Magazine', icon: Store, count: storesCount, description: 'Puncte de lucru' },
-    { id: 'modules', label: 'Module Magazin', icon: Layers, description: 'Configurare module' },
-    { id: 'profiles', label: 'Profile Utilizatori', icon: Users, count: profilesCount, description: 'Conturi sistem' },
-    { id: 'members', label: 'Membri Magazin', icon: UserCheck, count: membersCount, description: 'Acces per magazin' },
-    { id: 'audit', label: 'Audit Logs', icon: History, count: auditCount > 0 ? auditCount : undefined, description: 'Trasabilitate' },
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard, description: 'Dashboard platformă', testId: 'owner-console-tab-overview' },
+    { id: 'stores', label: 'Magazine', icon: Store, count: storesCount, description: 'Puncte de lucru', testId: 'owner-console-tab-stores' },
+    { id: 'profiles', label: 'Utilizatori', icon: Users, count: profilesCount, description: 'Conturi sistem', testId: 'owner-console-tab-users' },
+    { id: 'members', label: 'Membri Magazine', icon: UserCheck, count: membersCount, description: 'Acces per magazin', testId: 'owner-console-tab-members' },
+    { id: 'modules', label: 'Module', icon: Layers, description: 'Configurare module', testId: 'owner-console-tab-modules' },
+    { id: 'commercial-packages', label: 'Pachete Comerciale', icon: CreditCard, description: 'Abonamente și prețuri', testId: 'owner-console-tab-commercial-packages' },
+    { id: 'audit', label: 'Audit Logs', icon: History, count: auditCount > 0 ? auditCount : undefined, description: 'Trasabilitate', testId: 'owner-console-tab-audit' },
+    { id: 'archived-stores', label: 'Magazine Arhivate', icon: Archive, count: archivedStoresCount > 0 ? archivedStoresCount : undefined, description: 'Puncte de lucru arhivate', testId: 'owner-console-tab-archived-stores' },
   ];
 
   return (
@@ -52,7 +57,7 @@ export const OwnerTabs: React.FC<OwnerTabsProps> = ({
             <button
               key={tab.id}
               id={`owner-tab-${tab.id}`}
-              data-testid={`owner-console-tab-${tab.id}`}
+              data-testid={tab.testId || `owner-console-tab-${tab.id}`}
               role="tab"
               aria-selected={isSelected}
               aria-controls={`owner-tabpanel-${tab.id}`}

@@ -15,7 +15,15 @@ import {
 } from '../types';
 import { useAuth } from '../../auth/useAuth';
 
-export type OwnerConsoleTab = 'overview' | 'stores' | 'modules' | 'profiles' | 'members' | 'audit';
+export type OwnerConsoleTab = 
+  | 'overview' 
+  | 'stores' 
+  | 'profiles' 
+  | 'members' 
+  | 'modules' 
+  | 'commercial-packages' 
+  | 'audit' 
+  | 'archived-stores';
 
 export const useOwnerConsole = () => {
   const { role } = useAuth();

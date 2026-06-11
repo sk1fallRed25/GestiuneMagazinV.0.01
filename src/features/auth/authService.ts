@@ -10,6 +10,7 @@ interface StoreRow {
   active?: boolean | null;
   created_at?: string | null;
   updated_at?: string | null;
+  lifecycle_status?: string | null;
 }
 
 interface RawStoreMembership {
@@ -93,7 +94,7 @@ export const authService = {
 
     const activeMemberships = (memberships || []).filter(m => {
       const storeObj = Array.isArray(m.store) ? m.store[0] : m.store;
-      return storeObj && storeObj.active !== false;
+      return !!storeObj;
     });
 
     return activeMemberships.map((m) => {
@@ -102,6 +103,7 @@ export const authService = {
       const fiscalCode = storeObj?.fiscal_code || '';
       const workpointNumber = settings?.workpointNumber !== undefined && settings?.workpointNumber !== null ? Number(settings.workpointNumber) : 1;
       const displayCode = String(settings?.displayCode || `${fiscalCode} / ${workpointNumber}`);
+      const lifecycleStatus = storeObj?.lifecycle_status || (storeObj?.active ? 'active' : 'suspended');
 
       return {
         ...m,
@@ -109,7 +111,8 @@ export const authService = {
         storeName: storeObj?.name || '',
         fiscalCode,
         workpointNumber,
-        displayCode
+        displayCode,
+        lifecycleStatus
       };
     }) as StoreMembership[];
   },

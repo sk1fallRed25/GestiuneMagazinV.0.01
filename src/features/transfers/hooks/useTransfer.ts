@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../../auth/useAuth';
+import { supabase } from '../../../shared/supabase/supabaseClient';
 import { 
     TransferProduct, 
     TransferDirection, 
@@ -9,9 +10,10 @@ import {
 import { transferService } from '../services/transferService';
 
 export const useTransfer = () => {
-    const { currentStoreId, user } = useAuth();
+    const { currentStoreId, availableStores, user } = useAuth();
 
     const [products, setProducts] = useState<TransferProduct[]>([]);
+    const [allStores, setAllStores] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     
@@ -20,20 +22,78 @@ export const useTransfer = () => {
     const [selectedProductId, setSelectedProductId] = useState<string>('');
     const [quantity, setQuantity] = useState<string>('');
     const [direction, setDirection] = useState<TransferDirection>('depozit_spre_magazin');
+    
+    // Multi-store source and destination states
+    const [sourceStoreId, setSourceStoreId] = useState<string>('');
+    const [destinationStoreId, setDestinationStoreId] = useState<string>('');
+    const [validationError, setValidationError] = useState<string | null>(null);
+
+    // Fetch all stores in network
+    useEffect(() => {
+        const fetchStores = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('stores')
+                    .select('id, name, active, fiscal_code, lifecycle_status');
+                if (!error && data) {
+                    setAllStores(data);
+                }
+            } catch (err) {
+                console.error("Error loading stores:", err);
+            }
+        };
+        fetchStores();
+    }, []);
+
+    // Lock sourceStoreId for single-store users
+    useEffect(() => {
+        if (availableStores.length <= 1 && currentStoreId) {
+            setSourceStoreId(currentStoreId);
+        }
+    }, [availableStores.length, currentStoreId]);
+
+    // Validation handler
+    useEffect(() => {
+        setValidationError(null);
+        if (!sourceStoreId) {
+            setValidationError("Selectați punctul de lucru sursă.");
+            return;
+        }
+        if (!destinationStoreId) {
+            setValidationError("Selectați punctul de lucru destinație.");
+            return;
+        }
+        if (sourceStoreId === destinationStoreId) {
+            setValidationError("Punctul de lucru sursă și cel destinație nu pot fi identice.");
+            return;
+        }
+        const srcStore = allStores.find(s => s.id === sourceStoreId);
+        const destStore = allStores.find(s => s.id === destinationStoreId);
+        
+        if (srcStore && (srcStore.active === false || srcStore.lifecycle_status === 'archived')) {
+            setValidationError("Punctul de lucru sursă este inactiv sau arhivat.");
+            return;
+        }
+        if (destStore && (destStore.active === false || destStore.lifecycle_status === 'archived')) {
+            setValidationError("Punctul de lucru destinație este inactiv sau arhivat.");
+            return;
+        }
+    }, [sourceStoreId, destinationStoreId, allStores]);
 
     const loadProducts = useCallback(async () => {
-        if (!currentStoreId) return;
+        const activeStoreId = sourceStoreId || currentStoreId;
+        if (!activeStoreId) return;
         setLoading(true);
         try {
-            const data = await transferService.listTransferProducts(currentStoreId);
+            const data = await transferService.listTransferProducts(activeStoreId);
             setProducts(data);
         } catch (error: unknown) {
             console.error(error);
-            toast.error("Nu s-au putut încărca datele.");
+            toast.error("Nu s-au putut încărca datele stocurilor.");
         } finally {
             setLoading(false);
         }
-    }, [currentStoreId]);
+    }, [sourceStoreId, currentStoreId]);
 
     useEffect(() => {
         loadProducts();
@@ -52,20 +112,24 @@ export const useTransfer = () => {
     , [products, selectedProductId]);
 
     const submitTransfer = async () => {
-        if (!currentStoreId || !user) {
+        if (!sourceStoreId || !user) {
             return toast.error("Sesiune invalidă.");
         }
+        if (validationError) {
+            return toast.error(validationError);
+        }
         if (!selectedProductId) {
-            return toast.error("Selectează un produs.");
+            return toast.error("Selectați un produs.");
         }
         const qtyNum = parseFloat(quantity);
         if (isNaN(qtyNum) || qtyNum <= 0) {
-            return toast.error("Introdu o cantitate validă.");
+            return toast.error("Introduceți o cantitate validă.");
         }
 
-        const source = direction === 'depozit_spre_magazin' ? 'Depozit' : 'Magazin';
-        const dest = direction === 'depozit_spre_magazin' ? 'Magazin' : 'Depozit';
-        const confirmMsg = `Confirmi transferul a ${qtyNum} buc din ${source} în ${dest} pentru produsul "${selectedProduct?.nume || ''}"?`;
+        const srcStore = allStores.find(s => s.id === sourceStoreId);
+        const destStore = allStores.find(s => s.id === destinationStoreId);
+
+        const confirmMsg = `Confirmați transferul a ${qtyNum} ${selectedProduct?.um || 'buc'} din "${srcStore?.name || ''}" în "${destStore?.name || ''}" pentru produsul "${selectedProduct?.nume || ''}"?`;
         if (!window.confirm(confirmMsg)) {
             return;
         }
@@ -73,7 +137,7 @@ export const useTransfer = () => {
         setSubmitting(true);
         try {
             const payload: TransferPayload = {
-                storeId: currentStoreId,
+                storeId: sourceStoreId,
                 productId: selectedProductId,
                 quantity: qtyNum,
                 direction,
@@ -81,7 +145,7 @@ export const useTransfer = () => {
             };
 
             await transferService.executeTransfer(payload);
-            toast.success("Transfer realizat cu succes!");
+            toast.success("Transfer înregistrat cu succes!");
             
             setQuantity('');
             setSelectedProductId('');
@@ -97,14 +161,25 @@ export const useTransfer = () => {
 
     return {
         products,
+        allStores,
+        availableStores,
+        sourceStoreId,
+        setSourceStoreId,
+        destinationStoreId,
+        setDestinationStoreId,
+        validationError,
         loading,
         submitting,
-        search, setSearch,
+        search,
+        setSearch,
         filteredProducts,
-        selectedProductId, setSelectedProductId,
+        selectedProductId,
+        setSelectedProductId,
         selectedProduct,
-        quantity, setQuantity,
-        direction, setDirection,
+        quantity,
+        setQuantity,
+        direction,
+        setDirection,
         submitTransfer,
         refreshProducts: loadProducts
     };
