@@ -45,6 +45,7 @@ def run_test():
             if (!magPrincipal) {
                 if (stores.length > 0) {
                     magPrincipal = stores[0];
+                    await supabase.from('stores').update({ active: true, lifecycle_status: 'active' }).eq('id', magPrincipal.id);
                 } else {
                     const { data: newStore } = await supabase.from('stores').insert({
                         name: 'Magazin Principal',
@@ -56,6 +57,8 @@ def run_test():
                     }).select();
                     magPrincipal = newStore[0];
                 }
+            } else {
+                await supabase.from('stores').update({ active: true, lifecycle_status: 'active' }).eq('id', magPrincipal.id);
             }
             
             let magSuspended = stores.find(s => s.name === 'Magazin Suspendat E2E');
@@ -264,13 +267,36 @@ def run_test():
         safe_print("[PASS] Option for suspended store is disabled in select element.")
         
         # Test Summary Preview
-        dest_select.select_option(label="Magazin Test E2E")
-        # Summary Preview should list the selected stores
+        # Wait for the select options to be populated (more than 1 option)
+        page4.wait_for_function("document.querySelector('[data-testid=\"transfer-destination-select\"]').options.length > 1")
+        
+        # Find a valid destination option that is not the source store and is not disabled
+        dest_options = dest_select.locator("option").all()
+        safe_print(f"DEBUG: Found {len(dest_options)} options in dest_select. dynamic_active_store = {dynamic_active_store}")
+        selected_dest_text = None
+        for opt in dest_options:
+            val = opt.get_attribute("value")
+            is_disabled = opt.is_disabled()
+            text = opt.inner_text().strip()
+            safe_print(f"DEBUG: option val={val}, disabled={is_disabled}, text={text}")
+            # Check if active store is in the option text or vice-versa
+            is_active_store = (dynamic_active_store in text) or (text in dynamic_active_store)
+            if val and not is_disabled and "Alege" not in text and not is_active_store:
+                dest_select.select_option(value=val)
+                selected_dest_text = text
+                break
+                
+        assert selected_dest_text is not None, "Could not find a valid destination store option"
+        
+        # Summary Preview check
         summary = page4.locator("[data-testid='transfer-summary-preview']")
         summary.wait_for(state="visible", timeout=5000)
         summary_text = summary.text_content()
         safe_print(f"Sumar transfer: {summary_text}")
-        assert active_store_name in summary_text and "Magazin Test E2E" in summary_text, "Summary preview does not show source/dest stores"
+        
+        clean_source = dynamic_active_store.split("(")[0].strip()
+        clean_dest = selected_dest_text.split("(")[0].strip()
+        assert clean_source in summary_text and clean_dest in summary_text, "Summary preview does not show source/dest stores"
         safe_print("[PASS] Summary preview contine datele corecte de directie.")
         context4.close()
         

@@ -484,8 +484,19 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a testat și verificat manual recuperarea coșului (Cart Recovery) la închiderea neașteptată și fallback-urile corecte la deconectarea internetului (folosind cache-ul SQLite) și în absența driverului FiscalNet.
   - Raport oficial de testare generat la `docs/real_pos_device_qa_6rel2_report.md`.
 
+- **Etapa 6CAT.1 (Full Category & Subcategory Management in Product Catalog)**: **PASS**
+  - S-a extins modulul de stocuri din Catalogul de Produse cu un manager complet de categorii (afisat in Drawer/Modal lateral), permitand adaugarea de categorii principale si subcategorii direct din catalog.
+  - S-au implementat formularele de creare categorie (cu `parent_id = null`) si subcategorie (cu `parent_id` setat pe categoria parinte) cu validari defensive impotriva duplicatelor in cadrul aceluiasi magazin.
+  - S-a adaugat afisarea caii ierarhice (Categorie / Subcategorie) in tabelul principal de produse (`ProductTable.tsx`) cu badge-uri dedicate si fallback.
+  - S-a integrat filtrarea dinamica dupa categorie si subcategorie in bara de cautare (`ProductSearchBar.tsx`) cu suport pentru categorii neselectate/necatorizate.
+  - S-a implementat editarea interactiva a categoriilor produselor in `ProductEditModal.tsx` (cu dependency mapping pentru subcategorii) si mutarea individuala sau in masa (Bulk Move) a produselor intre categorii.
+  - S-a validat compatibilitatea cu POS-ul si offline cache-ul SQLite (care pastreaza functionalitatea de normalizare case-insensitive).
+  - Toate testele automate static si E2E (`test_catalog_category_management_6cat1.py`, `test_pos_real_category_mapping_6ux32.py`, `test_ui_catalog_forms_settings_6ux4.py`, `test_ui_visual_cleanup_multi_store_6fix1.py`) trec cu succes, iar compilarea build-ului de productie se realizeaza fara erori.
+  - Raport oficial de integrare generat la `docs/catalog_category_management_6cat1_report.md`.
+
 ### Următorul pas recomandat:
-- **`Etapa 6REL.3 — Auto-Update Pipeline Preparation`** (Configurarea canalului de actualizare automată pe GitHub Releases și pregătirea certificatelor locale).
+- **`Etapa 6DATA.1 — Baza de date curată / Seeding baseline`** (Ștergerea datelor vechi de test și popularea cu setul minim de date curate prin noile interfețe UI complet securizate).
+
 
 
 

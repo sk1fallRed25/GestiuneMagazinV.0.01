@@ -149,7 +149,7 @@ def run_e2e_tests(role_to_test):
                     status=200,
                     content_type="application/json",
                     body="""{
-                        "store_id": "store-123",
+                        "store_id": "d3b07384-d113-4956-a5cc-ecb44ce4dc54",
                         "store_name": "Magazin Principal",
                         "fiscal_code": "RO12345678",
                         "active": true,
@@ -161,6 +161,62 @@ def run_e2e_tests(role_to_test):
                             }
                         }
                     }"""
+                )
+            elif "/rpc/get_store_module_access" in url:
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body="""[
+                        {
+                            "moduleKey": "pos",
+                            "name": "Point of Sale",
+                            "category": "sales",
+                            "status": "active",
+                            "defaultEnabled": true,
+                            "effectiveEnabled": true,
+                            "routePaths": ["/pos"],
+                            "requiresStoreContext": true,
+                            "ownerOnly": false,
+                            "minimumRoles": ["casier", "manager", "admin"],
+                            "dependencies": []
+                        }
+                    ]"""
+                )
+            elif "/profiles" in url:
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body="""{
+                        "id": "casier-user-id",
+                        "email": "casier@casier.com",
+                        "full_name": "Casier Test",
+                        "role": "casier",
+                        "active": true
+                    }"""
+                )
+            elif "/store_members" in url:
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body="""[
+                        {
+                            "store_id": "d3b07384-d113-4956-a5cc-ecb44ce4dc54",
+                            "profile_id": "casier-user-id",
+                            "role": "casier",
+                            "active": true,
+                            "store": {
+                                "id": "d3b07384-d113-4956-a5cc-ecb44ce4dc54",
+                                "name": "Magazin Principal",
+                                "active": true,
+                                "fiscal_code": "RO12345678",
+                                "settings": {
+                                    "workpointNumber": 1,
+                                    "displayCode": "M1"
+                                },
+                                "lifecycle_status": "active"
+                            }
+                        }
+                    ]"""
                 )
             elif "/rpc/get_active_pos_shift" in url:
                 route.fulfill(
@@ -188,8 +244,8 @@ def run_e2e_tests(role_to_test):
                     status=200,
                     content_type="application/json",
                     body="""[
-                        {"id": "ab42cab3-b759-41b9-8fd8-3cd43607207c", "name": "Bauturi alcoolice", "parent_id": null, "store_id": "store-123", "created_at": "2026-06-09T12:00:00Z"},
-                        {"id": "8b198a68-e000-472f-a6cc-ecb44ce4dc54", "name": "Tarie", "parent_id": "ab42cab3-b759-41b9-8fd8-3cd43607207c", "store_id": "store-123", "created_at": "2026-06-09T12:00:00Z"}
+                        {"id": "ab42cab3-b759-41b9-8fd8-3cd43607207c", "name": "Bauturi alcoolice", "parent_id": null, "store_id": "d3b07384-d113-4956-a5cc-ecb44ce4dc54", "created_at": "2026-06-09T12:00:00Z"},
+                        {"id": "8b198a68-e000-472f-a6cc-ecb44ce4dc54", "name": "Tarie", "parent_id": "ab42cab3-b759-41b9-8fd8-3cd43607207c", "store_id": "d3b07384-d113-4956-a5cc-ecb44ce4dc54", "created_at": "2026-06-09T12:00:00Z"}
                     ]"""
                 )
             elif "/cash_registers" in url:
@@ -197,7 +253,7 @@ def run_e2e_tests(role_to_test):
                     status=200,
                     content_type="application/json",
                     body="""[
-                        {"id": "reg-1", "store_id": "store-123", "name": "Casa 1", "code": "C1", "active": true}
+                        {"id": "reg-1", "store_id": "d3b07384-d113-4956-a5cc-ecb44ce4dc54", "name": "Casa 1", "code": "C1", "active": true}
                     ]"""
                 )
             else:
@@ -223,9 +279,11 @@ def run_e2e_tests(role_to_test):
                 page.locator("input[type='text']").fill("admin@admin.com")
                 page.locator("input[type='password']").fill("admin123")
                 page.locator("button[type='submit']").click()
-                page.wait_for_url("**/#/", timeout=15000)
-                # Navigate to POS
-                page.goto(f"{app_url}/#/pos")
+                # Wait for dashboard or pos route
+                page.wait_for_url(lambda u: "/#" in u or "/pos" in u, timeout=15000)
+                # Navigate to POS if not there
+                if "/pos" not in page.url:
+                    page.goto(f"{app_url}/#/pos")
                 page.wait_for_url("**/pos", timeout=10000)
             
             safe_print(f"PASS: Logged in as {role_to_test} successfully.")
