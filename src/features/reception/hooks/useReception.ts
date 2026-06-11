@@ -5,20 +5,32 @@ import {
     ReceptionProduct, 
     ReceptionLine, 
     ReceptionDocument,
-    CreateReceptionPayload
+    ReceptionDbRow
 } from '../types';
 import { receptionService } from '../services/receptionService';
 
 export const useReception = () => {
-    const { currentStoreId, user, profile } = useAuth();
+    const { currentStoreId, user } = useAuth();
     
+    // --- Navigation / View state ---
+    // form: editing or creating a reception
+    // history: listing previous receptions
+    // detail: read-only view of a posted/cancelled reception
+    const [view, setView] = useState<'form' | 'history' | 'detail'>('form');
+
+    // --- Active Draft ID ---
+    const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+
     // --- Document State ---
     const [document, setDocument] = useState<ReceptionDocument>({
         documentNumber: '',
         documentDate: new Date().toISOString().slice(0, 10),
+        receptionDate: new Date().toISOString().slice(0, 10),
+        nirNumber: '',
         supplierText: '',
         supplierCui: '',
-        observations: ''
+        observations: '',
+        status: 'draft'
     });
 
     // --- Products State ---
@@ -37,11 +49,26 @@ export const useReception = () => {
     const [batchNumber, setBatchNumber] = useState<string>('');
     const [expiryDate, setExpiryDate] = useState<string>('');
 
-    // --- Table State ---
+    // --- Table & XML state ---
     const [lines, setLines] = useState<ReceptionLine[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [savingDraft, setSavingDraft] = useState(false);
     const [xmlStatus, setXmlStatus] = useState('');
 
+    // --- History Log State ---
+    const [receptionsHistory, setReceptionsHistory] = useState<ReceptionDbRow[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+    const [historyFilters, setHistoryFilters] = useState({
+        date: '',
+        supplier: '',
+        status: ''
+    });
+
+    // --- Detail View State ---
+    const [selectedReceptionDetails, setSelectedReceptionDetails] = useState<any | null>(null);
+    const [loadingDetails, setLoadingDetails] = useState(false);
+
+    // --- Actions ---
     const loadProducts = useCallback(async () => {
         if (!currentStoreId) return;
         setLoadingProducts(true);
@@ -50,7 +77,7 @@ export const useReception = () => {
             setAvailableProducts(data);
         } catch (error: unknown) {
             console.error(error);
-            toast.error("Nu s-au putut încărca datele.");
+            toast.error("Nu s-au putut încărca datele nomenclatorului.");
         } finally {
             setLoadingProducts(false);
         }
@@ -59,6 +86,26 @@ export const useReception = () => {
     useEffect(() => {
         loadProducts();
     }, [loadProducts]);
+
+    const loadHistory = useCallback(async () => {
+        if (!currentStoreId) return;
+        setLoadingHistory(true);
+        try {
+            const data = await receptionService.listReceptions(currentStoreId, historyFilters);
+            setReceptionsHistory(data);
+        } catch (error) {
+            console.error(error);
+            toast.error("Nu s-a putut încărca istoricul recepțiilor.");
+        } finally {
+            setLoadingHistory(false);
+        }
+    }, [currentStoreId, historyFilters]);
+
+    useEffect(() => {
+        if (view === 'history') {
+            loadHistory();
+        }
+    }, [view, loadHistory]);
 
     const filteredProducts = useMemo(() => {
         if (search.length < 2) return [];
@@ -118,12 +165,66 @@ export const useReception = () => {
         setLines(prev => prev.filter(l => l.tempId !== tempId));
     };
 
-    const submitReception = async () => {
-        if (!navigator.onLine) {
-            return toast.error("Nu poți finaliza recepții cât timp aplicația este offline.");
-        }
+    // --- Reset/New Form ---
+    const startNewReception = () => {
+        setActiveDraftId(null);
+        setLines([]);
+        setDocument({
+            documentNumber: '',
+            documentDate: new Date().toISOString().slice(0, 10),
+            receptionDate: new Date().toISOString().slice(0, 10),
+            nirNumber: '',
+            supplierText: '',
+            supplierCui: '',
+            observations: '',
+            status: 'draft'
+        });
+        setXmlStatus('');
+        setView('form');
+    };
+
+    // --- Save Draft ---
+    const saveCurrentDraft = async (silent: boolean = false): Promise<string | null> => {
         if (!currentStoreId || !user) {
-            return toast.error("Sesiune invalidă.");
+            toast.error("Sesiune invalidă.");
+            return null;
+        }
+        if (!document.documentNumber) {
+            toast.error("Numărul facturii/documentului este obligatoriu.");
+            return null;
+        }
+        if (lines.length === 0) {
+            toast.error("Adăugați cel puțin un produs.");
+            return null;
+        }
+
+        setSavingDraft(true);
+        try {
+            const draftId = await receptionService.saveDraft(
+                currentStoreId,
+                user.id,
+                document,
+                lines,
+                activeDraftId || undefined
+            );
+            setActiveDraftId(draftId);
+            if (!silent) {
+                toast.success("Draft salvat cu succes!");
+            }
+            return draftId;
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message || "Draftul nu a putut fi salvat.");
+            return null;
+        } finally {
+            setSavingDraft(false);
+        }
+    };
+
+    // --- Confirm / Post ---
+    const confirmReception = async () => {
+        if (!navigator.onLine) {
+            return toast.error("Nu poți confirma recepții cât timp aplicația este offline.");
         }
         if (!document.documentNumber) {
             return toast.error("Numărul documentului lipsește.");
@@ -132,42 +233,103 @@ export const useReception = () => {
             return toast.error("Adaugă cel puțin un produs.");
         }
 
-        const totalEst = lines.reduce((acc, l) => acc + (l.quantity * l.purchasePrice), 0).toFixed(2);
-        const confirmMsg = `Confirmi recepția documentului "${document.documentNumber}" cu ${lines.length} linii și total estimat ${totalEst} lei?`;
-        if (!window.confirm(confirmMsg)) {
-            return;
-        }
+        // First save draft to ensure DB has all the current client-side data
+        const draftId = await saveCurrentDraft(true);
+        if (!draftId) return;
 
         setSubmitting(true);
         try {
-            const payload: CreateReceptionPayload = {
-                storeId: currentStoreId,
-                profileId: user.id,
-                document,
-                lines
-            };
-
-            await receptionService.createReception(payload);
-            toast.success("Recepție finalizată cu succes!");
+            await receptionService.postReception(draftId, currentStoreId!, user!.id);
+            toast.success("Recepție confirmată și postată în stoc cu succes!");
             
-            // Reset form
-            setLines([]);
-            setDocument({
-                documentNumber: '',
-                documentDate: new Date().toISOString().slice(0, 10),
-                supplierText: '',
-                supplierCui: '',
-                observations: ''
-            });
-            setXmlStatus('');
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "Operațiunea nu a putut fi finalizată.";
-            toast.error(message);
+            // Go to detail view of the posted reception
+            await viewDetails(draftId);
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message || "Eroare la confirmarea recepției.");
         } finally {
             setSubmitting(false);
         }
     };
 
+    // --- Cancel Draft ---
+    const cancelActiveDraft = async () => {
+        if (!activeDraftId) return;
+        if (!window.confirm("Sigur dorești să anulezi acest draft de recepție? Această acțiune nu poate fi anulată.")) {
+            return;
+        }
+        try {
+            await receptionService.cancelReception(activeDraftId, currentStoreId!);
+            toast.success("Recepția a fost anulată.");
+            startNewReception();
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message || "Nu s-a putut anula recepția.");
+        }
+    };
+
+    // --- Load Draft for Editing ---
+    const editDraft = async (receptionId: string) => {
+        setLoadingDetails(true);
+        try {
+            const data = await receptionService.getReceptionDetails(currentStoreId!, receptionId);
+            if (data.status !== 'draft') {
+                toast.error("Doar recepțiile în starea Draft pot fi editate.");
+                return;
+            }
+            setActiveDraftId(data.id);
+            setDocument({
+                documentNumber: data.document_number,
+                documentDate: data.document_date,
+                receptionDate: data.reception_date || data.document_date,
+                nirNumber: data.nir_number || '',
+                supplierText: data.supplier_text || '',
+                supplierCui: data.supplier_cui || '',
+                observations: data.observations || '',
+                status: data.status
+            });
+
+            // Map Db rows to Lines
+            const mappedLines: ReceptionLine[] = data.items.map((it: any) => ({
+                tempId: crypto.randomUUID(),
+                productId: it.product_id,
+                productName: it.products?.name || 'Produs',
+                barcode: it.products?.barcode || '',
+                quantity: Number(it.quantity),
+                purchasePrice: Number(it.purchase_price),
+                salePrice: Number(it.sale_price_new || 0),
+                vatPercent: Number(it.vat_percent || 19),
+                batchNumber: it.batch_number || null,
+                expiryDate: it.expiry_date || null
+            }));
+
+            setLines(mappedLines);
+            setView('form');
+            toast.success("Draftul a fost încărcat pentru editare.");
+        } catch (error) {
+            console.error(error);
+            toast.error("Nu s-au putut încărca detaliile draftului.");
+        } finally {
+            setLoadingDetails(false);
+        }
+    };
+
+    // --- View Detail ---
+    const viewDetails = async (receptionId: string) => {
+        setLoadingDetails(true);
+        setView('detail');
+        try {
+            const data = await receptionService.getReceptionDetails(currentStoreId!, receptionId);
+            setSelectedReceptionDetails(data);
+        } catch (error) {
+            console.error(error);
+            toast.error("Nu s-au putut încărca detaliile recepției.");
+        } finally {
+            setLoadingDetails(false);
+        }
+    };
+
+    // --- XML Invoice Parsing ---
     const parseXMLInvoice = async (xmlText: string) => {
         setXmlStatus('⏳ Analiză XML...');
         try {
@@ -183,6 +345,7 @@ export const useReception = () => {
                 ...prev,
                 documentNumber: invoiceID || prev.documentNumber,
                 documentDate: invoiceDate || prev.documentDate,
+                receptionDate: new Date().toISOString().slice(0, 10),
                 supplierText: supplierName || prev.supplierText,
                 supplierCui: supplierCUI || prev.supplierCui
             }));
@@ -201,7 +364,6 @@ export const useReception = () => {
                 const lineTotal = parseFloat(xLine.getElementsByTagName("cbc:LineExtensionAmount")[0]?.textContent || '0');
                 
                 if (name || xmlBarcode) {
-                    // Caută întâi după barcode, apoi după nume exact (case-insensitive)
                     const found = availableProducts.find(p => 
                         (xmlBarcode && p.cod_bare === xmlBarcode) || 
                         (name && p.nume.toLowerCase() === name.toLowerCase())
@@ -229,10 +391,10 @@ export const useReception = () => {
 
             if (newLines.length > 0) {
                 setLines(prev => [...prev, ...newLines]);
-                toast.success(`${newLines.length} produse identificate și adăugate.`);
+                toast.success(`${newLines.length} produse identificate din XML.`);
             }
             if (unknownProducts > 0) {
-                toast.error(`${unknownProducts} produse din factură nu au fost găsite în nomenclator.`);
+                toast.error(`${unknownProducts} produse din XML nu au fost găsite în nomenclator.`);
             }
             setXmlStatus('✅ XML procesat');
         } catch (error: unknown) {
@@ -243,6 +405,8 @@ export const useReception = () => {
     };
 
     return {
+        view, setView,
+        activeDraftId,
         document, setDocument,
         search, setSearch,
         filteredProducts,
@@ -256,7 +420,17 @@ export const useReception = () => {
         batchNumber, setBatchNumber,
         expiryDate, setExpiryDate,
         lines, removeLine,
-        submitting, submitReception,
+        submitting, confirmReception,
+        savingDraft, saveCurrentDraft,
+        cancelActiveDraft,
+        startNewReception,
+        editDraft,
+        viewDetails,
+        receptionsHistory,
+        loadingHistory,
+        historyFilters, setHistoryFilters,
+        selectedReceptionDetails,
+        loadingDetails,
         xmlStatus, parseXMLInvoice,
         loadingProducts,
         calculations: {

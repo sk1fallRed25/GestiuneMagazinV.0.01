@@ -67,8 +67,9 @@ export const ReceptionProductPicker = ({
                                 onClick={() => onSelect(p)}
                             >
                                 <div className="font-bold text-gray-800">{p.nume}</div>
-                                <div className="flex justify-between mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                                <div className="flex justify-between mt-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest gap-2 flex-wrap">
                                     <span>Cod: {p.cod_bare}</span>
+                                    <span>Cat: {p.category_name || 'Necategorizat'}</span>
                                     <span className="text-indigo-600">Actual: {p.pret_vanzare.toFixed(2)} LEI</span>
                                 </div>
                             </div>

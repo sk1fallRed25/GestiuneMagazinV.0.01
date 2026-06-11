@@ -1,20 +1,22 @@
 import { supabase } from '../../../shared/supabase/supabaseClient';
 import { 
     ReceptionProduct, 
-    CreateReceptionPayload,
-    ReceptionLine
+    ReceptionLine, 
+    ReceptionDocument,
+    ReceptionDbRow
 } from '../types';
 
 export const receptionService = {
     /**
      * Listează produsele active pentru a fi selectate în recepție.
+     * Include acum categoria din 6CAT.1.
      */
     async listReceptionProducts(storeId: string): Promise<ReceptionProduct[]> {
         if (!storeId) return [];
 
         const { data: products, error: pError } = await supabase
             .from('products')
-            .select('*')
+            .select('*, category:categories(name)')
             .eq('store_id', storeId)
             .neq('status', 'deleted');
 
@@ -31,76 +33,192 @@ export const receptionService = {
 
         return products.map(p => {
             const price = prices?.find(pr => pr.product_id === p.id);
+            // Look up category names
+            const catObj = p.category as any;
+            const categoryName = catObj?.name || undefined;
+
             return {
                 id: p.id,
                 nume: p.name,
                 cod_bare: p.barcode,
                 um: p.unit,
                 pret_vanzare: Number(price?.price_sale) || 0,
-                pret_achizitie: Number(price?.price_purchase) || 0
+                pret_achizitie: Number(price?.price_purchase) || 0,
+                category_id: p.category_id,
+                category_name: categoryName
             };
         });
     },
 
     /**
-     * Creează o recepție completă prin RPC atomic receive_stock.
+     * Listează istoricul de recepții pentru magazin.
      */
-    async createReception(payload: CreateReceptionPayload): Promise<string> {
-        const { storeId, profileId, document, lines } = payload;
+    async listReceptions(
+        storeId: string, 
+        filters?: { date?: string; supplier?: string; status?: string }
+    ): Promise<ReceptionDbRow[]> {
+        let query = supabase
+            .from('receptions')
+            .select('*, profiles(email)')
+            .eq('store_id', storeId)
+            .order('created_at', { ascending: false });
 
-        // 1. Validări de bază
+        if (filters?.status) {
+            query = query.eq('status', filters.status);
+        }
+        if (filters?.date) {
+            query = query.eq('reception_date', filters.date);
+        }
+        if (filters?.supplier) {
+            query = query.ilike('supplier_text', `%${filters.supplier}%`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data || [];
+    },
+
+    /**
+     * Încarcă o recepție specifică cu toate liniile sale.
+     */
+    async getReceptionDetails(storeId: string, receptionId: string): Promise<any> {
+        const { data: reception, error: rError } = await supabase
+            .from('receptions')
+            .select('*, profiles(email)')
+            .eq('store_id', storeId)
+            .eq('id', receptionId)
+            .single();
+
+        if (rError) throw rError;
+
+        const { data: items, error: iError } = await supabase
+            .from('reception_items')
+            .select('*, products(name, barcode, unit, category_id, category:categories(name))')
+            .eq('store_id', storeId)
+            .eq('reception_id', receptionId);
+
+        if (iError) throw iError;
+
+        return {
+            ...reception,
+            items: items || []
+        };
+    },
+
+    /**
+     * Salvează sau actualizează o recepție în starea DRAFT.
+     */
+    async saveDraft(
+        storeId: string, 
+        profileId: string, 
+        document: ReceptionDocument, 
+        lines: ReceptionLine[], 
+        receptionId?: string
+    ): Promise<string> {
+        const totalValue = lines.reduce((acc, l) => acc + (l.quantity * l.purchasePrice), 0);
+        let activeId = receptionId;
+
         if (!storeId || !profileId) throw new Error("Informații magazin/utilizator lipsă.");
         if (!document.documentNumber) throw new Error("Numărul documentului este obligatoriu.");
         if (lines.length === 0) throw new Error("Recepția trebuie să conțină cel puțin un produs.");
 
-        // 2. Mapare și validare linii pentru RPC
-        const itemsForRpc = lines.map(line => {
-            if (!line.productId || line.quantity <= 0 || line.purchasePrice < 0 || line.salePrice < 0 || line.vatPercent < 0) {
-                throw new Error("Linia de recepție conține date invalide.");
-            }
-            return {
-                product_id: line.productId,
-                quantity: line.quantity,
-                purchase_price: line.purchasePrice,
-                sale_price: line.salePrice,
-                vat_percent: line.vatPercent,
-                batch_number: line.batchNumber || document.documentNumber,
-                expiry_date: line.expiryDate || null,
-                zone: 'depozit'
-            };
-        });
+        if (activeId) {
+            const { error: hError } = await supabase
+                .from('receptions')
+                .update({
+                    document_number: document.documentNumber,
+                    document_date: document.documentDate,
+                    reception_date: document.receptionDate,
+                    nir_number: document.nirNumber || null,
+                    supplier_text: document.supplierText || null,
+                    supplier_cui: document.supplierCui || null,
+                    observations: document.observations || null,
+                    total_value: totalValue
+                })
+                .eq('id', activeId)
+                .eq('store_id', storeId);
 
-        // 3. Apel RPC atomic
-        const { data, error } = await supabase.rpc('receive_stock', {
+            if (hError) throw hError;
+
+            const { error: dError } = await supabase
+                .from('reception_items')
+                .delete()
+                .eq('reception_id', activeId)
+                .eq('store_id', storeId);
+
+            if (dError) throw dError;
+        } else {
+            const { data: newRec, error: hError } = await supabase
+                .from('receptions')
+                .insert({
+                    store_id: storeId,
+                    profile_id: profileId,
+                    document_number: document.documentNumber,
+                    document_date: document.documentDate,
+                    reception_date: document.receptionDate,
+                    nir_number: document.nirNumber || null,
+                    supplier_text: document.supplierText || null,
+                    supplier_cui: document.supplierCui || null,
+                    observations: document.observations || null,
+                    total_value: totalValue,
+                    status: 'draft'
+                })
+                .select()
+                .single();
+
+            if (hError) throw hError;
+            activeId = newRec.id;
+        }
+
+        const itemsToInsert = lines.map(l => ({
+            store_id: storeId,
+            reception_id: activeId,
+            product_id: l.productId,
+            quantity: l.quantity,
+            purchase_price: l.purchasePrice,
+            sale_price_new: l.salePrice,
+            vat_percent: l.vatPercent,
+            batch_number: l.batchNumber || document.documentNumber,
+            expiry_date: l.expiryDate || null
+        }));
+
+        const { error: iError } = await supabase
+            .from('reception_items')
+            .insert(itemsToInsert);
+
+        if (iError) throw iError;
+
+        return activeId!;
+    },
+
+    /**
+     * Finalizează / postează o recepție draft în stoc (RPC atomic).
+     */
+    async postReception(receptionId: string, storeId: string, profileId: string): Promise<string> {
+        const { data, error } = await supabase.rpc('post_reception', {
+            p_reception_id: receptionId,
             p_store_id: storeId,
-            p_profile_id: profileId,
-            p_document_number: document.documentNumber,
-            p_document_date: document.documentDate,
-            p_supplier_name: document.supplierText || null,
-            p_supplier_cui: document.supplierCui || null,
-            p_observations: document.observations || null,
-            p_items: itemsForRpc,
+            p_profile_id: profileId
         });
 
         if (error) {
-            console.error("RPC receive_stock error:", error);
-            const msg = error.message || "";
-            if (msg.includes("Acces refuzat") || msg.includes("Acces interzis")) {
-                throw new Error("Acces refuzat pentru recepție.");
-            }
-            if (msg.includes("document")) {
-                throw new Error("Documentul recepției este incomplet.");
-            }
-            if (msg.includes("produs") || msg.includes("linie")) {
-                throw new Error("Linia de recepție conține date invalide.");
-            }
-            throw new Error(msg || "Recepția nu a putut fi salvată.");
-        }
-
-        if (!data) {
-            throw new Error("Recepția nu a putut fi salvată.");
+            console.error("RPC post_reception error:", error);
+            throw new Error(error.message || "Eroare la confirmarea recepției.");
         }
 
         return data;
+    },
+
+    /**
+     * Anulează o recepție în starea draft.
+     */
+    async cancelReception(receptionId: string, storeId: string): Promise<void> {
+        const { error } = await supabase
+            .from('receptions')
+            .update({ status: 'cancelled' })
+            .eq('id', receptionId)
+            .eq('store_id', storeId);
+
+        if (error) throw error;
     }
 };

@@ -1,4 +1,3 @@
-
 export interface ReceptionProduct {
     id: string;
     nume: string;
@@ -6,6 +5,10 @@ export interface ReceptionProduct {
     um: string;
     pret_vanzare: number;
     pret_achizitie?: number;
+    // Categorie info from 6CAT.1
+    category_id?: string | null;
+    category_name?: string;
+    parent_category_name?: string;
 }
 
 export interface ReceptionLine {
@@ -27,9 +30,12 @@ export interface ReceptionLine {
 export interface ReceptionDocument {
     documentNumber: string;
     documentDate: string;
+    receptionDate: string;
+    nirNumber?: string | null;
     supplierText?: string;
     supplierCui?: string;
     observations?: string;
+    status: 'draft' | 'posted' | 'cancelled';
 }
 
 export interface CreateReceptionPayload {
@@ -45,11 +51,18 @@ export interface ReceptionDbRow {
     profile_id: string;
     document_number: string;
     document_date: string;
+    reception_date: string;
+    nir_number?: string | null;
     total_value: number;
     supplier_text?: string;
     supplier_cui?: string;
     observations?: string;
+    status: 'draft' | 'posted' | 'cancelled';
     created_at: string;
+    // Profile of who created/confirmed
+    profiles?: {
+        email: string;
+    };
 }
 
 export interface ReceptionItemDbRow {
@@ -64,4 +77,10 @@ export interface ReceptionItemDbRow {
     batch_number?: string;
     expiry_date?: string;
     created_at: string;
+    products?: {
+        name: string;
+        barcode: string;
+        unit: string;
+        category_id?: string | null;
+    };
 }

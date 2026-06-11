@@ -494,6 +494,14 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Toate testele automate static si E2E (`test_catalog_category_management_6cat1.py`, `test_pos_real_category_mapping_6ux32.py`, `test_ui_catalog_forms_settings_6ux4.py`, `test_ui_visual_cleanup_multi_store_6fix1.py`) trec cu succes, iar compilarea build-ului de productie se realizeaza fara erori.
   - Raport oficial de integrare generat la `docs/catalog_category_management_6cat1_report.md`.
 
+- **Etapa 6REC.1 (Redesign Recepție Marfă, Istoric Recepții & Draft Workflow)**: **PASS**
+  - S-a introdus fluxul pe bază de status în tabela `receptions` (`draft`, `posted`, `cancelled`) împreună cu coloane noi (`nir_number`, `reception_date`) și s-au configurat migrările corespunzătoare (`supabase/migrations/proposed_reception_draft_status_6rec1.sql` și script de rollback).
+  - S-a securizat și optimizat procesarea stocurilor printr-o procedură stocată Postgres atomică (`public.post_reception`), rulând tranzacțional cu nivel înalt de izolare (`FOR UPDATE`), actualizând `product_prices`, `stock_batches` și generând automat `stock_movements`.
+  - S-a refactorizat complet zona frontend de recepție, separând-o în modul editare draft (`ReceptionDocumentForm.tsx`, `ReceptionProductPicker.tsx`) cu impact zero asupra stocului în faza de ciornă, jurnal de istoric cu filtrare avansată (`ReceptionHistory.tsx`) și vizualizare detaliată securizată read-only (`ReceptionDetail.tsx`) cu avertisment explicit de blocare.
+  - S-a integrat cu parserul XML/e-Factura existent și s-a adăugat suportul de categorii/subcategorii la crearea produselor noi.
+  - S-au rulat cu succes testele automate static și E2E (`test_reception_workflow_history_6rec1.py`), build-ul de producție trecând fără nicio avertizare.
+  - Raport oficial de integrare generat la `docs/reception_workflow_history_6rec1_report.md`.
+
 ### Următorul pas recomandat:
 - **`Etapa 6DATA.1 — Baza de date curată / Seeding baseline`** (Ștergerea datelor vechi de test și popularea cu setul minim de date curate prin noile interfețe UI complet securizate).
 
