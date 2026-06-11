@@ -145,6 +145,10 @@ def run_test():
         safe_print("\n--- 2. Testare Atribute Vizuale AI Consent Toggles ---")
         context2 = browser.new_context()
         page2 = context2.new_page()
+        
+        # Monitor console logs
+        page2.on("console", lambda msg: safe_print(f"CONSOLE (settings): {msg.text}"))
+        
         page2.goto("http://localhost:5174/#/login")
         page2.wait_for_load_state("networkidle")
         
@@ -153,26 +157,32 @@ def run_test():
         page2.locator("input[type='password']").fill("admin123")
         page2.locator("button[type='submit']").click()
         
-        page2.locator(f"button:has-text('{active_store_name}')").wait_for(state="visible", timeout=15000)
+        page2.locator("#store-context-switcher-btn").wait_for(state="visible", timeout=15000)
         
         # Navigare la Setari Magazin
         page2.goto("http://localhost:5174/#/setari-magazin")
         page2.wait_for_load_state("networkidle")
         
-        # Gasire toggles in DOM
-        toggle_helper = page2.locator("[data-testid='ai-consent-toggle']").first
-        toggle_helper.wait_for(state="attached", timeout=15000)
-        
-        # Gasire buttonul aferent
-        switch_button = page2.locator("button[role='switch']").first
-        switch_button.wait_for(state="visible", timeout=5000)
-        
-        # Verificare clase styling contrast (border-slate-400 sau border-slate-550)
-        class_attr = switch_button.evaluate("el => el.className")
-        safe_print(f"Clasele switch-ului: {class_attr}")
-        assert "border-slate-400" in class_attr or "border-slate-550" in class_attr or "border-indigo" in class_attr, "Toggle should have high contrast borders!"
-        safe_print("[PASS] Toggles au clasa de contrast ceruta pentru border.")
-        context2.close()
+        try:
+            # Gasire toggles in DOM
+            toggle_helper = page2.locator("[data-testid='ai-consent-toggle']").first
+            toggle_helper.wait_for(state="attached", timeout=15000)
+            
+            # Gasire buttonul aferent
+            switch_button = page2.locator("button[role='switch']").first
+            switch_button.wait_for(state="visible", timeout=5000)
+            
+            # Verificare clase styling contrast (border-slate-400 sau border-slate-550)
+            class_attr = switch_button.evaluate("el => el.className")
+            safe_print(f"Clasele switch-ului: {class_attr}")
+            assert "border-slate-400" in class_attr or "border-slate-550" in class_attr or "border-indigo" in class_attr, "Toggle should have high contrast borders!"
+            safe_print("[PASS] Toggles au clasa de contrast ceruta pentru border.")
+        except Exception as e:
+            page2.screenshot(path="failed_ai_consent.png")
+            safe_print(f"Failed setting toggles check. URL: {page2.url}")
+            raise e
+        finally:
+            context2.close()
         
         # ==========================================
         # 3. TEST STORE CONTEXT SWITCHER INTERACTIVE
@@ -187,7 +197,8 @@ def run_test():
         page3.locator("input[type='password']").fill("admin123")
         page3.locator("button[type='submit']").click()
         
-        page3.locator(f"button:has-text('{active_store_name}')").wait_for(state="visible", timeout=15000)
+        page3.locator("#store-context-switcher-btn").wait_for(state="visible", timeout=15000)
+        dynamic_active_store = page3.locator("#store-context-switcher-btn p").first.text_content().strip()
         
         # Click pe switcher
         page3.locator("#store-context-switcher-btn").click()
@@ -195,14 +206,14 @@ def run_test():
         safe_print("[PASS] Dropdown-ul a fost deschis.")
         
         # Verificam ca CUI si Rol sunt afisate pentru un magazin
-        principal_option = page3.locator("button", has=page3.locator(f"text='{active_store_name}'"))
+        principal_option = page3.locator("button:not(#store-context-switcher-btn)", has=page3.locator(f"text='{dynamic_active_store}'"))
         # Rolul este listat
         assert principal_option.locator("text=admin").first.is_visible(), "Rolul nu este vizibil!"
         safe_print("[PASS] Rolul este vizibil in optiunea dropdown.")
         
         # Verificam ca optiunile Suspendat si Arhivat sunt disabled
-        opt_suspended = page3.locator("button", has_text="Magazin Suspendat E2E")
-        opt_archived = page3.locator("button", has_text="Magazin Arhivat E2E")
+        opt_suspended = page3.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Suspendat E2E")
+        opt_archived = page3.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Arhivat E2E")
         
         assert opt_suspended.is_disabled(), "Magazinul suspendat ar trebui sa fie disabled!"
         assert opt_archived.is_disabled(), "Magazinul arhivat ar trebui sa fie disabled!"
@@ -222,7 +233,8 @@ def run_test():
         page4.locator("input[type='password']").fill("admin123")
         page4.locator("button[type='submit']").click()
         
-        page4.locator(f"button:has-text('{active_store_name}')").wait_for(state="visible", timeout=15000)
+        page4.locator("#store-context-switcher-btn").wait_for(state="visible", timeout=15000)
+        dynamic_active_store = page4.locator("#store-context-switcher-btn p").first.text_content().strip()
         
         # Navigare la Transfer Marfă
         page4.locator("a:has-text('Transfer Marfă')").click()
@@ -236,9 +248,9 @@ def run_test():
         # Daca e select element, selectam optiunea
         is_select = source_select.evaluate("el => el.tagName === 'SELECT'")
         if is_select:
-            source_select.select_option(label=active_store_name)
+            source_select.select_option(label=dynamic_active_store)
             
-        dest_select.select_option(label=active_store_name)
+        dest_select.select_option(label=dynamic_active_store)
         
         err_block = page4.locator("[data-testid='transfer-validation-error']")
         err_block.wait_for(state="visible", timeout=5000)

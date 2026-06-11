@@ -190,20 +190,20 @@ def run_test():
             page2.locator("span:has-text('Magazine disponibile')").wait_for(state="visible", timeout=5000)
             
             # Verificam ca magazinul secret NU apare
-            secret_opt_count = page2.locator("button", has_text="Magazin Secret Owner E2E").count()
+            secret_opt_count = page2.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Secret Owner E2E").count()
             assert secret_opt_count == 0, "admin@admin.com nu ar trebui sa vada Magazin Secret Owner E2E!"
             safe_print("[PASS] Magazinul secret nu apare in dropdown pentru admin.")
             
             # Verificam ca magazinele active sunt listate si active
-            opt_test = page2.locator("button", has_text="Magazin Test E2E")
+            opt_test = page2.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Test E2E")
             assert not opt_test.is_disabled(), "Magazin Test E2E ar trebui sa fie activ/enabled!"
             
             # Verificam ca sectiunea 'Magazine Inactive / Arhivate' exista si ca magazinele suspendate/arhivate sunt disabled
             inactive_header = page2.locator("div:has-text('Magazine Inactive / Arhivate')").last
             assert inactive_header.is_visible(), "Sectiunea 'Magazine Inactive / Arhivate' lipseste!"
             
-            opt_suspended = page2.locator("button", has_text="Magazin Suspendat E2E")
-            opt_archived = page2.locator("button", has_text="Magazin Arhivat E2E")
+            opt_suspended = page2.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Suspendat E2E")
+            opt_archived = page2.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Arhivat E2E")
             assert opt_suspended.is_disabled(), "Magazinul suspendat ar trebui sa fie disabled!"
             assert opt_archived.is_disabled(), "Magazinul arhivat ar trebui sa fie disabled!"
             safe_print("[PASS] Magazinele inactive si arhivate apar ca disabled in sectiunea dedicata.")
@@ -214,7 +214,7 @@ def run_test():
             safe_print(f"Current store is '{current_store_text}', switching to '{target_store_name}'...")
             
             # Click the target store option
-            opt_target = page2.locator("button", has_text=target_store_name)
+            opt_target = page2.locator("button:not(#store-context-switcher-btn)", has_text=target_store_name)
             
             # Setup dialog handler BEFORE clicking
             page2.on("dialog", lambda dialog: dialog.accept())
