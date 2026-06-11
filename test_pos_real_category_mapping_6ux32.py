@@ -144,7 +144,25 @@ def run_e2e_tests(role_to_test):
         # Intercept Supabase REST APIs via Playwright routing
         def handle_supabase_requests(route):
             url = route.request.url
-            if "/rpc/get_active_pos_shift" in url:
+            if "/rpc/get_store_settings" in url:
+                route.fulfill(
+                    status=200,
+                    content_type="application/json",
+                    body="""{
+                        "store_id": "store-123",
+                        "store_name": "Magazin Principal",
+                        "fiscal_code": "RO12345678",
+                        "active": true,
+                        "settings": {
+                            "tax": {
+                                "default_vat_group": "A",
+                                "vat_payer": true,
+                                "price_tax_policy": "inclusive"
+                            }
+                        }
+                    }"""
+                )
+            elif "/rpc/get_active_pos_shift" in url:
                 route.fulfill(
                     status=200,
                     content_type="application/json",

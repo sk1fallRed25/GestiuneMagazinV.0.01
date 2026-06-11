@@ -35,6 +35,8 @@ export interface Product {
   vatPercent?: number;
   sgrEnabled?: boolean;
   sgrType?: SgrType | null;
+  /** ID categorie din tabelul categories (poate fi root sau subcategorie) */
+  category_id?: string | null;
 }
 
 /**
@@ -101,6 +103,8 @@ export interface ProductUpdateInput {
   vatPercent?: number;
   sgrEnabled?: boolean;
   sgrType?: SgrType | null;
+  /** Update category_id (subcategoryId ?? categoryId ?? null) */
+  category_id?: string | null;
 }
 
 

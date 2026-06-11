@@ -11,7 +11,7 @@ import {
 
 import { normalizeSgrType, SgrType } from '../utils/sgr';
 
-type ProductCoreUpdate = Partial<Pick<ProductDbRow, 'name' | 'barcode' | 'unit' | 'status'>> & {
+type ProductCoreUpdate = Partial<Pick<ProductDbRow, 'name' | 'barcode' | 'unit' | 'status' | 'category_id'>> & {
     sgr_enabled?: boolean;
     sgr_type?: SgrType | null;
 };
@@ -218,7 +218,8 @@ export const productService = {
                 vatGroup: (price?.vat_group as VatGroupKey) || 'A',
                 vatPercent: price?.vat_percent !== undefined ? Number(price.vat_percent) : 21,
                 sgrEnabled: !!p.sgr_enabled,
-                sgrType: normalizeSgrType(p.sgr_type)
+                sgrType: normalizeSgrType(p.sgr_type),
+                category_id: p.category_id ?? null
             };
         });
     },
@@ -252,6 +253,16 @@ export const productService = {
                 .eq('id', productId)
                 .eq('store_id', storeId);
             if (pError) throw pError;
+        }
+
+        // 1b. Update category_id if provided
+        if (input.category_id !== undefined) {
+            const { error: catError } = await supabase
+                .from('products')
+                .update({ category_id: input.category_id })
+                .eq('id', productId)
+                .eq('store_id', storeId);
+            if (catError) throw catError;
         }
 
         // 2. Update/Upsert Preț cu protecție contra suprascrierii
@@ -400,6 +411,21 @@ export const productService = {
             .from('products')
             .update({ status: 'deleted' })
             .eq('id', productId);
+
+        if (error) throw error;
+    },
+
+    /**
+     * Actualizează category_id pentru mai multe produse simultan (bulk move).
+     */
+    async bulkUpdateCategory(storeId: string, productIds: string[], categoryId: string | null): Promise<void> {
+        if (!storeId || productIds.length === 0) return;
+
+        const { error } = await supabase
+            .from('products')
+            .update({ category_id: categoryId })
+            .eq('store_id', storeId)
+            .in('id', productIds);
 
         if (error) throw error;
     }

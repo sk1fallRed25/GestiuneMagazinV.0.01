@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Database, RefreshCw, AlertCircle, Sparkles, X, ArrowLeft } from 'lucide-react';
+import { Database, RefreshCw, AlertCircle, Sparkles, X, ArrowLeft, FolderOpen, ArrowRightCircle } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useNetworkStatus } from '../../shared/network/useNetworkStatus';
 import { useAuth } from '../auth/useAuth';
@@ -8,8 +8,9 @@ import { Product } from './types';
 import ProductSearchBar from './components/ProductSearchBar';
 import ProductTable from './components/ProductTable';
 import ProductEditModal from './components/ProductEditModal';
+import CategoryManagerModal from './components/CategoryManagerModal';
+import BulkMoveCategoryModal from './components/BulkMoveCategoryModal';
 import { PageHeader } from '../../shared/components/ui';
-
 
 const ProductsPage = () => {
     const { role } = useAuth();
@@ -32,9 +33,17 @@ const ProductsPage = () => {
         updateProduct,
         deleteProduct,
         currentStoreId,
-        vatConfig
+        vatConfig,
+        // Categories addition
+        categoriesTree,
+        categoryFilter,
+        setCategoryFilter,
+        subcategoryFilter,
+        setSubcategoryFilter,
+        reloadCategories,
+        products,
+        refreshProducts
     } = useProducts();
-
 
     const handleClearFilter = () => {
         navigate('/produse', { replace: true, state: {} });
@@ -66,8 +75,12 @@ const ProductsPage = () => {
         return undefined;
     }, [activeAiFilter]);
 
+    // Modals & Selection state
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+    const [isBulkMoveOpen, setIsBulkMoveOpen] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
     const handleEdit = (product: Product) => {
         setEditingProduct(product);
@@ -77,6 +90,49 @@ const ProductsPage = () => {
     const handleDelete = async (id: string) => {
         await deleteProduct(id);
     };
+
+    // Selection handlers
+    const handleToggleSelect = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const handleToggleSelectAll = () => {
+        setSelectedIds(prev => {
+            const allSelected = finalFilteredProducts.length > 0 && finalFilteredProducts.every(p => prev.has(p.id));
+            if (allSelected) {
+                return new Set();
+            } else {
+                return new Set(finalFilteredProducts.map(p => p.id));
+            }
+        });
+    };
+
+    const handleBulkMoveSuccess = () => {
+        setSelectedIds(new Set());
+        refreshProducts();
+        reloadCategories();
+    };
+
+    const handleCloseCategoryManager = () => {
+        setIsCategoryManagerOpen(false);
+        reloadCategories();
+        refreshProducts();
+    };
+
+    // Get selected product names for the bulk move summary
+    const selectedProductNames = useMemo(() => {
+        return products
+            .filter(p => selectedIds.has(p.id))
+            .map(p => p.nume);
+    }, [products, selectedIds]);
 
     if (loading) return (
         <div className="flex h-screen items-center justify-center text-gray-500 font-medium">
@@ -114,11 +170,21 @@ const ProductsPage = () => {
                     description={`Sincronizare în timp real (Schema v2). Rol: ${userRole || 'Nedefinit'}`}
                     icon={<Database size={24} />}
                     actions={
-                        !isOnline ? (
-                            <span data-testid="products-offline-badge" className="px-3 py-1 bg-amber-500 text-white rounded-full text-xs font-black uppercase tracking-wider animate-pulse">
-                                Date posibil neactualizate
-                            </span>
-                        ) : undefined
+                        <div className="flex items-center gap-3">
+                            <button
+                                data-testid="catalog-category-manager-button"
+                                onClick={() => setIsCategoryManagerOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+                            >
+                                <FolderOpen size={14} />
+                                Gestionează Categorii
+                            </button>
+                            {!isOnline && (
+                                <span data-testid="products-offline-badge" className="px-3 py-1 bg-amber-500 text-white rounded-full text-xs font-black uppercase tracking-wider animate-pulse">
+                                    Date posibil neactualizate
+                                </span>
+                            )}
+                        </div>
                     }
                 />
             </div>
@@ -160,7 +226,7 @@ const ProductsPage = () => {
                                     activeAiFilter === 'no_stock' 
                                         ? 'text-red-950' 
                                         : activeAiFilter === 'low_stock'
-                                        ? 'text-orange-950'
+                                        ? 'text-orange-955'
                                         : 'text-indigo-955'
                                 }`}>
                                     {activeAiFilter === 'low_stock' && (
@@ -209,8 +275,54 @@ const ProductsPage = () => {
                 </div>
             )}
 
-            {/* Bara de Căutare */}
-            <ProductSearchBar value={searchTerm} onChange={setSearchTerm} />
+            {/* Bara de Căutare și Filtre Categorie */}
+            <ProductSearchBar 
+                value={searchTerm} 
+                onChange={setSearchTerm} 
+                categories={categoriesTree}
+                selectedCategoryId={categoryFilter}
+                onCategoryChange={setCategoryFilter}
+                selectedSubcategoryId={subcategoryFilter}
+                onSubcategoryChange={setSubcategoryFilter}
+            />
+
+            {/* Bulk Action Bar */}
+            {selectedIds.size > 0 && (
+                <div 
+                    data-testid="products-bulk-actions-bar"
+                    className="mb-6 p-4 bg-indigo-50 border border-indigo-200 rounded-3xl flex flex-col sm:flex-row justify-between items-center gap-4 animate-in fade-in duration-200"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+                            <FolderOpen size={20} />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-black text-indigo-950">
+                                {selectedIds.size} {selectedIds.size === 1 ? 'produs selectat' : 'produse selectate'}
+                            </h4>
+                            <p className="text-xs text-slate-500 font-semibold">
+                                Alege o acțiune colectivă pentru produsele selectate.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            data-testid="bulk-move-products-category-trigger"
+                            onClick={() => setIsBulkMoveOpen(true)}
+                            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2"
+                        >
+                            <ArrowRightCircle size={14} />
+                            Mută în categorie
+                        </button>
+                        <button
+                            onClick={() => setSelectedIds(new Set())}
+                            className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl border border-slate-200 transition-all"
+                        >
+                            Anulează selecția
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Tabel Central */}
             <ProductTable 
@@ -220,6 +332,10 @@ const ProductsPage = () => {
                 userRole={userRole}
                 vatConfig={vatConfig}
                 emptyStateDescription={emptyStateMessage}
+                categoriesTree={categoriesTree}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                onToggleSelectAll={handleToggleSelectAll}
             />
 
             {/* Modal Editare */}
@@ -230,6 +346,24 @@ const ProductsPage = () => {
                 onSubmit={updateProduct}
                 vatConfig={vatConfig}
                 storeId={currentStoreId}
+            />
+
+            {/* Category Manager Modal */}
+            <CategoryManagerModal
+                open={isCategoryManagerOpen}
+                onClose={handleCloseCategoryManager}
+                storeId={currentStoreId}
+                products={products}
+            />
+
+            {/* Bulk Move Modal */}
+            <BulkMoveCategoryModal
+                open={isBulkMoveOpen}
+                onClose={() => setIsBulkMoveOpen(false)}
+                storeId={currentStoreId}
+                selectedProductIds={Array.from(selectedIds)}
+                selectedProductNames={selectedProductNames}
+                onSuccess={handleBulkMoveSuccess}
             />
         </div>
     );

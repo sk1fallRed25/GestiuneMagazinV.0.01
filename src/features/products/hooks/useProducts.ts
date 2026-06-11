@@ -3,6 +3,9 @@ import { toast } from 'react-hot-toast';
 import { Product, ProductUpdateInput, ProductVatConfig } from '../types';
 import { productService } from '../services/productService';
 import { useAuth } from '../../auth/useAuth';
+import { categoryService } from '../../catalog/categoryService';
+import { CategoryWithSubs } from '../../catalog/types';
+import { FILTER_UNCATEGORIZED, FILTER_NO_SUBCATEGORY } from '../components/ProductSearchBar';
 
 export const useProducts = () => {
     const { currentStoreId, user, role } = useAuth();
@@ -11,6 +14,12 @@ export const useProducts = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [vatConfig, setVatConfig] = useState<ProductVatConfig | null>(null);
     const [vatLoading, setVatLoading] = useState(false);
+
+    // Category filter state
+    const [categoriesTree, setCategoriesTree] = useState<CategoryWithSubs[]>([]);
+    const [categoriesLoading, setCategoriesLoading] = useState(false);
+    const [categoryFilter, setCategoryFilter] = useState('');
+    const [subcategoryFilter, setSubcategoryFilter] = useState('');
 
     const fetchProducts = useCallback(async () => {
         if (!currentStoreId) {
@@ -46,17 +55,74 @@ export const useProducts = () => {
         }
     }, [currentStoreId]);
 
+    const fetchCategories = useCallback(async () => {
+        if (!currentStoreId) {
+            setCategoriesTree([]);
+            return;
+        }
+        setCategoriesLoading(true);
+        try {
+            const tree = await categoryService.listAllGrouped(currentStoreId);
+            setCategoriesTree(tree);
+        } catch (error) {
+            console.error("Eroare la încărcarea categoriilor:", error);
+        } finally {
+            setCategoriesLoading(false);
+        }
+    }, [currentStoreId]);
+
     useEffect(() => {
         fetchProducts();
         fetchVatConfig();
-    }, [fetchProducts, fetchVatConfig]);
+        fetchCategories();
+    }, [fetchProducts, fetchVatConfig, fetchCategories]);
 
+    /**
+     * Filtrare produse: text + categorie + subcategorie
+     */
     const filteredProducts = useMemo(() => {
-        return products.filter(p =>
-            p.nume.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.cod_bare && p.cod_bare.includes(searchTerm))
-        );
-    }, [products, searchTerm]);
+        let result = products;
+
+        // Text filter
+        if (searchTerm) {
+            const lowerSearch = searchTerm.toLowerCase();
+            result = result.filter(p =>
+                p.nume.toLowerCase().includes(lowerSearch) ||
+                (p.cod_bare && p.cod_bare.includes(searchTerm))
+            );
+        }
+
+        // Category filter
+        if (categoryFilter) {
+            if (categoryFilter === FILTER_UNCATEGORIZED) {
+                // Products without any category
+                result = result.filter(p => !p.category_id);
+            } else {
+                // Products in this category or its subcategories
+                const selectedCat = categoriesTree.find(c => c.id === categoryFilter);
+                if (selectedCat) {
+                    const validIds = new Set<string>();
+                    validIds.add(selectedCat.id);
+                    selectedCat.subcategories.forEach(sub => validIds.add(sub.id));
+
+                    result = result.filter(p => p.category_id && validIds.has(p.category_id));
+                }
+            }
+        }
+
+        // Subcategory filter
+        if (subcategoryFilter && categoryFilter && categoryFilter !== FILTER_UNCATEGORIZED) {
+            if (subcategoryFilter === FILTER_NO_SUBCATEGORY) {
+                // Products directly in the main category (category_id = root category id)
+                result = result.filter(p => p.category_id === categoryFilter);
+            } else {
+                // Products in the specific subcategory
+                result = result.filter(p => p.category_id === subcategoryFilter);
+            }
+        }
+
+        return result;
+    }, [products, searchTerm, categoryFilter, subcategoryFilter, categoriesTree]);
 
     const updateProduct = async (productId: string, input: ProductUpdateInput) => {
         if (!navigator.onLine) {
@@ -64,15 +130,15 @@ export const useProducts = () => {
             return;
         }
         if (!currentStoreId) {
-            toast.error(role === 'platform_owner' 
-                ? "Selectează un magazin pentru a vedea produsele." 
+            toast.error(role === 'platform_owner'
+                ? "Selectează un magazin pentru a vedea produsele."
                 : "Magazinul curent nu este selectat.");
             return;
         }
 
         try {
             const promise = productService.updateProduct(currentStoreId, productId, input, user?.id);
-            
+
             await toast.promise(promise, {
                 loading: 'Se procesează actualizarea...',
                 success: 'Datele produsului au fost modificate.',
@@ -104,7 +170,7 @@ export const useProducts = () => {
 
         try {
             const promise = productService.archiveProduct(currentStoreId, productId);
-            
+
             await toast.promise(promise, {
                 loading: 'Se elimină produsul...',
                 success: 'Produs eliminat cu succes.',
@@ -122,7 +188,7 @@ export const useProducts = () => {
 
     return {
         products,
-        loading: loading || vatLoading,
+        loading: loading || vatLoading || categoriesLoading,
         searchTerm,
         setSearchTerm,
         filteredProducts,
@@ -130,6 +196,13 @@ export const useProducts = () => {
         updateProduct,
         deleteProduct,
         currentStoreId,
-        vatConfig
+        vatConfig,
+        // Category state
+        categoriesTree,
+        categoryFilter,
+        setCategoryFilter,
+        subcategoryFilter,
+        setSubcategoryFilter,
+        reloadCategories: fetchCategories
     };
 };

@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Save } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Save, FolderOpen, Tag } from 'lucide-react';
 import { Product, ProductUpdateInput, ProductVatConfig, VatGroupKey } from '../types';
 import { ProductVatGroupSelector } from './ProductVatGroupSelector';
 import { ProductSgrSelector } from './ProductSgrSelector';
 import { selectionFromSgr, payloadFromSgrSelection, SgrSelection } from '../utils/sgr';
 import { normalizeVatGroupForStore, productService } from '../services/productService';
+import { categoryService } from '../../catalog/categoryService';
+import { CategoryWithSubs } from '../../catalog/types';
 import toast from 'react-hot-toast';
 import { Modal } from '../../../shared/components/ui';
 
@@ -17,6 +19,31 @@ interface ProductEditModalProps {
     storeId?: string | null;
 }
 
+/**
+ * Rezolvă categoria principală și subcategoria dintr-un category_id și arborele de categorii.
+ */
+const resolveCategoryFromTree = (categoryId: string | null | undefined, tree: CategoryWithSubs[]) => {
+    if (!categoryId || tree.length === 0) {
+        return { rootCategoryId: '', subcategoryId: '' };
+    }
+
+    // Check if it's a root category
+    const asRoot = tree.find(c => c.id === categoryId);
+    if (asRoot) {
+        return { rootCategoryId: asRoot.id, subcategoryId: '' };
+    }
+
+    // Check if it's a subcategory
+    for (const root of tree) {
+        const asSub = root.subcategories.find(s => s.id === categoryId);
+        if (asSub) {
+            return { rootCategoryId: root.id, subcategoryId: asSub.id };
+        }
+    }
+
+    return { rootCategoryId: '', subcategoryId: '' };
+};
+
 const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, storeId }: ProductEditModalProps) => {
     const [localState, setLocalState] = useState<{
         nume: string;
@@ -28,6 +55,8 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
         stoc_magazin: string;
         vatGroup: VatGroupKey;
         sgrSelection: SgrSelection;
+        rootCategoryId: string;
+        subcategoryId: string;
     }>({
         nume: '',
         cod_bare: '',
@@ -37,12 +66,37 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
         stoc_depozit: '0',
         stoc_magazin: '0',
         vatGroup: 'A',
-        sgrSelection: 'none'
+        sgrSelection: 'none',
+        rootCategoryId: '',
+        subcategoryId: ''
     });
     const [hasRealBatches, setHasRealBatches] = useState(false);
+    const [categoriesTree, setCategoriesTree] = useState<CategoryWithSubs[]>([]);
+    const [categoriesLoading, setCategoriesLoading] = useState(false);
+
+    // Load categories when modal opens
+    const loadCategories = useCallback(async () => {
+        if (!storeId) return;
+        setCategoriesLoading(true);
+        try {
+            const tree = await categoryService.listAllGrouped(storeId);
+            setCategoriesTree(tree);
+        } catch (err) {
+            console.error('ProductEditModal loadCategories error:', err);
+        } finally {
+            setCategoriesLoading(false);
+        }
+    }, [storeId]);
 
     useEffect(() => {
-        if (product) {
+        if (isOpen && storeId) {
+            loadCategories();
+        }
+    }, [isOpen, storeId, loadCategories]);
+
+    useEffect(() => {
+        if (product && categoriesTree.length >= 0) {
+            const { rootCategoryId, subcategoryId } = resolveCategoryFromTree(product.category_id, categoriesTree);
             setLocalState({
                 nume: product.nume || '',
                 cod_bare: product.cod_bare || '',
@@ -52,7 +106,9 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
                 stoc_depozit: (product.stoc_depozit || 0).toString(),
                 stoc_magazin: (product.stoc_magazin || 0).toString(),
                 vatGroup: normalizeVatGroupForStore(product.vatGroup, vatConfig),
-                sgrSelection: selectionFromSgr(product.sgrEnabled, product.sgrType)
+                sgrSelection: selectionFromSgr(product.sgrEnabled, product.sgrType),
+                rootCategoryId,
+                subcategoryId
             });
             if (storeId) {
                 productService.hasRealBatches(storeId, product.id)
@@ -65,7 +121,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
                 setHasRealBatches(false);
             }
         }
-    }, [product, vatConfig, storeId]);
+    }, [product, vatConfig, storeId, categoriesTree]);
 
     if (!isOpen || !product) return null;
 
@@ -79,6 +135,27 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
         setLocalState(prev => ({ ...prev, vatGroup: val }));
     };
 
+    const handleCategoryChange = (newRootCategoryId: string) => {
+        const newState: Partial<typeof localState> = { rootCategoryId: newRootCategoryId };
+        // Reset subcategory if the old one doesn't belong to the new category
+        if (localState.subcategoryId) {
+            const newCategory = categoriesTree.find(c => c.id === newRootCategoryId);
+            const subExists = newCategory?.subcategories.some(s => s.id === localState.subcategoryId);
+            if (!subExists) {
+                newState.subcategoryId = '';
+            }
+        }
+        setLocalState(prev => ({ ...prev, ...newState }));
+    };
+
+    const handleSubcategoryChange = (newSubcategoryId: string) => {
+        setLocalState(prev => ({ ...prev, subcategoryId: newSubcategoryId }));
+    };
+
+    // Get subcategories for the selected root category
+    const selectedRootCategory = categoriesTree.find(c => c.id === localState.rootCategoryId);
+    const availableSubcategories = selectedRootCategory?.subcategories ?? [];
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -90,7 +167,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
         const initialStocDepozit = product.stoc_depozit || 0;
         const initialStocMagazin = product.stoc_magazin || 0;
 
-        const stockWasChanged = 
+        const stockWasChanged =
             Math.abs(stoc_depozit - initialStocDepozit) > 0.0001 ||
             Math.abs(stoc_magazin - initialStocMagazin) > 0.0001;
 
@@ -105,6 +182,9 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
 
         const sgrPayload = payloadFromSgrSelection(localState.sgrSelection);
 
+        // Compute final category_id: subcategoryId ?? categoryId ?? null
+        const finalCategoryId = localState.subcategoryId || localState.rootCategoryId || null;
+
         const updateData: ProductUpdateInput = {
             nume: localState.nume,
             cod_bare: localState.cod_bare,
@@ -113,7 +193,8 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
             um: localState.um,
             vatGroup: finalVatGroup,
             sgrEnabled: sgrPayload.sgrEnabled,
-            sgrType: sgrPayload.sgrType
+            sgrType: sgrPayload.sgrType,
+            category_id: finalCategoryId
         };
 
         if (stockWasChanged) {
@@ -233,7 +314,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
                                 />
                             </div>
                         </div>
-                        <ProductVatGroupSelector 
+                        <ProductVatGroupSelector
                             value={localState.vatGroup}
                             onChange={handleVatGroupChange}
                             config={vatConfig}
@@ -245,7 +326,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
                         <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider border-b border-indigo-50 pb-1">
                             3. Garanție Retur SGR
                         </h3>
-                        <ProductSgrSelector 
+                        <ProductSgrSelector
                             value={localState.sgrSelection}
                             onChange={(val) => setLocalState(prev => ({ ...prev, sgrSelection: val }))}
                         />
@@ -292,6 +373,72 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
                             {hasRealBatches && (
                                 <p className="text-amber-700 text-[11px] font-bold text-center bg-amber-50 p-2.5 rounded-xl border border-amber-200/50">
                                     ⚠️ Stocul este calculat automat din loturile de recepție și poate fi modificat exclusiv prin modulele de Recepție / Transfer.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Secțiunea 5: Categorie & Subcategorie */}
+                    <div className="space-y-4">
+                        <h3 className="text-xs font-black text-indigo-600 uppercase tracking-wider border-b border-indigo-50 pb-1">
+                            5. Categorie & Subcategorie
+                        </h3>
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                                        <FolderOpen size={12} className="text-indigo-500" />
+                                        Categorie Principală
+                                    </label>
+                                    <select
+                                        data-testid="product-edit-category-select"
+                                        value={localState.rootCategoryId}
+                                        onChange={e => handleCategoryChange(e.target.value)}
+                                        className="w-full border border-slate-300 p-3.5 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all font-bold text-slate-700 bg-white cursor-pointer"
+                                        disabled={categoriesLoading}
+                                    >
+                                        <option value="">Fără categorie</option>
+                                        {categoriesTree.map(cat => (
+                                            <option key={cat.id} value={cat.id}>
+                                                {cat.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                                        <Tag size={12} className="text-purple-500" />
+                                        Subcategorie
+                                    </label>
+                                    <select
+                                        data-testid="product-edit-subcategory-select"
+                                        value={localState.subcategoryId}
+                                        onChange={e => handleSubcategoryChange(e.target.value)}
+                                        className="w-full border border-slate-300 p-3.5 rounded-xl outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-500 transition-all font-bold text-slate-700 bg-white cursor-pointer disabled:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                        disabled={!localState.rootCategoryId || availableSubcategories.length === 0 || categoriesLoading}
+                                    >
+                                        <option data-testid="product-edit-subcategory-empty" value="">
+                                            {!localState.rootCategoryId
+                                                ? 'Selectează o categorie'
+                                                : availableSubcategories.length === 0
+                                                    ? 'Nicio subcategorie disponibilă'
+                                                    : 'Fără subcategorie'
+                                            }
+                                        </option>
+                                        {availableSubcategories.map(sub => (
+                                            <option key={sub.id} value={sub.id}>
+                                                {sub.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                            {localState.rootCategoryId && (
+                                <p data-testid="product-edit-save-category" className="text-[11px] font-semibold text-slate-500 text-center">
+                                    Produsul va fi salvat în: <strong className="text-indigo-600">
+                                        {selectedRootCategory?.name || '—'}
+                                        {localState.subcategoryId && ` / ${availableSubcategories.find(s => s.id === localState.subcategoryId)?.name || ''}`}
+                                    </strong>
                                 </p>
                             )}
                         </div>

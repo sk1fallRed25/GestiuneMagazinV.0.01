@@ -190,5 +190,70 @@ export const categoryService = {
         if (!data) throw new Error('Subcategoria nu a putut fi creată.');
 
         return { id: data.id, name: data.name, parentId: parentId };
+    },
+
+    /**
+     * Redenumește o categorie sau subcategorie.
+     * Validare: fără duplicate (case-insensitive) la același nivel.
+     */
+    async updateCategoryName(storeId: string, categoryId: string, newName: string, parentId: string | null): Promise<void> {
+        if (!storeId || !categoryId) throw new Error('Store ID și Category ID sunt obligatorii.');
+        const trimmed = newName.trim();
+        if (trimmed.length < 2) throw new Error('Numele categoriei trebuie să aibă minim 2 caractere.');
+
+        // Verificăm duplicate la același nivel (case-insensitive)
+        let query = supabase
+            .from('categories')
+            .select('id')
+            .eq('store_id', storeId)
+            .ilike('name', trimmed)
+            .neq('id', categoryId);
+
+        if (parentId === null) {
+            query = query.is('parent_id', null);
+        } else {
+            query = query.eq('parent_id', parentId);
+        }
+
+        const { data: existing } = await query.maybeSingle();
+
+        if (existing) {
+            throw new Error(`O categorie cu numele "${trimmed}" există deja la acest nivel.`);
+        }
+
+        const { error } = await supabase
+            .from('categories')
+            .update({ name: trimmed })
+            .eq('id', categoryId)
+            .eq('store_id', storeId);
+
+        if (error) throw error;
+    },
+
+    /**
+     * Returnează un map categoryId → număr de produse pentru un magazin.
+     */
+    async getProductCountPerCategory(storeId: string): Promise<Record<string, number>> {
+        if (!storeId) return {};
+
+        const { data, error } = await supabase
+            .from('products')
+            .select('category_id')
+            .eq('store_id', storeId)
+            .neq('status', 'deleted');
+
+        if (error) {
+            console.error('categoryService.getProductCountPerCategory error:', error);
+            return {};
+        }
+
+        const counts: Record<string, number> = {};
+        for (const row of (data ?? [])) {
+            const catId = (row as any).category_id;
+            if (catId) {
+                counts[catId] = (counts[catId] || 0) + 1;
+            }
+        }
+        return counts;
     }
 };
