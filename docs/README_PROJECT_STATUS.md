@@ -502,6 +502,13 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au rulat cu succes testele automate static și E2E (`test_reception_workflow_history_6rec1.py`), build-ul de producție trecând fără nicio avertizare.
   - Raport oficial de integrare generat la `docs/reception_workflow_history_6rec1_report.md`.
 
+- **Etapa 6REC.1.2 (Redesign Linie Recepție NIR, Corectare Calculuri & Claritate Factură vs Recepție)**: **PASS**
+  - S-au separat clar zonele de date factură, date recepție (cu constatare diferențe și badge-uri specifice de tip plus/minus la recepție), configurare bax (calcul total unități înlocuind cantitatea recepționată) și lot/expirare.
+  - S-a corectat formula prețului de vânzare propus (calcul cu TVA inclus) și s-au implementat opțiuni clare de selectare a prețului (Păstrează prețul curent / Aplică prețul propus / Introdu preț manual), prevenind aplicarea automată și adăugând un avertisment vizual la diferențe de preț de peste 20%.
+  - S-au creat migrările SQL pentru câmpul `invoice_quantity` în `reception_items` (neaplicate live conform cerințelor).
+  - S-au rulat cu succes build-ul de producție și testele automate static/E2E, inclusiv noul test `test_reception_line_nir_calculation_6rec1_2.py`, fără regresii în testele legacy.
+  - Raport oficial de integrare generat la `docs/reception_line_nir_calculation_6rec1_2_report.md`.
+
 ### Următorul pas recomandat:
 - **`Etapa 6DATA.1 — Baza de date curată / Seeding baseline`** (Ștergerea datelor vechi de test și popularea cu setul minim de date curate prin noile interfețe UI complet securizate).
 

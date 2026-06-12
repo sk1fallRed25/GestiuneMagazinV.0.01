@@ -41,13 +41,21 @@ export const useReception = () => {
 
     // --- Line Input State ---
     const [isBax, setIsBax] = useState(false);
-    const [quantityInput, setQuantityInput] = useState<string>('');
-    const [bucatiPerBax, setBucatiPerBax] = useState<string>('1');
-    const [totalValueInput, setTotalValueInput] = useState<string>('');
-    const [adaos, setAdaos] = useState<number>(30);
+    const [invoiceQuantityInput, setInvoiceQuantityInput] = useState<string>('');
+    const [receivedQuantityInput, setReceivedQuantityInput] = useState<string>('');
+    const [boxCountInput, setBoxCountInput] = useState<string>('');
+    const [unitsPerBoxInput, setUnitsPerBoxInput] = useState<string>('1');
+    const [purchasePriceUnitInput, setPurchasePriceUnitInput] = useState<string>('');
+    const [lineNetValueInput, setLineNetValueInput] = useState<string>('');
     const [vatPercent, setVatPercent] = useState<number>(19);
     const [batchNumber, setBatchNumber] = useState<string>('');
     const [expiryDate, setExpiryDate] = useState<string>('');
+
+    // --- Price settings & safety ---
+    const [adaos, setAdaos] = useState<number>(30);
+    const [priceMode, setPriceMode] = useState<'current' | 'proposed' | 'manual'>('current');
+    const [manualSalePriceInput, setManualSalePriceInput] = useState<string>('');
+    const [lastEditedPriceField, setLastEditedPriceField] = useState<'unitPrice' | 'netValue'>('unitPrice');
 
     // --- Table & XML state ---
     const [lines, setLines] = useState<ReceptionLine[]>([]);
@@ -128,33 +136,116 @@ export const useReception = () => {
     };
 
     // --- Calcule ---
-    const qVal = parseFloat(quantityInput) || 0;
-    const bVal = parseFloat(bucatiPerBax) || 1;
-    const tVal = parseFloat(totalValueInput) || 0;
+    const invoiceQty = parseFloat(invoiceQuantityInput) || 0;
+    const receivedQty = parseFloat(receivedQuantityInput) || 0;
+    const purchasePriceUnit = parseFloat(purchasePriceUnitInput) || 0;
+    const lineNetValue = parseFloat(lineNetValueInput) || 0;
 
-    const quantityTotal = isBax ? qVal * bVal : qVal;
-    const purchasePriceUnit = (tVal > 0 && quantityTotal > 0) ? (tVal / quantityTotal) : 0;
-    const salePriceNew = Number((purchasePriceUnit * (1 + adaos / 100)).toFixed(2));
+    // Live calculations
+    const vatValue = Number((lineNetValue * (vatPercent / 100)).toFixed(2));
+    const lineGrossValue = Number((lineNetValue + vatValue).toFixed(2));
+    const qtyDifference = receivedQty - invoiceQty;
+
+    // Proposed price WITH VAT
+    const salePriceProposed = Number((purchasePriceUnit * (1 + adaos / 100) * (1 + vatPercent / 100)).toFixed(2));
+
+    // Current sale price
+    const currentPrice = selectedProduct?.pret_vanzare || 0;
+
+    // Decided sale price to store
+    let decidedSalePrice = currentPrice;
+    if (priceMode === 'proposed') {
+        decidedSalePrice = salePriceProposed;
+    } else if (priceMode === 'manual') {
+        decidedSalePrice = parseFloat(manualSalePriceInput) || 0;
+    }
+
+    const unitCostCalculationText = invoiceQty > 0 
+        ? `${lineNetValue.toFixed(2)} lei / ${invoiceQty} buc = ${purchasePriceUnit.toFixed(4)} lei/buc fără TVA`
+        : '0.00 lei / 0 buc = 0.0000 lei/buc fără TVA';
+
+    // Handlers for inputs
+    const handleInvoiceQuantityChange = (valStr: string) => {
+        setInvoiceQuantityInput(valStr);
+        const val = parseFloat(valStr) || 0;
+        
+        if (!isBax) {
+            setReceivedQuantityInput(valStr);
+        }
+        
+        if (lastEditedPriceField === 'unitPrice') {
+            const unitPrice = parseFloat(purchasePriceUnitInput) || 0;
+            setLineNetValueInput(unitPrice > 0 && val > 0 ? (val * unitPrice).toFixed(2) : '');
+        } else {
+            const netVal = parseFloat(lineNetValueInput) || 0;
+            setPurchasePriceUnitInput(netVal > 0 && val > 0 ? (netVal / val).toFixed(4) : '');
+        }
+    };
+
+    const handlePurchasePriceUnitChange = (valStr: string) => {
+        setPurchasePriceUnitInput(valStr);
+        setLastEditedPriceField('unitPrice');
+        const val = parseFloat(valStr) || 0;
+        const invQty = parseFloat(invoiceQuantityInput) || 0;
+        setLineNetValueInput(invQty > 0 && val > 0 ? (invQty * val).toFixed(2) : '');
+    };
+
+    const handleLineNetValueChange = (valStr: string) => {
+        setLineNetValueInput(valStr);
+        setLastEditedPriceField('netValue');
+        const val = parseFloat(valStr) || 0;
+        const invQty = parseFloat(invoiceQuantityInput) || 0;
+        setPurchasePriceUnitInput(invQty > 0 && val > 0 ? (val / invQty).toFixed(4) : '');
+    };
+
+    const handleIsBaxChange = (checked: boolean) => {
+        setIsBax(checked);
+        if (checked) {
+            const bc = parseFloat(boxCountInput) || 0;
+            const upb = parseFloat(unitsPerBoxInput) || 1;
+            setReceivedQuantityInput((bc * upb).toString());
+        } else {
+            setReceivedQuantityInput(invoiceQuantityInput);
+        }
+    };
+
+    const handleBoxCountChange = (valStr: string) => {
+        setBoxCountInput(valStr);
+        const bc = parseFloat(valStr) || 0;
+        const upb = parseFloat(unitsPerBoxInput) || 1;
+        setReceivedQuantityInput((bc * upb).toString());
+    };
+
+    const handleUnitsPerBoxChange = (valStr: string) => {
+        setUnitsPerBoxInput(valStr);
+        const upb = parseFloat(valStr) || 1;
+        const bc = parseFloat(boxCountInput) || 0;
+        setReceivedQuantityInput((bc * upb).toString());
+    };
 
     const addLine = () => {
         if (!selectedProduct) return toast.error("Selectează un produs!");
-        if (quantityTotal <= 0) return toast.error("Cantitatea trebuie să fie pozitivă.");
-        if (tVal <= 0) return toast.error("Valoarea totală trebuie să fie pozitivă.");
+        if (invoiceQty <= 0) return toast.error("Cantitatea facturată trebuie să fie pozitivă.");
+        if (receivedQty <= 0) return toast.error("Cantitatea recepționată trebuie să fie pozitivă.");
+        if (lineNetValue <= 0) return toast.error("Valoarea totală fără TVA trebuie să fie pozitivă.");
+        if (decidedSalePrice <= 0) return toast.error("Prețul de vânzare stabilit trebuie să fie pozitiv.");
 
         const newLine: ReceptionLine = {
             tempId: crypto.randomUUID(),
             productId: selectedProduct.id,
             productName: selectedProduct.nume,
             barcode: selectedProduct.cod_bare,
-            quantity: quantityTotal,
+            quantity: receivedQty,
             purchasePrice: purchasePriceUnit,
-            salePrice: salePriceNew,
+            salePrice: decidedSalePrice,
             vatPercent,
             batchNumber: batchNumber || null,
             expiryDate: expiryDate || null,
             isBax,
-            cantitateBaxuri: isBax ? qVal : 0,
-            bucatiPerBax: isBax ? bVal : 1
+            cantitateBaxuri: isBax ? (parseFloat(boxCountInput) || 0) : 0,
+            bucatiPerBax: isBax ? (parseFloat(unitsPerBoxInput) || 1) : 1,
+            invoiceQuantity: invoiceQty,
+            difference: qtyDifference
         };
 
         setLines(prev => [...prev, newLine]);
@@ -162,10 +253,18 @@ export const useReception = () => {
         // Reset inputs
         setSelectedProduct(null);
         setSearch('');
-        setQuantityInput('');
-        setTotalValueInput('');
+        setInvoiceQuantityInput('');
+        setReceivedQuantityInput('');
+        setBoxCountInput('');
+        setUnitsPerBoxInput('1');
+        setPurchasePriceUnitInput('');
+        setLineNetValueInput('');
         setBatchNumber('');
         setExpiryDate('');
+        setAdaos(30);
+        setPriceMode('current');
+        setManualSalePriceInput('');
+        setIsBax(false);
     };
 
     const removeLine = (tempId: string) => {
@@ -307,7 +406,9 @@ export const useReception = () => {
                 salePrice: Number(it.sale_price_new || 0),
                 vatPercent: Number(it.vat_percent || 19),
                 batchNumber: it.batch_number || null,
-                expiryDate: it.expiry_date || null
+                expiryDate: it.expiry_date || null,
+                invoiceQuantity: it.invoice_quantity !== undefined && it.invoice_quantity !== null ? Number(it.invoice_quantity) : Number(it.quantity),
+                difference: Number(it.quantity) - (it.invoice_quantity !== undefined && it.invoice_quantity !== null ? Number(it.invoice_quantity) : Number(it.quantity))
             }));
 
             setLines(mappedLines);
@@ -388,7 +489,9 @@ export const useReception = () => {
                             salePrice: Number((uPrice * 1.3).toFixed(2)),
                             vatPercent: 19,
                             batchNumber: invoiceID || null,
-                            expiryDate: null
+                            expiryDate: null,
+                            invoiceQuantity: qty,
+                            difference: 0
                         });
                     } else {
                         unknownProducts++;
@@ -418,11 +521,16 @@ export const useReception = () => {
         search, setSearch: handleSetSearch,
         filteredProducts,
         selectedProduct, selectProduct,
-        isBax, setIsBax,
-        quantityInput, setQuantityInput,
-        bucatiPerBax, setBucatiPerBax,
-        totalValueInput, setTotalValueInput,
+        isBax, setIsBax: handleIsBaxChange,
+        invoiceQuantityInput, setInvoiceQuantityInput: handleInvoiceQuantityChange,
+        receivedQuantityInput, setReceivedQuantityInput,
+        boxCountInput, setBoxCountInput: handleBoxCountChange,
+        unitsPerBoxInput, setUnitsPerBoxInput: handleUnitsPerBoxChange,
+        purchasePriceUnitInput, setPurchasePriceUnitInput: handlePurchasePriceUnitChange,
+        lineNetValueInput, setLineNetValueInput: handleLineNetValueChange,
         adaos, setAdaos,
+        priceMode, setPriceMode,
+        manualSalePriceInput, setManualSalePriceInput,
         vatPercent, setVatPercent,
         batchNumber, setBatchNumber,
         expiryDate, setExpiryDate,
@@ -441,9 +549,17 @@ export const useReception = () => {
         xmlStatus, parseXMLInvoice,
         loadingProducts,
         calculations: {
-            quantityTotal,
+            invoiceQty,
+            receivedQty,
+            qtyDifference,
             purchasePriceUnit,
-            salePriceNew
+            lineNetValue,
+            vatValue,
+            lineGrossValue,
+            salePriceProposed,
+            currentPrice,
+            decidedSalePrice,
+            unitCostCalculationText
         },
         addLine
     };

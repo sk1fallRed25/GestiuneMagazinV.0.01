@@ -26,6 +26,8 @@ export interface ReceptionLine {
     isBax?: boolean;
     cantitateBaxuri?: number;
     bucatiPerBax?: number;
+    invoiceQuantity?: number;
+    difference?: number;
 }
 
 export interface ReceptionDocument {

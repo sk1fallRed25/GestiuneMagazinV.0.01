@@ -20,10 +20,15 @@ export const ReceptionPage = () => {
         filteredProducts,
         selectedProduct, selectProduct,
         isBax, setIsBax,
-        quantityInput, setQuantityInput,
-        bucatiPerBax, setBucatiPerBax,
-        totalValueInput, setTotalValueInput,
+        invoiceQuantityInput, setInvoiceQuantityInput,
+        receivedQuantityInput, setReceivedQuantityInput,
+        boxCountInput, setBoxCountInput,
+        unitsPerBoxInput, setUnitsPerBoxInput,
+        purchasePriceUnitInput, setPurchasePriceUnitInput,
+        lineNetValueInput, setLineNetValueInput,
         adaos, setAdaos,
+        priceMode, setPriceMode,
+        manualSalePriceInput, setManualSalePriceInput,
         vatPercent, setVatPercent,
         batchNumber, setBatchNumber,
         expiryDate, setExpiryDate,
@@ -119,20 +124,32 @@ export const ReceptionPage = () => {
                                     selectedProduct={selectedProduct}
                                     isBax={isBax}
                                     setIsBax={setIsBax}
-                                    quantity={quantityInput}
-                                    setQuantity={setQuantityInput}
-                                    bucatiPerBax={bucatiPerBax}
-                                    setBucatiPerBax={setBucatiPerBax}
-                                    totalValue={totalValueInput}
-                                    setTotalValue={setTotalValueInput}
-                                    adaos={adaos}
-                                    setAdaos={setAdaos}
-                                    onAddLine={addLine}
-                                    calculations={calculations}
+                                    invoiceQuantityInput={invoiceQuantityInput}
+                                    setInvoiceQuantityInput={setInvoiceQuantityInput}
+                                    purchasePriceUnitInput={purchasePriceUnitInput}
+                                    setPurchasePriceUnitInput={setPurchasePriceUnitInput}
+                                    lineNetValueInput={lineNetValueInput}
+                                    setLineNetValueInput={setLineNetValueInput}
+                                    vatPercent={vatPercent}
+                                    setVatPercent={setVatPercent}
+                                    receivedQuantityInput={receivedQuantityInput}
+                                    setReceivedQuantityInput={setReceivedQuantityInput}
+                                    boxCountInput={boxCountInput}
+                                    setBoxCountInput={setBoxCountInput}
+                                    unitsPerBoxInput={unitsPerBoxInput}
+                                    setUnitsPerBoxInput={setUnitsPerBoxInput}
                                     batchNumber={batchNumber}
                                     setBatchNumber={setBatchNumber}
                                     expiryDate={expiryDate}
                                     setExpiryDate={setExpiryDate}
+                                    adaos={adaos}
+                                    setAdaos={setAdaos}
+                                    priceMode={priceMode}
+                                    setPriceMode={setPriceMode}
+                                    manualSalePriceInput={manualSalePriceInput}
+                                    setManualSalePriceInput={setManualSalePriceInput}
+                                    onAddLine={addLine}
+                                    calculations={calculations}
                                 />
                             </div>
                         </div>

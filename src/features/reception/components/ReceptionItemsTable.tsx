@@ -49,11 +49,23 @@ export const ReceptionItemsTable = ({ lines, onRemove }: ReceptionItemsTableProp
                                     </div>
                                 </td>
                                 <td className="p-4 text-center">
-                                    <div className="inline-flex flex-col items-center">
-                                        <span className="font-bold text-slate-700">{l.quantity}</span>
+                                    <div className="inline-flex flex-col items-center gap-1">
+                                        <div className="text-xs font-semibold text-slate-500">
+                                            Facturat: <span className="font-bold text-slate-700">{l.invoiceQuantity ?? l.quantity}</span>
+                                        </div>
+                                        <div className="text-xs font-semibold text-slate-500">
+                                            Recepționat: <span className="font-bold text-slate-800">{l.quantity}</span>
+                                        </div>
                                         {l.isBax && (
                                             <span className="text-[9px] font-black text-indigo-400 uppercase">
-                                                {l.cantitateBaxuri} x {l.bucatiPerBax}
+                                                {l.cantitateBaxuri} x {l.bucatiPerBax} buc
+                                            </span>
+                                        )}
+                                        {l.difference !== undefined && l.difference !== 0 && (
+                                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase ${
+                                                l.difference < 0 ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-blue-50 text-blue-700 border border-blue-100'
+                                            }`}>
+                                                {l.difference < 0 ? `Minus: ${l.difference}` : `Plus: +${l.difference}`}
                                             </span>
                                         )}
                                     </div>
