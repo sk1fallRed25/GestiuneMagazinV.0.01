@@ -141,14 +141,14 @@ def run_e2e_tests():
             import socket
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(0.5)
-            s.connect(("localhost", int(p)))
+            s.connect(("127.0.0.1", int(p)))
             s.close()
             port = p
             break
         except Exception:
             pass
 
-    app_url = f"http://localhost:{port}"
+    app_url = f"http://127.0.0.1:{port}"
     safe_print(f"Connecting to app at {app_url}")
 
     # Generate unique names to prevent collision in database

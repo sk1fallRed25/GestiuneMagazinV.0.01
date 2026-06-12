@@ -115,6 +115,13 @@ export const useReception = () => {
         ).slice(0, 10);
     }, [availableProducts, search]);
 
+    const handleSetSearch = (val: string) => {
+        setSearch(val);
+        if (selectedProduct && val !== selectedProduct.nume) {
+            setSelectedProduct(null);
+        }
+    };
+
     const selectProduct = (p: ReceptionProduct) => {
         setSelectedProduct(p);
         setSearch(p.nume);
@@ -408,7 +415,7 @@ export const useReception = () => {
         view, setView,
         activeDraftId,
         document, setDocument,
-        search, setSearch,
+        search, setSearch: handleSetSearch,
         filteredProducts,
         selectedProduct, selectProduct,
         isBax, setIsBax,

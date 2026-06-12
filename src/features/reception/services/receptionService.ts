@@ -31,8 +31,16 @@ export const receptionService = {
 
         if (prError) throw prError;
 
+        const { data: stock, error: sError } = await supabase
+            .from('stock_batches')
+            .select('product_id, quantity')
+            .eq('store_id', storeId);
+
         return products.map(p => {
             const price = prices?.find(pr => pr.product_id === p.id);
+            const productStock = stock
+                ? stock.filter(s => s.product_id === p.id).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+                : 0;
             // Look up category names
             const catObj = p.category as any;
             const categoryName = catObj?.name || undefined;
@@ -45,7 +53,8 @@ export const receptionService = {
                 pret_vanzare: Number(price?.price_sale) || 0,
                 pret_achizitie: Number(price?.price_purchase) || 0,
                 category_id: p.category_id,
-                category_name: categoryName
+                category_name: categoryName,
+                stoc: productStock
             };
         });
     },

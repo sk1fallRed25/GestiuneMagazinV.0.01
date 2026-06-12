@@ -5,6 +5,7 @@ export interface ReceptionProduct {
     um: string;
     pret_vanzare: number;
     pret_achizitie?: number;
+    stoc?: number;
     // Categorie info from 6CAT.1
     category_id?: string | null;
     category_name?: string;
