@@ -48,11 +48,23 @@ export const aiConsentService = {
       throw new Error('ID-ul magazinului este obligatoriu.');
     }
 
-    const { data, error } = await supabase.rpc('get_store_ai_consent', {
+    let { data, error } = await supabase.rpc('get_store_ai_consent', {
       p_store_id: storeId,
     });
 
     if (error) {
+      // Handle potential race condition: concurrent insertion in get_store_ai_consent RPC
+      if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('already exists')) {
+        console.warn('[aiConsentService] Concurrent insert caught in RPC, retrying getStoreAiConsent...');
+        const retry = await supabase.rpc('get_store_ai_consent', {
+          p_store_id: storeId,
+        });
+        if (!retry.error) {
+          return parseStoreAiConsent(retry.data);
+        }
+        error = retry.error;
+      }
+
       console.error('[aiConsentService] getStoreAiConsent error:', error);
       if (error.message?.includes('permisiuni') || error.message?.includes('neautorizat') || error.message?.includes('membru')) {
         throw new Error('Nu ai permisiunea necesară pentru a vizualiza setările de consimțământ AI.');

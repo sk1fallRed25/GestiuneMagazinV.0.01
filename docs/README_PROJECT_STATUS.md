@@ -556,5 +556,12 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a verificat prin interogări SQL read-only starea bazei de date (total stores = 2, total profiles = 4, total products = 568, total product_prices = 568, total categories = 6, total sales = 123, total payments = 143, total waste_events = 8, total pos_devices = 1, test products = 0, test categories = 0, test stores = 0, test sales = 0, POS-TEST-E2E = 0).
   - Raport oficial de QA manual generat la `docs/final_manual_qa_clean_db_6qa1_report.md`.
 
+- **Etapa 6REL.1.1 (Rebuild .exe curat după cleanup DB și QA final)**: **PASS**
+  - S-a efectuat curățarea locală a directoarelor de build (`release/`, `dist/`, `win-unpacked/`) și s-a rulat build-ul web production (`npm run build`, `3.03s`, 2600 module transformate).
+  - S-a executat cu succes build-ul Electron desktop (`npm run electron:build`), rezultând installer-ul NSIS (`Sistem Gestiune Magazin Setup 1.0.0.exe`, ~106.5 MB), executabilul portabil (`Sistem Gestiune Magazin 1.0.0.exe`, ~106.3 MB), blockmap-ul și fișierul `latest.yml`.
+  - S-a rulat manual și automat smoke test-ul desktop pe executabilul neîmpachetat în Electron (conectare CDP pe portul `9222`), validându-se pornirea fără ecran alb, logarea cu succes pentru toate cele 3 roluri (Platform Owner, Admin, Casier), corectitudinea datelor reale afișate, izolarea magazinelor de test, funcționarea locală SQLite/better-sqlite3 și raportarea corectă a runtime-ului de desktop (`Electron Desktop`, `Desktop Maximizat`, versiune `1.0.0`).
+  - S-au rulat toate cele 8 teste automate E2E Playwright post-build cu **100% succes** (inclusiv stabilizarea client-side din `aiConsentService.ts` pe erori runtime de duplicate-key). S-a confirmat prin interogări SQL read-only că baza de date a rămas baseline curată de orice date reziduale post-teste.
+  - Raport oficial de rebuild desktop generat la `docs/desktop_rebuild_clean_db_6rel11_report.md`. Niciun executabil nu a fost comis în Git.
+
 ### Următorul pas recomandat:
-- **6REL.1.1 — Rebuild `.exe` după DB cleanup complet & QA finalizat**: Recompilarea și construirea pachetului executabil Electron final, beneficiind de baza de date complet curățată și verificată prin QA manual și automat.
+- **6REL.2.1 — Real Desktop QA pe stație de lucru**: Testarea finală a installer-ului NSIS generat direct pe o stație fizică de POS locală pentru confirmarea setărilor de printer, FiscalNet și offline sync.
