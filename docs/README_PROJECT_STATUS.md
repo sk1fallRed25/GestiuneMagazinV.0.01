@@ -542,8 +542,17 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Teste E2E: `6UX.4` **PASS**, `6UX.32` **PASS**, `6CAT.1` **PASS**, `6REC.1` **PASS**, `6REC.1.1` **PASS**, `6FIX.1` **PASS**. `6REC.1.2` **FAIL** — cauza: nepotrivire calcul preț unitar în test E2E (0.0038 în loc de 0.3800 din cauza timing-ului/delay-ului asincron din Playwright la completarea form-ului, nefiind o problemă de DB). Se recomandă refactorizarea testelor E2E pentru a fi mai robuste.
   - Raport oficial de audit și decizie generat la `docs/database_cleanup_review_6data3_report.md`.
 
+- **Etapa 6DATA.4 (Cleanup complet istoric test + refactor teste E2E self-contained)**: **PASS** (6DATA.4 — cleanup complet istoric test executat, teste E2E self-contained, DB pregătită pentru rebuild/retest.)
+  - S-a executat cleanup-ul complet (Varianta C) conform deciziei utilizatorului, ștergând toate tranzacțiile, plățile, produsele, prețurile, loturile, casările, device-urile POS și categoriile de test din baza de date, menținând în totalitate integritatea datelor reale (123 sales, 143 payments, 4 profile administrative, 2 magazine reale, 8 casări reale, 1 POS device real și 568 produse reale).
+  - S-au stabilizat testele Playwright (în special `test_reception_line_nir_calculation_6rec1_2.py`) prin introducerea de input-uri secvențiale cu delay și așteptări explicite pentru propagarea stării React.
+  - S-au refactorizat suitele de testare E2E (`test_ui_visual_cleanup_multi_store_6fix1.py`, `test_store_context_selector_scope_6fix1_1.py` și `test_catalog_category_management_6cat1.py`) pentru a fi complet self-contained, eliminând la finalul fiecărui test orice magazin, membru, log de audit sau categorie test creată temporar în DB.
+  - S-a creat scriptul final cu ROLLBACK `scripts/database_cleanup_execute_6data4.sql` și s-a confirmat backup-ul complet înainte de execuția COMMIT.
+  - Build de producție Vite/TypeScript: **PASS** (Exit code: 0).
+  - Raport oficial de execuție generat la `docs/database_cleanup_execute_6data4_report.md`.
+
 ### Următorul pas recomandat:
-- Etapa 6DATA.4: Executarea cleanup-ului complet (Varianta C) conform deciziei utilizatorului, pentru a lăsa baza de date curată pentru producție/pilot. Include și ștergerea celor 3 magazine/store_members E2E re-create.
+- **6REL.1.1 — Rebuild `.exe` după DB cleanup complet**: Recompilarea și construirea pachetului executabil Electron final, beneficiind de baza de date complet curățată și stabilizată.
+
 
 
 

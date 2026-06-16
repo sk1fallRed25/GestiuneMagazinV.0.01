@@ -134,16 +134,34 @@ def run_e2e_tests():
             line_net_val = page.locator('[data-testid="reception-line-net-value"]')
             vat_pct_select = page.locator('[data-testid="reception-vat-percent"]')
             
-            invoice_qty.fill("12")
-            received_qty.fill("12")
-            line_net_val.fill("4.56")
+            # Stable input for invoice_qty
+            invoice_qty.click()
+            page.keyboard.press("Control+A")
+            page.keyboard.press("Backspace")
+            invoice_qty.press_sequentially("12", delay=100)
+            page.wait_for_function('document.querySelector(\'[data-testid="reception-invoice-quantity"]\').value === "12"')
+            
+            # Stable input for received_qty
+            received_qty.click()
+            page.keyboard.press("Control+A")
+            page.keyboard.press("Backspace")
+            received_qty.press_sequentially("12", delay=100)
+            page.wait_for_function('document.querySelector(\'[data-testid="reception-received-quantity"]\').value === "12"')
+            
+            # Stable input for line_net_val
+            line_net_val.click()
+            page.keyboard.press("Control+A")
+            page.keyboard.press("Backspace")
+            line_net_val.press_sequentially("4.56", delay=100)
+            page.wait_for_function('document.querySelector(\'[data-testid="reception-line-net-value"]\').value === "4.56"')
             
             # Select 19% VAT
             vat_pct_select.select_option("19")
-            page.wait_for_timeout(300)
-
-            # Check purchase price unit calculation: 4.56 / 12 = 0.38
+            
+            # Wait for unit purchase price to update to 0.3800 (React state sync)
             unit_price_input = page.locator('[data-testid="reception-unit-purchase-price"]')
+            page.wait_for_function('Math.abs(parseFloat(document.querySelector(\'[data-testid="reception-unit-purchase-price"]\').value) - 0.3800) < 0.001', timeout=5000)
+            
             unit_price_val = unit_price_input.input_value()
             assert abs(float(unit_price_val) - 0.3800) < 0.001, f"Expected unit cost 0.3800, got {unit_price_val}"
             safe_print(f"[PASS] Unit cost calculated correctly: {unit_price_val}")

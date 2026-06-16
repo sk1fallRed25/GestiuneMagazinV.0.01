@@ -315,12 +315,45 @@ def run_e2e_tests():
             except Exception:
                 pass
             page.screenshot(path="screenshot_e2e_6cat1_error.png")
+            raise e
+        finally:
+            safe_print("\nStep 11: Cleaning up created test categories...")
+            try:
+                page.evaluate("""async () => {
+                    const supabase = window.supabase;
+                    const { data: cats } = await supabase
+                        .from('categories')
+                        .select('id')
+                        .or('name.ilike.%6CAT1%,name.ilike.%test%');
+                    
+                    if (cats && cats.length > 0) {
+                        const catIds = cats.map(c => c.id);
+                        // Decouple any products referencing these categories
+                        await supabase
+                            .from('products')
+                            .update({ category_id: null })
+                            .in('category_id', catIds);
+                        
+                        // Delete subcategories first (parent_id is not null)
+                        await supabase
+                            .from('categories')
+                            .delete()
+                            .in('id', catIds)
+                            .not('parent_id', 'is', null);
+                            
+                        // Delete parent categories
+                        await supabase
+                            .from('categories')
+                            .delete()
+                            .in('id', catIds)
+                            .is('parent_id', null);
+                    }
+                }""")
+                safe_print("Cleaned up categories successfully.")
+            except Exception as clean_err:
+                safe_print(f"Cleanup failed: {clean_err}")
             context.close()
             browser.close()
-            sys.exit(1)
-
-        context.close()
-        browser.close()
 
     safe_print("\n======================================================================")
     safe_print("ALL CATEGORY MANAGEMENT E2E TESTS PASSED!")
@@ -328,4 +361,7 @@ def run_e2e_tests():
 
 if __name__ == "__main__":
     run_static_checks()
-    run_e2e_tests()
+    try:
+        run_e2e_tests()
+    except Exception:
+        sys.exit(1)

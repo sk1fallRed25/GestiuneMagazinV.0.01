@@ -174,14 +174,38 @@ def run_e2e_tests():
             page.locator('[data-testid="reception-supplier-select"]').fill(supplier_name)
             page.locator('textarea[placeholder*="Detalii suplimentare"]').fill("Test NIR Draft E2E")
             
-            # Add product line
-            page.locator("input[placeholder*='Scrie denumirea sau codul']").fill("Paine")
-            page.locator("div.cursor-pointer:has-text('Paine 300GR')").wait_for(state="visible", timeout=5000)
-            page.locator("div.cursor-pointer:has-text('Paine 300GR')").click()
+            # Add product line (stable search & select)
+            search_input = page.locator('[data-testid="reception-product-search"]')
+            search_input.click()
+            page.keyboard.press("Control+A")
+            page.keyboard.press("Backspace")
+            search_input.press_sequentially("Paine", delay=100)
             
-            page.locator("input[placeholder='Cantitate']").fill("5")
-            page.locator("input[placeholder='0.00']").fill("10.00")
-            page.locator("button:has-text('Adaugă Linie')").click()
+            dropdown = page.locator('[data-testid="reception-product-search-dropdown"]')
+            dropdown.wait_for(state="visible", timeout=5000)
+            
+            option = page.locator('[data-testid="reception-product-search-option"]').first
+            option.click()
+            dropdown.wait_for(state="hidden", timeout=3000)
+            
+            # Stable input for quantity
+            invoice_qty = page.locator('[data-testid="reception-invoice-quantity"]')
+            invoice_qty.click()
+            page.keyboard.press("Control+A")
+            page.keyboard.press("Backspace")
+            invoice_qty.press_sequentially("5", delay=100)
+            page.wait_for_function('document.querySelector(\'[data-testid="reception-invoice-quantity"]\').value === "5"')
+            
+            # Stable input for net value
+            line_net_val = page.locator('[data-testid="reception-line-net-value"]')
+            line_net_val.click()
+            page.keyboard.press("Control+A")
+            page.keyboard.press("Backspace")
+            line_net_val.press_sequentially("10.00", delay=100)
+            page.wait_for_function('document.querySelector(\'[data-testid="reception-line-net-value"]\').value === "10.00"')
+            
+            # Add line
+            page.locator('[data-testid="reception-add-line-button"]').click()
             page.wait_for_timeout(1000)
 
             # Click Save Draft

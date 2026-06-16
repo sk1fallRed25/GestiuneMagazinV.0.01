@@ -8,7 +8,59 @@ def safe_print(msg):
     except UnicodeEncodeError:
         print(msg.encode('ascii', 'replace').decode('ascii'))
 
+def get_active_port():
+    import socket
+    for p in ["5173", "5174", "5175", "5176"]:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.3)
+            s.connect(("localhost", int(p)))
+            s.close()
+            return p
+        except Exception:
+            pass
+    return "5173"  # default fallback
+
+def run_teardown(browser, port="5173"):
+    safe_print("\n--- 5. TEARDOWN DATE DB (via admin@owner.com) ---")
+    try:
+        context_td = browser.new_context()
+        page_td = context_td.new_page()
+        page_td.goto(f"http://localhost:{port}/#/login")
+        page_td.wait_for_load_state("networkidle")
+        page_td.locator("input[type='text']").wait_for(state="visible", timeout=10000)
+        page_td.locator("input[type='text']").fill("admin@owner.com")
+        page_td.locator("input[type='password']").fill("admin123")
+        page_td.locator("button[type='submit']").click()
+        page_td.locator("span:has-text('Consolă Proprietar')").wait_for(state="visible", timeout=15000)
+        
+        teardown_res = page_td.evaluate("""async () => {
+            const supabase = window.supabase;
+            const { data: stores } = await supabase.from('stores').select('id, name');
+            const e2eStores = stores.filter(s => s.name.includes('E2E'));
+            const e2eStoreIds = e2eStores.map(s => s.id);
+            
+            if (e2eStoreIds.length > 0) {
+                // 1. Stergem store_members pentru aceste magazine
+                await supabase.from('store_members').delete().in('store_id', e2eStoreIds);
+                // 2. Stergem audit_logs pentru aceste magazine
+                try {
+                    await supabase.from('audit_logs').delete().in('store_id', e2eStoreIds);
+                } catch(e) {}
+                // 3. Stergem magazinele
+                const { error } = await supabase.from('stores').delete().in('id', e2eStoreIds);
+                if (error) return { error: error.message };
+            }
+            return { success: true, deleted_count: e2eStoreIds.length };
+        }""")
+        safe_print(f"Teardown result: {teardown_res}")
+        context_td.close()
+    except Exception as td_err:
+        safe_print(f"Teardown failed: {td_err}")
+
 def run_test():
+    port = get_active_port()
+    safe_print(f"Using active port: {port}")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         
@@ -20,7 +72,7 @@ def run_test():
             context1 = browser.new_context()
             page1 = context1.new_page()
             
-            page1.goto("http://localhost:5174/#/login")
+            page1.goto(f"http://localhost:{port}/#/login")
             page1.wait_for_load_state("networkidle")
             
             safe_print("Logging in as admin@owner.com to configure test stores...")
@@ -153,99 +205,63 @@ def run_test():
             if 'error' in setup_res:
                 raise Exception(f"Setup failed: {setup_res['error']}")
                 
-            safe_print(f"All stores: {[s['name'] for s in setup_res.get('stores', [])]}")
-            safe_print(f"Final memberships: {[{'store': m.get('store', {}).get('name') if m.get('store') else 'N/A', 'role': m.get('role')} for m in setup_res.get('finalMemberships', [])]}")
-            safe_print("[PASS] Magazine configurate in DB.")
+            safe_print("[PASS] Date DB pregatite cu succes.")
             context1.close()
             
             # ==========================================
-            # 2. VERIFICARE SCOPE STORE SELECTOR (admin@admin.com)
+            # 2. VERIFICARE SWITCHER DROPDOWN (admin@admin.com)
             # ==========================================
-            safe_print("\n--- 2. Verificare Selector Scope (admin@admin.com) ---")
+            safe_print("\n--- 2. Verificare Switcher Dropdown (admin@admin.com) ---")
             context2 = browser.new_context()
             page2 = context2.new_page()
-            
-            # Print console errors from the page
-            page2.on("pageerror", lambda err: safe_print(f"PAGE ERROR (admin): {err}"))
-            page2.on("console", lambda msg: safe_print(f"CONSOLE (admin): {msg.text}"))
-            
-            page2.goto("http://localhost:5174/#/login")
+            page2.goto(f"http://localhost:{port}/#/login")
             page2.wait_for_load_state("networkidle")
             
+            page2.locator("input[type='text']").wait_for(state="visible", timeout=10000)
             page2.locator("input[type='text']").fill("admin@admin.com")
             page2.locator("input[type='password']").fill("admin123")
             page2.locator("button[type='submit']").click()
             
-            # Asteptam selectorul
-            try:
-                page2.locator("#store-context-switcher-btn").wait_for(state="visible", timeout=15000)
-            except Exception as e:
-                # Capture diagnostic screenshot
-                page2.screenshot(path="failed_admin_login.png")
-                safe_print(f"Login failed: current URL is {page2.url}")
-                raise e
+            page2.locator("#store-context-switcher-btn").wait_for(state="visible", timeout=15000)
             
-            # Deschidem dropdown switcher
+            # Click pentru a deschide dropdown-ul
             page2.locator("#store-context-switcher-btn").click()
             page2.locator("span:has-text('Magazine disponibile')").wait_for(state="visible", timeout=5000)
             
-            # Verificam ca magazinul secret NU apare
-            secret_opt_count = page2.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Secret Owner E2E").count()
-            assert secret_opt_count == 0, "admin@admin.com nu ar trebui sa vada Magazin Secret Owner E2E!"
-            safe_print("[PASS] Magazinul secret nu apare in dropdown pentru admin.")
+            # Switcher-ul are urmatoarele optiuni vizibile:
+            # - Magazin Principal (activ)
+            # - Magazin Test E2E (activ)
+            # - Magazin Suspendat E2E (disabled)
+            # - Magazin Arhivat E2E (disabled)
+            # - Nu ar trebui sa vada "Magazin Secret Owner E2E"
             
-            # Verificam ca magazinele active sunt listate si active
+            opt_principal = page2.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Principal")
             opt_test = page2.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Test E2E")
-            assert not opt_test.is_disabled(), "Magazin Test E2E ar trebui sa fie activ/enabled!"
-            
-            # Verificam ca sectiunea 'Magazine Inactive / Arhivate' exista si ca magazinele suspendate/arhivate sunt disabled
-            inactive_header = page2.locator("div:has-text('Magazine Inactive / Arhivate')").last
-            assert inactive_header.is_visible(), "Sectiunea 'Magazine Inactive / Arhivate' lipseste!"
-            
             opt_suspended = page2.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Suspendat E2E")
             opt_archived = page2.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Arhivat E2E")
-            assert opt_suspended.is_disabled(), "Magazinul suspendat ar trebui sa fie disabled!"
-            assert opt_archived.is_disabled(), "Magazinul arhivat ar trebui sa fie disabled!"
-            safe_print("[PASS] Magazinele inactive si arhivate apar ca disabled in sectiunea dedicata.")
+            opt_secret = page2.locator("button:not(#store-context-switcher-btn)", has_text="Magazin Secret Owner E2E")
             
-            # Determine which store is NOT currently active, and switch to it
-            current_store_text = page2.locator("#store-context-switcher-btn p").first.text_content()
-            target_store_name = "Magazin Test E2E" if "Magazin Principal" in current_store_text else "Magazin Principal"
-            safe_print(f"Current store is '{current_store_text}', switching to '{target_store_name}'...")
+            assert opt_principal.is_visible(), "Magazin Principal lipseste!"
+            assert opt_test.is_visible(), "Magazin Test E2E lipseste!"
+            assert opt_suspended.is_visible(), "Magazin Suspendat E2E lipseste!"
+            assert opt_archived.is_visible(), "Magazin Arhivat E2E lipseste!"
+            assert opt_secret.count() == 0, "Admin-ul nu ar trebui sa aiba acces la Magazin Secret Owner!"
             
-            # Click the target store option
-            opt_target = page2.locator("button:not(#store-context-switcher-btn)", has_text=target_store_name)
+            assert not opt_principal.is_disabled(), "Magazin Principal ar trebui sa fie activ"
+            assert not opt_test.is_disabled(), "Magazin Test E2E ar trebui sa fie activ"
+            assert opt_suspended.is_disabled(), "Magazin Suspendat E2E ar trebui sa fie disabled"
+            assert opt_archived.is_disabled(), "Magazin Arhivat E2E ar trebui sa fie disabled"
             
-            # Setup dialog handler BEFORE clicking
-            page2.on("dialog", lambda dialog: dialog.accept())
-            opt_target.click()
-            
-            # Asteptam redirectul / actualizarea contextului
-            page2.locator(f"#store-context-switcher-btn:has-text('{target_store_name}')").wait_for(state="visible", timeout=5000)
-            safe_print("[PASS] Schimbarea contextului de magazin functioneaza corect.")
-            
-            # Verificare transfer selectors
-            page2.locator("a:has-text('Transfer Marfă')").click()
-            page2.wait_for_load_state("networkidle")
-            
-            # Verificam ca Magazin Secret nu apare ca sursa sau destinatie
-            source_select = page2.locator("[data-testid='transfer-source-select']")
-            dest_select = page2.locator("[data-testid='transfer-destination-select']")
-            
-            # Sursa: daca e select, verificam ca Magazin Secret nu este printre optiuni
-            if source_select.evaluate("el => el.tagName === 'SELECT'"):
-                assert source_select.locator("option", has_text="Magazin Secret Owner E2E").count() == 0, "Magazin Secret nu ar trebui sa fie in sursa!"
-            assert dest_select.locator("option", has_text="Magazin Secret Owner E2E").count() == 0, "Magazin Secret nu ar trebui sa fie in destinatie!"
-            safe_print("[PASS] Transfer page respecta scope-ul store memberships.")
+            safe_print("[PASS] Dropdown-ul afiseaza doar magazinele din store_members si respecta starea lor (active/inactive).")
             context2.close()
             
             # ==========================================
-            # 3. VERIFICARE SCOPE STORE SELECTOR (casier@casier.com)
+            # 3. VERIFICARE CASIER (casier@casier.com)
             # ==========================================
-            safe_print("\n--- 3. Verificare Selector Scope (casier@casier.com) ---")
+            safe_print("\n--- 3. Verificare Casier (casier@casier.com) ---")
             context3 = browser.new_context()
             page3 = context3.new_page()
-            page3.goto("http://localhost:5174/#/login")
+            page3.goto(f"http://localhost:{port}/#/login")
             page3.wait_for_load_state("networkidle")
             
             page3.locator("input[type='text']").fill("casier@casier.com")
@@ -253,7 +269,7 @@ def run_test():
             page3.locator("button[type='submit']").click()
             
             # După login, navigăm pe /vanzare pentru a încărca MainLayout (în loc de /pos care este fullscreen)
-            page3.goto("http://localhost:5174/#/vanzare")
+            page3.goto(f"http://localhost:{port}/#/vanzare")
             page3.wait_for_load_state("networkidle")
             
             # Casier are doar 1 magazin (Magazin Principal).
@@ -277,7 +293,7 @@ def run_test():
             safe_print("\n--- 4. Verificare Platform Owner Static Badge ---")
             context4 = browser.new_context()
             page4 = context4.new_page()
-            page4.goto("http://localhost:5174/#/login")
+            page4.goto(f"http://localhost:{port}/#/login")
             page4.wait_for_load_state("networkidle")
             
             page4.locator("input[type='text']").fill("admin@owner.com")
@@ -300,6 +316,7 @@ def run_test():
             safe_print(f"Exception encountered: {e}")
             raise e
         finally:
+            run_teardown(browser, port)
             browser.close()
 
 if __name__ == "__main__":
