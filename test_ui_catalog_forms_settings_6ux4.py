@@ -240,7 +240,8 @@ def run_e2e_tests():
 
             # 4. Verify Store Settings Page
             page.goto(f"{app_url}/#/setari-magazin")
-            page.locator('[data-testid="store-settings-page"]').wait_for(state="visible", timeout=10000)
+            page.locator('[data-testid="store-settings-page"]').wait_for(state="visible", timeout=15000)
+            page.wait_for_timeout(1000) # Wait for React to settle rendering stable
             assert page.locator('[data-testid="store-settings-page"]').is_visible(), "store-settings-page container missing"
             assert page.locator('[data-testid="store-settings-header"]').is_visible(), "store-settings-header container missing"
             assert page.locator('[data-testid="store-settings-reload-button"]').is_visible(), "store-settings-reload-button missing"

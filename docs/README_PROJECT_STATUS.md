@@ -550,14 +550,11 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Build de producție Vite/TypeScript: **PASS** (Exit code: 0).
   - Raport oficial de execuție generat la `docs/database_cleanup_execute_6data4_report.md`.
 
+- **Etapa 6QA.1 (Final manual QA pe DB curată înainte de rebuild Electron)**: **PASS**
+  - S-a realizat verificarea manuală completă pe baza curățată prin intermediul scenariilor Playwright (verificare logare, izolare magazine reale în Owner Console, selector static punct lucru pentru admin cu un singur magazin, lipsă produse/categorii test în Catalog, vizualizare NIR/NIR draft, izolare/blocare rute pentru casieri cu afișare modal "Acces Interzis" și POS Locked din lipsa turei active).
+  - S-au rulat cu succes toate cele 8 teste automate E2E în regim sequential, confirmându-se corectarea erorii asincrone de randare din `test_ui_catalog_forms_settings_6ux4.py` (adaugare delay stabilizare) și faptul că nicio rulare de test nu lasă date E2E reziduale în DB (sunt 100% self-contained).
+  - S-a verificat prin interogări SQL read-only starea bazei de date (total stores = 2, total profiles = 4, total products = 568, total product_prices = 568, total categories = 6, total sales = 123, total payments = 143, total waste_events = 8, total pos_devices = 1, test products = 0, test categories = 0, test stores = 0, test sales = 0, POS-TEST-E2E = 0).
+  - Raport oficial de QA manual generat la `docs/final_manual_qa_clean_db_6qa1_report.md`.
+
 ### Următorul pas recomandat:
-- **6REL.1.1 — Rebuild `.exe` după DB cleanup complet**: Recompilarea și construirea pachetului executabil Electron final, beneficiind de baza de date complet curățată și stabilizată.
-
-
-
-
-
-
-
-
-
+- **6REL.1.1 — Rebuild `.exe` după DB cleanup complet & QA finalizat**: Recompilarea și construirea pachetului executabil Electron final, beneficiind de baza de date complet curățată și verificată prin QA manual și automat.
