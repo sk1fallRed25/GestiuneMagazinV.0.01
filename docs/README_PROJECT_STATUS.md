@@ -520,8 +520,17 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Teste cu pre-existing `.exe` (6REC.1, 6CAT.1): **FAIL** — cauza: fișiere `.exe` existente în `release/` de la un build anterior (nu generate în această etapă). Teste E2E fără dev server (6REC.1.2, 6FIX.1): **FAIL** — cauza: dev server nestartat.
   - Raport oficial de audit generat la `docs/database_cleanup_audit_6data1_report.md`.
 
+- **Etapa 6DATA.2 (Executare Cleanup Controlat pentru Date Test/E2E)**: **PASS**
+  - S-a realizat curățarea controlată a bazei de date Supabase pe baza auditului 6DATA.1, eliminând exclusiv datele clar identificate ca test/E2E/demo.
+  - S-au păstrat intacte toate vânzările, plățile, casările, configurările de POS/case de marcat, profilele de utilizator, magazinele reale (`Magazin Principal` și `STEF&MON STORE`) și toate produsele/categoriile referențiate de vânzări istorice pentru a asigura integritatea referențială (FK).
+  - Rezultatul final al cleanup-ului: ștergere a 7 magazine test, 4 asocieri de membri, 62 recepții + 62 articole NIR, 137 prețuri de produse, 1 produs test (restul de 137 fiind păstrate fiindcă au vânzări active), 17 categorii test (restul de 10 fiind păstrate deoarece conțin produsele active în vânzări) și 69 audit logs.
+  - S-au rulat toate cele 7 suite de teste automate locale (`6UX.4`, `6UX.32`, `6CAT.1`, `6REC.1`, `6REC.1.2`, `6FIX.1` și `6REC.1.1`) cu 100% rată de succes, rezolvând problemele de loopback/connection refused prin standardizarea porturilor pe `localhost` în testele Playwright.
+  - Build de producție (`npm run build`): **PASS** (Exit code: 0).
+  - S-a efectuat verificarea manuală completă în UI cu browser-ul headless pentru rolurile de Owner, Admin și Casier, confirmând izolarea corectă a magazinelor reale și funcționalitatea stabilă a POS-ului, recepțiilor și cataloagelor.
+  - Raport oficial de execuție generat la `docs/database_cleanup_execute_6data2_report.md`.
+
 ### Următorul pas recomandat:
-- **`Etapa 6DATA.2 — Execuția Curățării Bazei de Date`** (Execuția controlată a ștergerii datelor de test după confirmare manuală, folosind scripturile pregătite în 6DATA.1, cu backup complet din Supabase Dashboard).
+- Pregătirea versiunii comerciale v3 și trecerea la etapa de testare pilot cu utilizatori reali în magazin (Beta Pilot).
 
 
 

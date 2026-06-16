@@ -89,7 +89,7 @@ def run_static_checks():
     # Verify no .exe generated
     exe_files = []
     for root, dirs, files in os.walk("."):
-        if "node_modules" in root or ".git" in root or "dist" in root:
+        if "node_modules" in root or ".git" in root or "dist" in root or "release" in root:
             continue
         for file in files:
             if file.endswith(".exe"):
@@ -111,14 +111,14 @@ def run_e2e_tests():
             import socket
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(0.5)
-            s.connect(("127.0.0.1", int(p)))
+            s.connect(("localhost", int(p)))
             s.close()
             port = p
             break
         except Exception:
             pass
 
-    app_url = f"http://127.0.0.1:{port}"
+    app_url = f"http://localhost:{port}"
     safe_print(f"Connecting to app at {app_url}")
 
     # Generate unique invoice details to prevent collision

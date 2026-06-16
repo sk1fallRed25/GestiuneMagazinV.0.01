@@ -19,7 +19,7 @@ def run_test():
         context1 = browser.new_context()
         page1 = context1.new_page()
         
-        page1.goto("http://127.0.0.1:5173/#/login")
+        page1.goto("http://localhost:5173/#/login")
         page1.wait_for_load_state("networkidle")
         
         safe_print("Logging in as admin@owner.com to configure test stores...")
@@ -169,7 +169,7 @@ def run_test():
         # Monitor console logs
         page2.on("console", lambda msg: safe_print(f"CONSOLE (settings): {msg.text}"))
         
-        page2.goto("http://127.0.0.1:5173/#/login")
+        page2.goto("http://localhost:5173/#/login")
         page2.wait_for_load_state("networkidle")
         
         try:
@@ -182,7 +182,7 @@ def run_test():
             page2.locator("#store-context-switcher-btn").wait_for(state="visible", timeout=15000)
             
             # Navigare la Setari Magazin
-            page2.goto("http://127.0.0.1:5173/#/setari-magazin")
+            page2.goto("http://localhost:5173/#/setari-magazin")
             page2.wait_for_load_state("networkidle")
             
             # Gasire toggles in DOM
@@ -211,7 +211,7 @@ def run_test():
         safe_print("\n--- 3. Testare Store Switcher interactive dropdown (CUI, Rol, statusuri) ---")
         context3 = browser.new_context()
         page3 = context3.new_page()
-        page3.goto("http://127.0.0.1:5173/#/login")
+        page3.goto("http://localhost:5173/#/login")
         page3.wait_for_load_state("networkidle")
         
         page3.locator("input[type='text']").wait_for(state="visible", timeout=10000)
@@ -249,7 +249,7 @@ def run_test():
         context4 = browser.new_context()
         page4 = context4.new_page()
         
-        page4.goto("http://127.0.0.1:5173/#/login")
+        page4.goto("http://localhost:5173/#/login")
         page4.wait_for_load_state("networkidle")
         page4.locator("input[type='text']").wait_for(state="visible", timeout=10000)
         page4.locator("input[type='text']").fill("admin@admin.com")
@@ -327,7 +327,7 @@ def run_test():
         context5 = browser.new_context()
         page5 = context5.new_page()
         
-        page5.goto("http://127.0.0.1:5173/#/login")
+        page5.goto("http://localhost:5173/#/login")
         page5.wait_for_load_state("networkidle")
         page5.locator("input[type='text']").wait_for(state="visible", timeout=10000)
         page5.locator("input[type='text']").fill("admin@owner.com")
