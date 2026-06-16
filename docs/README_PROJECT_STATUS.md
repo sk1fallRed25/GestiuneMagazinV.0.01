@@ -529,8 +529,19 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a efectuat verificarea manuală completă în UI cu browser-ul headless pentru rolurile de Owner, Admin și Casier, confirmând izolarea corectă a magazinelor reale și funcționalitatea stabilă a POS-ului, recepțiilor și cataloagelor.
   - Raport oficial de execuție generat la `docs/database_cleanup_execute_6data2_report.md`.
 
+- **Etapa 6DATA.3 (Review date test păstrate din cauza FK/historic vânzări)**: **PASS** (6DATA.3 — Review date test rămase din cauza FK/historic vânzări. Fără ștergeri. Decizie necesară pentru 6DATA.4.)
+  - S-a realizat auditul detaliat al celor 143 produse de test și 16 categorii de test rămase după 6DATA.2 din cauza integrității referențiale cu istoricul de vânzări.
+  - S-au clasificat tranzacțiile istorice în `sales` (263 în total): 140 sunt `SAFE_TEST_SALE` (1307.49 lei, conțin exclusiv produse de test), 0 sunt `MIXED_OR_UNKNOWN` și 123 sunt `KEEP_REAL_SALE` (2754.63 lei, conțin exclusiv produse reale).
+  - S-au auditat plățile (156 de test, 143 reale), casările (3 de test, 8 reale) și dispozitivele POS (1 de test, 1 real).
+  - S-au propus 3 opțiuni strategice de cleanup: Varianta A (Păstrare), Varianta B (Arhivare logică prin redenumire) și Varianta C (Cleanup complet prin ștergerea tranzacțiilor de test și produselor asociate). Se recomandă Varianta C pentru a asigura o bază curată înainte de pilot.
+  - S-au creat scriptul de review `scripts/database_cleanup_review_6data3.sql` și scripturile de dry-run `scripts/database_cleanup_archive_test_products_6data3_DRY_RUN.sql` și `scripts/database_cleanup_remove_test_sales_6data3_DRY_RUN.sql` (toate cu ROLLBACK/fără COMMIT).
+  - **NU s-au rulat DELETE, UPDATE sau COMMIT live pe baza de date. NU s-a modificat schema, RLS/RPC sau configurările aplicației. NU s-a generat `.exe`.**
+  - Build de producție (`npm run build`): **PASS** (Exit code: 0).
+  - Toate cele 7 suite de teste automate locale (`6UX.4`, `6UX.32`, `6CAT.1`, `6REC.1`, `6REC.1.2`, `6FIX.1` și `6REC.1.1`) sunt validate cu succes (100% succes).
+  - Raport oficial de audit și decizie generat la `docs/database_cleanup_review_6data3_report.md`.
+
 ### Următorul pas recomandat:
-- Pregătirea versiunii comerciale v3 și trecerea la etapa de testare pilot cu utilizatori reali în magazin (Beta Pilot).
+- Etapa 6DATA.4: Executarea cleanup-ului complet (Varianta C) conform deciziei utilizatorului, pentru a lăsa baza de date curată pentru producție/pilot.
 
 
 
