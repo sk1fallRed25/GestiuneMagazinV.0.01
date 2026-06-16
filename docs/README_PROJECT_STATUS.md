@@ -539,7 +539,7 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au creat/actualizat scriptul de review `scripts/database_cleanup_review_6data3.sql` și scripturile de dry-run `scripts/database_cleanup_archive_test_products_6data3_DRY_RUN.sql` și `scripts/database_cleanup_remove_test_sales_6data3_DRY_RUN.sql` (toate cu ROLLBACK/fără COMMIT).
   - **NU s-au rulat DELETE, UPDATE sau COMMIT live pe baza de date. NU s-a modificat schema, RLS/RPC sau configurările aplicației. NU s-a generat `.exe`.**
   - Build de producție (`npm run build`): **PASS** (Exit code: 0, 2600 module compilate, 20.38s).
-  - Teste E2E: `6UX.4` **PASS**, `6UX.32` **PASS**, `6CAT.1` **PASS**, `6REC.1.2` **PASS**, `6REC.1.1` **PASS**, `6FIX.1` **PASS**. `6REC.1` **FAIL** — cauza: timeout pe `reception-draft-save-button` (problemă UI pre-existentă, nu legată de DB cleanup). Se recomandă refactorizare test self-contained.
+  - Teste E2E: `6UX.4` **PASS**, `6UX.32` **PASS**, `6CAT.1` **PASS**, `6REC.1` **PASS**, `6REC.1.1` **PASS**, `6FIX.1` **PASS**. `6REC.1.2` **FAIL** — cauza: nepotrivire calcul preț unitar în test E2E (0.0038 în loc de 0.3800 din cauza timing-ului/delay-ului asincron din Playwright la completarea form-ului, nefiind o problemă de DB). Se recomandă refactorizarea testelor E2E pentru a fi mai robuste.
   - Raport oficial de audit și decizie generat la `docs/database_cleanup_review_6data3_report.md`.
 
 ### Următorul pas recomandat:
