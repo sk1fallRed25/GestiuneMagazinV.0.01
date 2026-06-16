@@ -1,123 +1,341 @@
 -- =============================================================================
--- 6DATA.3 — Database Complete Cleanup Dry Run (VARIANTA C)
+-- DATABASE CLEANUP — VARIANTA C: COMPLETE TEST DATA REMOVAL (DRY RUN)
 -- =============================================================================
--- This script performs a DRY RUN of deleting all test sales, sale_items,
--- payments, waste_events, waste_items, stock_batches, stock_movements,
--- product_prices, products, and categories associated with E2E/test runs.
--- NO COMMIT is allowed. The transaction ends with ROLLBACK.
+-- Purpose  : Delete ALL test data (products, sales, categories, stores, etc.)
+-- Safety   : Wrapped in BEGIN … ROLLBACK — NO data is permanently changed
+-- Database : Supabase PostgreSQL
+-- Date     : 2026-06-16
+-- =============================================================================
+--
+--  ██████╗  █████╗ ███╗   ██╗ ██████╗ ███████╗██████╗
+--  ██╔══██╗██╔══██╗████╗  ██║██╔════╝ ██╔════╝██╔══██╗
+--  ██║  ██║███████║██╔██╗ ██║██║  ███╗█████╗  ██████╔╝
+--  ██║  ██║██╔══██║██║╚██╗██║██║   ██║██╔══╝  ██╔══██╗
+--  ██████╔╝██║  ██║██║ ╚████║╚██████╔╝███████╗██║  ██║
+--  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝ ╚═════╝╚══════╝╚═╝  ╚═╝
+--
+--  ╔═══════════════════════════════════════════════════════════════════════╗
+--  ║  *** NO COMMIT IS ALLOWED ***                                       ║
+--  ║  *** Transaction ends with ROLLBACK ***                             ║
+--  ║  *** This is a DRY RUN — execute safely to verify delete counts *** ║
+--  ╚═══════════════════════════════════════════════════════════════════════╝
+--
+-- Deletion order (child → parent):
+--   1.  payments          (linked to test sales)
+--   2.  sale_items         (linked to test sales)
+--   3.  sales              (test-only sales)
+--   4.  waste_items        (linked to test waste events)
+--   5.  waste_events       (test-only waste events)
+--   6.  stock_movements    (of test products)
+--   7.  stock_batches      (of test products)
+--   8.  product_prices     (of test products)
+--   9.  products           (test products)
+--   10. categories         (subcategories first, then root)
+--   11. store_members      (linked to test stores)
+--   12. stores             (test E2E stores)
+--   13. audit_logs         (linked to test stores)
 -- =============================================================================
 
 BEGIN;
 
--- ═══════════════════════════════════════════════════════════════════
--- SECȚIUNEA 1: PREVIEW CANDIDATES
--- ═══════════════════════════════════════════════════════════════════
+-- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ║  SECTION 1: BUILD CANDIDATE LISTS                                       ║
+-- ╚═══════════════════════════════════════════════════════════════════════════╝
 
--- Test Products Candidates
-CREATE TEMP TABLE temp_test_prod_ids AS
-SELECT id FROM products
-WHERE name ILIKE '%test%' OR name ILIKE '%e2e%' OR name ILIKE '%demo%'
-   OR name ILIKE '%automat%' OR name ILIKE 'PRODUS_SGR%' OR name ILIKE 'PRODUS_NORM%'
-   OR barcode ILIKE 'TEST-%' OR barcode ILIKE 'E2E_%'
-   OR name ILIKE '%6CAT1%' OR name ILIKE '%6REC1%' OR name ILIKE '%6REC12%';
+-- ─── 1a. Test Product IDs ───────────────────────────────────────────────────
 
--- Test Sales Candidates (Sales that contain ONLY test products)
-CREATE TEMP TABLE temp_test_sale_ids AS
-WITH sale_items_status AS (
-  SELECT 
-    si.sale_id,
-    COUNT(si.id) AS total_items,
-    SUM(CASE WHEN si.product_id IN (SELECT id FROM temp_test_prod_ids) THEN 1 ELSE 0 END) AS test_items
-  FROM sale_items si
-  GROUP BY si.sale_id
-)
-SELECT sale_id FROM sale_items_status WHERE total_items = test_items;
+CREATE TEMP TABLE tmp_test_product_ids AS
+SELECT id
+FROM products
+WHERE name ILIKE '%test%'
+   OR name ILIKE '%e2e%'
+   OR name ILIKE '%demo%'
+   OR name ILIKE '%automat%'
+   OR name ILIKE 'PRODUS\_SGR%'
+   OR name ILIKE 'PRODUS\_NORM%'
+   OR name ILIKE '%6CAT1%'
+   OR name ILIKE '%6REC1%'
+   OR name ILIKE '%6REC12%'
+   OR barcode ILIKE 'TEST-%'
+   OR barcode ILIKE 'E2E\_%';
 
--- Test Waste Events Candidates (Waste events that contain ONLY test products)
-CREATE TEMP TABLE temp_test_waste_ids AS
-WITH waste_items_status AS (
-  SELECT 
-    wi.waste_id,
-    COUNT(wi.id) AS total_items,
-    SUM(CASE WHEN wi.product_id IN (SELECT id FROM temp_test_prod_ids) THEN 1 ELSE 0 END) AS test_items
-  FROM waste_items wi
-  GROUP BY wi.waste_id
-)
-SELECT waste_id FROM waste_items_status WHERE total_items = test_items;
+SELECT '--- Test products identified ---' AS step,
+       COUNT(*) AS test_product_count
+FROM tmp_test_product_ids;
 
--- Preview counts
-SELECT 'products_to_delete' AS target, COUNT(*) AS count FROM temp_test_prod_ids
+-- ─── 1b. SAFE_TEST_SALE IDs (sales containing ONLY test products) ──────────
+
+CREATE TEMP TABLE tmp_safe_test_sale_ids AS
+SELECT sl.id
+FROM sales sl
+JOIN sale_items si ON si.sale_id = sl.id
+GROUP BY sl.id
+HAVING COUNT(si.id) = COUNT(si.id) FILTER (
+    WHERE si.product_id IN (SELECT id FROM tmp_test_product_ids)
+);
+
+SELECT '--- Safe test sales identified ---' AS step,
+       COUNT(*) AS safe_test_sale_count
+FROM tmp_safe_test_sale_ids;
+
+-- ─── 1c. TEST_WASTE_EVENT IDs (waste events containing ONLY test products) ─
+
+CREATE TEMP TABLE tmp_test_waste_event_ids AS
+SELECT we.id
+FROM waste_events we
+JOIN waste_items wi ON wi.waste_event_id = we.id
+GROUP BY we.id
+HAVING COUNT(wi.id) = COUNT(wi.id) FILTER (
+    WHERE wi.product_id IN (SELECT id FROM tmp_test_product_ids)
+);
+
+SELECT '--- Test waste events identified ---' AS step,
+       COUNT(*) AS test_waste_event_count
+FROM tmp_test_waste_event_ids;
+
+-- ─── 1d. Test Store IDs (E2E / test stores) ────────────────────────────────
+
+CREATE TEMP TABLE tmp_test_store_ids AS
+SELECT id
+FROM stores
+WHERE name ILIKE '%e2e%'
+   OR name ILIKE '%test%';
+
+SELECT '--- Test stores identified ---' AS step,
+       COUNT(*) AS test_store_count
+FROM tmp_test_store_ids;
+
+-- ─── 1e. Preview all candidate counts together ─────────────────────────────
+
+SELECT '=== CANDIDATE SUMMARY ===' AS section;
+
+SELECT 'test_products'     AS candidate_type, COUNT(*) AS cnt FROM tmp_test_product_ids
 UNION ALL
-SELECT 'sales_to_delete', COUNT(*) FROM temp_test_sale_ids
+SELECT 'safe_test_sales',   COUNT(*) FROM tmp_safe_test_sale_ids
 UNION ALL
-SELECT 'waste_events_to_delete', COUNT(*) FROM temp_test_waste_ids;
+SELECT 'test_waste_events', COUNT(*) FROM tmp_test_waste_event_ids
+UNION ALL
+SELECT 'test_stores',       COUNT(*) FROM tmp_test_store_ids
+ORDER BY candidate_type;
 
 
--- ═══════════════════════════════════════════════════════════════════
--- SECȚIUNEA 2: EXECUTARE DELETE (COPIL -> PARINTE)
--- ═══════════════════════════════════════════════════════════════════
+-- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ║  SECTION 2: DELETE — child → parent order                               ║
+-- ╚═══════════════════════════════════════════════════════════════════════════╝
 
--- 1. Payments linked to test sales
+-- ─── DELETE 1: Payments linked to test sales ────────────────────────────────
+
+SELECT '--- DELETE 1: payments linked to test sales ---' AS step;
+
 DELETE FROM payments
-WHERE sale_id IN (SELECT sale_id FROM temp_test_sale_ids);
+WHERE sale_id IN (SELECT id FROM tmp_safe_test_sale_ids);
 
--- 2. Sale items linked to test sales
+SELECT '    Remaining payments:' AS verify, COUNT(*) AS cnt FROM payments;
+
+-- ─── DELETE 2: Sale items linked to test sales ──────────────────────────────
+
+SELECT '--- DELETE 2: sale_items linked to test sales ---' AS step;
+
 DELETE FROM sale_items
-WHERE sale_id IN (SELECT sale_id FROM temp_test_sale_ids);
+WHERE sale_id IN (SELECT id FROM tmp_safe_test_sale_ids);
 
--- 3. Sales (test-only sales)
+SELECT '    Remaining sale_items:' AS verify, COUNT(*) AS cnt FROM sale_items;
+
+-- ─── DELETE 3: Test-only sales ──────────────────────────────────────────────
+
+SELECT '--- DELETE 3: sales (test-only) ---' AS step;
+
 DELETE FROM sales
-WHERE id IN (SELECT sale_id FROM temp_test_sale_ids);
+WHERE id IN (SELECT id FROM tmp_safe_test_sale_ids);
 
--- 4. Waste items linked to test waste events
+SELECT '    Remaining sales:' AS verify, COUNT(*) AS cnt FROM sales;
+
+-- ─── DELETE 4: Waste items linked to test waste events ──────────────────────
+
+SELECT '--- DELETE 4: waste_items linked to test waste events ---' AS step;
+
 DELETE FROM waste_items
-WHERE waste_id IN (SELECT waste_id FROM temp_test_waste_ids);
+WHERE waste_event_id IN (SELECT id FROM tmp_test_waste_event_ids);
 
--- 5. Waste events (test-only waste events)
+SELECT '    Remaining waste_items:' AS verify, COUNT(*) AS cnt FROM waste_items;
+
+-- ─── DELETE 5: Test-only waste events ───────────────────────────────────────
+
+SELECT '--- DELETE 5: waste_events (test-only) ---' AS step;
+
 DELETE FROM waste_events
-WHERE id IN (SELECT waste_id FROM temp_test_waste_ids);
+WHERE id IN (SELECT id FROM tmp_test_waste_event_ids);
 
--- 6. Stock movements of test products
+SELECT '    Remaining waste_events:' AS verify, COUNT(*) AS cnt FROM waste_events;
+
+-- ─── DELETE 6: Stock movements of test products ────────────────────────────
+
+SELECT '--- DELETE 6: stock_movements of test products ---' AS step;
+
 DELETE FROM stock_movements
-WHERE product_id IN (SELECT id FROM temp_test_prod_ids);
+WHERE product_id IN (SELECT id FROM tmp_test_product_ids);
 
--- 7. Stock batches of test products
+SELECT '    Remaining stock_movements:' AS verify, COUNT(*) AS cnt FROM stock_movements;
+
+-- ─── DELETE 7: Stock batches of test products ───────────────────────────────
+
+SELECT '--- DELETE 7: stock_batches of test products ---' AS step;
+
 DELETE FROM stock_batches
-WHERE product_id IN (SELECT id FROM temp_test_prod_ids);
+WHERE product_id IN (SELECT id FROM tmp_test_product_ids);
 
--- 8. Product prices of test products
+SELECT '    Remaining stock_batches:' AS verify, COUNT(*) AS cnt FROM stock_batches;
+
+-- ─── DELETE 8: Product prices of test products ──────────────────────────────
+
+SELECT '--- DELETE 8: product_prices of test products ---' AS step;
+
 DELETE FROM product_prices
-WHERE product_id IN (SELECT id FROM temp_test_prod_ids);
+WHERE product_id IN (SELECT id FROM tmp_test_product_ids);
 
--- 9. Products (test products)
+SELECT '    Remaining product_prices:' AS verify, COUNT(*) AS cnt FROM product_prices;
+
+-- ─── DELETE 9: Test products ────────────────────────────────────────────────
+
+SELECT '--- DELETE 9: products (test products) ---' AS step;
+
 DELETE FROM products
-WHERE id IN (SELECT id FROM temp_test_prod_ids);
+WHERE id IN (SELECT id FROM tmp_test_product_ids);
 
--- 10. Categories and subcategories of test
+SELECT '    Remaining products:' AS verify, COUNT(*) AS cnt FROM products;
+
+-- ─── DELETE 10: Test categories (subcategories FIRST, then root) ────────────
+
+SELECT '--- DELETE 10a: categories — subcategories (parent_id IS NOT NULL) ---' AS step;
+
 DELETE FROM categories
-WHERE name ILIKE '%Root E2E%' OR name ILIKE '%Sub E2E%' OR name ILIKE '%Test Cat 6CAT1%' OR name ILIKE '%Test Subcat 6CAT1%'
-   OR name ILIKE '%test%' OR name ILIKE '%teste%';
+WHERE (
+       name ILIKE '%test%'
+    OR name ILIKE '%6CAT1%'
+)
+AND parent_id IS NOT NULL;
+
+SELECT '    Remaining categories after sub-delete:' AS verify, COUNT(*) AS cnt FROM categories;
+
+SELECT '--- DELETE 10b: categories — root categories (parent_id IS NULL) ---' AS step;
+
+DELETE FROM categories
+WHERE (
+       name ILIKE '%test%'
+    OR name ILIKE '%6CAT1%'
+)
+AND parent_id IS NULL;
+
+SELECT '    Remaining categories after root-delete:' AS verify, COUNT(*) AS cnt FROM categories;
+
+-- ─── DELETE 11: Store members linked to test stores ─────────────────────────
+
+SELECT '--- DELETE 11: store_members linked to test stores ---' AS step;
+
+DELETE FROM store_members
+WHERE store_id IN (SELECT id FROM tmp_test_store_ids);
+
+SELECT '    Remaining store_members:' AS verify, COUNT(*) AS cnt FROM store_members;
+
+-- ─── DELETE 12: Test E2E stores ─────────────────────────────────────────────
+
+SELECT '--- DELETE 12: stores (test E2E stores) ---' AS step;
+
+DELETE FROM stores
+WHERE id IN (SELECT id FROM tmp_test_store_ids);
+
+SELECT '    Remaining stores:' AS verify, COUNT(*) AS cnt FROM stores;
+
+-- ─── DELETE 13: Audit logs linked to test stores ────────────────────────────
+
+SELECT '--- DELETE 13: audit_logs linked to test stores ---' AS step;
+
+-- Note: audit_logs may reference store_id; delete logs for test stores
+-- Using a safe approach — only delete if the table and column exist
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'audit_logs' AND column_name = 'store_id'
+    ) THEN
+        EXECUTE 'DELETE FROM audit_logs WHERE store_id IN (SELECT id FROM tmp_test_store_ids)';
+        RAISE NOTICE 'audit_logs: deleted rows for test stores';
+    ELSE
+        RAISE NOTICE 'audit_logs: table or store_id column not found — skipping';
+    END IF;
+END $$;
 
 
--- ═══════════════════════════════════════════════════════════════════
--- SECȚIUNEA 3: VERIFICARE DUPĂ CURĂȚARE
--- ═══════════════════════════════════════════════════════════════════
-SELECT 'remaining_products' AS target, COUNT(*) AS count FROM products
+-- ╔═══════════════════════════════════════════════════════════════════════════╗
+-- ║  SECTION 3: POST-CLEANUP VERIFICATION                                   ║
+-- ╚═══════════════════════════════════════════════════════════════════════════╝
+
+SELECT '=== POST-CLEANUP TABLE COUNTS ===' AS section;
+
+SELECT 'products'        AS table_name, COUNT(*) AS remaining_rows FROM products
 UNION ALL
-SELECT 'remaining_categories', COUNT(*) FROM categories
+SELECT 'categories',      COUNT(*) FROM categories
 UNION ALL
-SELECT 'remaining_sales', COUNT(*) FROM sales
+SELECT 'sales',           COUNT(*) FROM sales
 UNION ALL
-SELECT 'remaining_sale_items', COUNT(*) FROM sale_items
+SELECT 'sale_items',      COUNT(*) FROM sale_items
 UNION ALL
-SELECT 'remaining_payments', COUNT(*) FROM payments
+SELECT 'payments',        COUNT(*) FROM payments
 UNION ALL
-SELECT 'remaining_waste_events', COUNT(*) FROM waste_events
+SELECT 'waste_events',    COUNT(*) FROM waste_events
 UNION ALL
-SELECT 'remaining_waste_items', COUNT(*) FROM waste_items;
+SELECT 'waste_items',     COUNT(*) FROM waste_items
+UNION ALL
+SELECT 'stock_batches',   COUNT(*) FROM stock_batches
+UNION ALL
+SELECT 'stock_movements', COUNT(*) FROM stock_movements
+UNION ALL
+SELECT 'product_prices',  COUNT(*) FROM product_prices
+UNION ALL
+SELECT 'stores',          COUNT(*) FROM stores
+UNION ALL
+SELECT 'store_members',   COUNT(*) FROM store_members
+UNION ALL
+SELECT 'pos_devices',     COUNT(*) FROM pos_devices
+ORDER BY table_name;
+
+-- Final sanity check: no test products should remain
+SELECT '--- SANITY CHECK: Any remaining test products? ---' AS step;
+
+SELECT COUNT(*) AS remaining_test_products
+FROM products
+WHERE name ILIKE '%test%'
+   OR name ILIKE '%e2e%'
+   OR name ILIKE '%demo%'
+   OR name ILIKE '%automat%'
+   OR name ILIKE 'PRODUS\_SGR%'
+   OR name ILIKE 'PRODUS\_NORM%'
+   OR name ILIKE '%6CAT1%'
+   OR name ILIKE '%6REC1%'
+   OR name ILIKE '%6REC12%'
+   OR barcode ILIKE 'TEST-%'
+   OR barcode ILIKE 'E2E\_%';
+
+SELECT '--- SANITY CHECK: Any remaining test categories? ---' AS step;
+
+SELECT COUNT(*) AS remaining_test_categories
+FROM categories
+WHERE name ILIKE '%test%'
+   OR name ILIKE '%6CAT1%';
+
+SELECT '--- SANITY CHECK: Any remaining test stores? ---' AS step;
+
+SELECT COUNT(*) AS remaining_test_stores
+FROM stores
+WHERE name ILIKE '%e2e%'
+   OR name ILIKE '%test%';
 
 
--- ═══════════════════════════════════════════════════════════════════
--- SAFETY ROLLBACK (DO NOT REMOVE OR CHANGE TO COMMIT IN 6DATA.3)
--- ═══════════════════════════════════════════════════════════════════
+-- =============================================================================
+-- ROLLBACK — No changes are persisted. This is a DRY RUN.
+-- =============================================================================
 ROLLBACK;
+
+-- =============================================================================
+-- END OF DRY RUN — VARIANTA C (Complete Test Data Removal)
+-- =============================================================================
