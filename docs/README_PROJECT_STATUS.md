@@ -520,7 +520,7 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - Teste cu pre-existing `.exe` (6REC.1, 6CAT.1): **FAIL** — cauza: fișiere `.exe` existente în `release/` de la un build anterior (nu generate în această etapă). Teste E2E fără dev server (6REC.1.2, 6FIX.1): **FAIL** — cauza: dev server nestartat.
   - Raport oficial de audit generat la `docs/database_cleanup_audit_6data1_report.md`.
 
-- **Etapa 6DATA.2 (Executare Cleanup Controlat pentru Date Test/E2E)**: **PASS**
+- **Etapa 6DATA.2 (Executare Cleanup Controlat pentru Date Test/E2E)**: **PASS** (6DATA.2 — cleanup controlat executat, dar produse/categorii cu sales active păstrate.)
   - S-a realizat curățarea controlată a bazei de date Supabase pe baza auditului 6DATA.1, eliminând exclusiv datele clar identificate ca test/E2E/demo.
   - S-au păstrat intacte toate vânzările, plățile, casările, configurările de POS/case de marcat, profilele de utilizator, magazinele reale (`Magazin Principal` și `STEF&MON STORE`) și toate produsele/categoriile referențiate de vânzări istorice pentru a asigura integritatea referențială (FK).
   - Rezultatul final al cleanup-ului: ștergere a 7 magazine test, 4 asocieri de membri, 62 recepții + 62 articole NIR, 137 prețuri de produse, 1 produs test (restul de 137 fiind păstrate fiindcă au vânzări active), 17 categorii test (restul de 10 fiind păstrate deoarece conțin produsele active în vânzări) și 69 audit logs.
