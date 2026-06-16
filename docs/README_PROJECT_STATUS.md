@@ -509,8 +509,20 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au rulat cu succes build-ul de producție și testele automate static/E2E, inclusiv noul test `test_reception_line_nir_calculation_6rec1_2.py`, fără regresii în testele legacy.
   - Raport oficial de integrare generat la `docs/reception_line_nir_calculation_6rec1_2_report.md`.
 
+- **Etapa 6DATA.1 (Database Audit, Backup & Safe Cleanup Plan)**: **PASS**
+  - S-a realizat auditul complet al bazei de date Supabase (25 tabele, via REST API read-only), identificând 4 profiluri, 9 magazine (2 reale + 7 test), 712 produse (568 reale + 144 test), 35 categorii (6 reale + 29 test), 62 recepții test, 263 vânzări și 373 audit logs.
+  - S-au creat scripturile SQL de preview (doar SELECT) și dry-run (DELETE comentat + ROLLBACK) în `scripts/database_cleanup_preview_6data1.sql` și `scripts/database_cleanup_execute_6data1_DRY_RUN_ONLY.sql`.
+  - S-a creat manifest-ul de backup local în `backups/db_cleanup_6data1/` (necomis în git) și s-a actualizat `.gitignore` cu reguli de excludere pentru backup-uri, dump-uri SQL, CSV-uri și fișiere `.backup`.
+  - S-au documentat clar datele propuse pentru ștergere (7 magazine test, 144 produse test, 29 categorii test, 62 recepții test, 5 membership-uri test) și datele care necesită confirmare manuală (`magazin@magazin.com`, categorii "test"/"teste" pe STEF&MON STORE, 263 vânzări pe STEF&MON STORE, 11 waste events).
+  - **NU s-a rulat DELETE, TRUNCATE sau COMMIT. NU s-a modificat schema, RLS/RPC, `post_reception`, `finalize_sale`, FiscalNet sau POS checkout. NU s-a generat `.exe`.**
+  - Build de producție (`npm run build`): **PASS** (Exit code: 0, 2600 module compilate).
+  - Teste E2E: `test_ui_catalog_forms_settings_6ux4.py` **PASS**, `test_pos_real_category_mapping_6ux32.py` **PASS**.
+  - Teste cu pre-existing `.exe` (6REC.1, 6CAT.1): **FAIL** — cauza: fișiere `.exe` existente în `release/` de la un build anterior (nu generate în această etapă). Teste E2E fără dev server (6REC.1.2, 6FIX.1): **FAIL** — cauza: dev server nestartat.
+  - Raport oficial de audit generat la `docs/database_cleanup_audit_6data1_report.md`.
+
 ### Următorul pas recomandat:
-- **`Etapa 6DATA.1 — Baza de date curată / Seeding baseline`** (Ștergerea datelor vechi de test și popularea cu setul minim de date curate prin noile interfețe UI complet securizate).
+- **`Etapa 6DATA.2 — Execuția Curățării Bazei de Date`** (Execuția controlată a ștergerii datelor de test după confirmare manuală, folosind scripturile pregătite în 6DATA.1, cu backup complet din Supabase Dashboard).
+
 
 
 

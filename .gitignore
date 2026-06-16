@@ -24,3 +24,12 @@ release.zip
 *.exe
 *.blockmap
 latest.yml
+
+# Database backups and exports (NEVER commit)
+backups/
+backups/**/*.csv
+backups/**/*.sql
+backups/**/*.dump
+*.backup
+*.sql.backup
+*.csv.backup
