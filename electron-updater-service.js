@@ -76,6 +76,7 @@ export function initializeUpdater(win) {
     // Disable automatic downloading of updates on check
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.allowPrerelease = true;
 
     // Apply custom update feed URL if configured
     if (feedUrl && updaterAvailable) {

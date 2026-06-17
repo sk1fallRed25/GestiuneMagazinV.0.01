@@ -578,5 +578,14 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au rulat cu succes de 100% testele E2E `test_desktop_update_ui_6rel3.py` și `test_desktop_auto_update_6app2.py` (inclusiv siguranța coșului POS active).
   - Raport oficial generat la `docs/auto_update_pilot_6rel3_report.md`.
 
+- **Etapa 6REL.4 (Pilot Release controlat pe GitHub Releases)**: **WAITING APPROVAL**
+  - S-a auditat strategia de prerelease și s-a configurat `autoUpdater.allowPrerelease = true` în `electron-updater-service.js`.
+  - S-a efectuat version bump controlat de la `1.0.0` la `1.0.1` în `package.json` și `package-lock.json`.
+  - S-au recompilat codul web și pachetul Electron, generând local executabilele curate pentru versiunea `1.0.1`.
+  - S-au calculat checksum-urile SHA256 pentru setup (`0C7435...`) și portable (`75501B...`).
+  - S-a creat un ghid detaliat de publicare manuală a draft-ului pe GitHub Releases ca `Pre-release`.
+  - S-au validat toate testele E2E (inclusiv noul test dedicat versiunii 1.0.1, `test_desktop_update_pilot_release_6rel4.py`) cu succes de 100%.
+  - Raport oficial de pregătire generat la `docs/pilot_release_github_6rel4_report.md`.
+
 ### Următorul pas recomandat:
-- **6REL.4 — Pilot release pe canal controlat**: Lansarea executabilului generat pe un branch sau release GitHub sub formă de pre-release/draft pilot, conectând stația de lucru fizică pentru actualizarea automată reală.
+- **6REL.5 — Monitorizare pilot și lansare publică**: Publicarea draftului ca pre-release pe GitHub, realizarea testului de update live direct de pe stația de lucru POS și finalizarea rollout-ului.

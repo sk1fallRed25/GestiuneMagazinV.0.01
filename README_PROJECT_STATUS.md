@@ -289,4 +289,12 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Configurat un feed local securizat pe localhost:8088 în folderul `release-feed-test/` (ignorat prin `.gitignore`) și testat feedback-ul de eroare / conexiune lipsă / update disponibil.
   - Raport detaliat în `docs/auto_update_pilot_6rel3_report.md`.
 
+- **Etapa 6REL.4 (Pilot Release controlat pe GitHub Releases)**: **WAITING APPROVAL**
+  - S-a efectuat version bump controlat de la `1.0.0` la `1.0.1` în `package.json` și `package-lock.json`, configurând `autoUpdater.allowPrerelease = true`.
+  - S-au compilat fișierele de producție și s-a generat pachetul local `1.0.1`. S-au calculat checksum-urile SHA256 ale executabilelor (`0C7435...` și `75501B...`).
+  - S-a creat un ghid de publicare draft/pre-release pe repo-ul `sk1fallRed25/GestiuneMagazinV.0.01` pe GitHub și s-a configurat testarea reală pe stația POS.
+  - S-au validat toate testele E2E (inclusiv noul test dedicat versiunii 1.0.1, `test_desktop_update_pilot_release_6rel4.py`) cu succes de 100%.
+  - Raport detaliat în `docs/pilot_release_github_6rel4_report.md`.
+
+
 

@@ -2,7 +2,7 @@
   "name": "sistem-magazin",
   "productName": "Sistem Gestiune Magazin",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Aplicatie de gestiune stocuri si vanzari",
   "author": "Stefan",
   "main": "electron-main.js",
