@@ -273,3 +273,13 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - S-au validat toate fluxurile majore (Login casier/admin/owner, Kiosk mode, selectare categorii/subcategorii cu normalizare UUID-uri case-insensitive, adăugare în coș cu touch targets de 44px, calcul SGR și modalul de plată mixtă).
   - S-a testat și verificat manual recuperarea coșului (Cart Recovery) la închiderea neașteptată și fallback-urile corecte la deconectarea internetului (folosind cache-ul SQLite) și în absența driverului FiscalNet.
   - Raport oficial de testare generat la `docs/real_pos_device_qa_6rel2_report.md`.
+
+- **Etapa 6REL.1.1 (Rebuild .exe pe DB curată)**: **PASS**
+  - Reconstruit executabilul desktop pe baza curățată de test/E2E history, validând pornirea, offline SQLite și cele 8 teste automate Playwright cu 100% succes.
+  - Raport detaliat în `docs/desktop_rebuild_clean_db_6rel11_report.md`.
+
+- **Etapa 6REL.2.1 (Real Desktop QA pe stație de lucru)**: **PASS**
+  - Instalat și validat installer-ul NSIS (`Sistem Gestiune Magazin Setup 1.0.0.exe`) pe stația fizică Windows/POS.
+  - Verificat: instalare per-machine, pornire curată, SQLite local, login pe roluri (Platform Owner, Admin, Casier), POS, NIR, catalog real (568 produse, 6 categorii, 123 vânzări reale), offline fallback și dezinstalare curată.
+  - Raport oficial generat în `docs/real_desktop_qa_clean_db_6rel21_report.md`.
+

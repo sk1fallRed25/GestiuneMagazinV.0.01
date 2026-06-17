@@ -563,5 +563,12 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au rulat toate cele 8 teste automate E2E Playwright post-build cu **100% succes** (inclusiv stabilizarea client-side din `aiConsentService.ts` pe erori runtime de duplicate-key). S-a confirmat prin interogări SQL read-only că baza de date a rămas baseline curată de orice date reziduale post-teste.
   - Raport oficial de rebuild desktop generat la `docs/desktop_rebuild_clean_db_6rel11_report.md`. Niciun executabil nu a fost comis în Git.
 
+- **Etapa 6REL.2.1 (Real Desktop QA pe stație de lucru)**: **PASS**
+  - S-a verificat installer-ul NSIS (`Sistem Gestiune Magazin Setup 1.0.0.exe`) pe o stație fizică de lucru cu Windows 11 Pro, i7-14700KF (20 Cores), 32 GB RAM, rezoluție 1920x1080 și scaling 100%.
+  - Instalarea a decurs cu succes în regim per-machine cu solicitare de drepturi administrative (UAC), înregistrându-se corect în Windows Apps & Features și adăugând shortcut-ul în `Start Menu\Programs\Sistem Gestiune Magazin.lnk`.
+  - S-a testat cu succes pornirea fără white screen sau erori native, logarea pe roluri (Platform Owner, Admin, Casier), corectitudinea datelor din Catalog, NIR, POS, funcționarea SQLite offline și fallback-ul securizat al modulului FiscalNet.
+  - S-a validat uninstall-ul curat care elimină shortcut-urile, registry keys (HKLM) și fișierele din calea de instalare desktop, păstrând în siguranță baza de date locală `%APPDATA%\offline_cache.db`.
+  - Raport oficial de QA real generat la `docs/real_desktop_qa_clean_db_6rel21_report.md`.
+
 ### Următorul pas recomandat:
-- **6REL.2.1 — Real Desktop QA pe stație de lucru**: Testarea finală a installer-ului NSIS generat direct pe o stație fizică de POS locală pentru confirmarea setărilor de printer, FiscalNet și offline sync.
+- **6REL.3 — Auto-update pilot / Release packaging**: Configurarea auto-update-ului pe baza fișierelor `latest.yml` și `.blockmap` generate local și publicarea build-ului pentru actualizare automată.
