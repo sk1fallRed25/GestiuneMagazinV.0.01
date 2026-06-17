@@ -28,6 +28,9 @@ try {
     };
 }
 
+import fs from 'fs';
+import path from 'path';
+
 // Local console-based logger fallback
 const log = {
     info: (...args) => console.log('[Updater Info]', ...args),
@@ -38,12 +41,54 @@ let mainWindow = null;
 let lastStatus = updaterAvailable ? 'idle' : 'unavailable';
 let downloadProgressPercent = 0;
 
+// Load custom update feed URL from env or fallback configuration
+let feedUrl = process.env.VITE_UPDATE_FEED_URL || process.env.UPDATE_FEED_URL;
+if (!feedUrl) {
+    try {
+        const envPath = path.join(app.getAppPath(), '.env');
+        const envLocalPath = path.join(app.getAppPath(), '.env.local');
+        
+        let envContent = '';
+        if (fs.existsSync(envLocalPath)) {
+            envContent = fs.readFileSync(envLocalPath, 'utf8');
+        } else if (fs.existsSync(envPath)) {
+            envContent = fs.readFileSync(envPath, 'utf8');
+        }
+        
+        if (envContent) {
+            const lines = envContent.split('\n');
+            for (const line of lines) {
+                const match = line.match(/^\s*VITE_UPDATE_FEED_URL\s*=\s*(.*)\s*$/);
+                if (match) {
+                    feedUrl = match[1].trim().replace(/^['"]|['"]$/g, '');
+                    break;
+                }
+            }
+        }
+    } catch (e) {
+        // Ignore parsing errors in packaged app
+    }
+}
+
 export function initializeUpdater(win) {
     mainWindow = win;
     
     // Disable automatic downloading of updates on check
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
+
+    // Apply custom update feed URL if configured
+    if (feedUrl && updaterAvailable) {
+        log.info('Using custom update feed URL for pilot test:', feedUrl);
+        try {
+            autoUpdater.setFeedURL({
+                provider: 'generic',
+                url: feedUrl
+            });
+        } catch (feedErr) {
+            log.error('Failed to set custom feed URL:', feedErr);
+        }
+    }
 
     // Relay autoUpdater events to renderer process
     autoUpdater.on('checking-for-update', () => {

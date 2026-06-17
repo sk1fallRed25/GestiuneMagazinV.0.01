@@ -95,18 +95,18 @@ def run_auto_update_tests():
             
             # Go to Store Settings
             page.goto("http://localhost:5174/#/setari-magazin")
-            page.locator('[data-testid="app-update-panel"]').wait_for(state="visible", timeout=5000)
+            page.locator('[data-testid="desktop-update-panel"]').wait_for(state="visible", timeout=5000)
             
             # Verify version displays correctly
-            version_label = page.locator('[data-testid="app-update-current-version"]')
+            version_label = page.locator('[data-testid="desktop-update-current-version"]')
             assert version_label.inner_text() == "1.2.3-test", f"Expected version 1.2.3-test, got {version_label.inner_text()}"
             
             # Verify status displays idle
-            status_label = page.locator('[data-testid="app-update-status"]')
+            status_label = page.locator('[data-testid="desktop-update-status"]')
             assert "Nu s-a verificat" in status_label.inner_text(), "Expected 'Nu s-a verificat' status"
             
             # Check Check Button exists
-            check_btn = page.locator('[data-testid="app-update-check-button"]')
+            check_btn = page.locator('[data-testid="desktop-update-check-button"]')
             assert check_btn.is_visible(), "Check update button should be visible"
             
             # Click Check Button and verify checking state
@@ -120,7 +120,7 @@ def run_auto_update_tests():
             assert "Actualizare nouă disponibilă!" in status_label.inner_text(), "Expected status 'Actualizare nouă disponibilă!'"
             
             # Download button should now be visible
-            download_btn = page.locator('[data-testid="app-update-download-button"]')
+            download_btn = page.locator('[data-testid="desktop-update-download-button"]')
             assert download_btn.is_visible(), "Download button should be visible when update is available"
             
             # Click Download Button and verify downloading progress state
@@ -139,11 +139,11 @@ def run_auto_update_tests():
             assert "Actualizare descărcată. Gata de instalare!" in status_label.inner_text(), "Expected status 'Actualizare descărcată. Gata de instalare!'"
             
             # Install button should now be visible
-            install_btn = page.locator('[data-testid="app-update-install-button"]')
+            install_btn = page.locator('[data-testid="desktop-update-install-button"]')
             assert install_btn.is_visible(), "Install button should be visible when downloaded"
             
             safe_print("[PASS] UI Update Center status transitions and events verified successfully.")
-
+ 
             # Scenario D: POS Safety Guards
             safe_print("\n--- Scenario D: Testing POS Cart Safety Guards ---")
             
@@ -191,7 +191,7 @@ def run_auto_update_tests():
             sys.exit(1)
         
         context.close()
-
+ 
         # Scenario E: Browser Fallback Checks
         safe_print("\n--- Scenario E: Testing Browser Fallback (Without Electron API) ---")
         browser_context = browser.new_context() # Normal context, no Electron mocks
@@ -213,14 +213,14 @@ def run_auto_update_tests():
             browser_page.locator("text=Se încarcă setările magazinului...").wait_for(state="detached", timeout=10000)
             
             # Wait for panel to be visible
-            browser_page.locator('[data-testid="app-update-panel"]').wait_for(state="visible", timeout=10000)
+            browser_page.locator('[data-testid="desktop-update-panel"]').wait_for(state="visible", timeout=10000)
             
             # Check fallback message is visible
             fallback_msg = browser_page.locator("text=Auto-update este disponibil exclusiv în aplicația desktop")
             fallback_msg.wait_for(state="visible", timeout=10000)
             
             # Action buttons should be hidden in browser mode
-            assert not browser_page.locator('[data-testid="app-update-check-button"]').is_visible(), "Check button should not be visible in browser mode"
+            assert not browser_page.locator('[data-testid="desktop-update-check-button"]').is_visible(), "Check button should not be visible in browser mode"
             
             safe_print("[PASS] Browser fallback warnings verified successfully.")
             

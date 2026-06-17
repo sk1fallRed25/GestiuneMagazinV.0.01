@@ -570,5 +570,13 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a validat uninstall-ul curat care elimină shortcut-urile, registry keys (HKLM) și fișierele din calea de instalare desktop, păstrând în siguranță baza de date locală `%APPDATA%\offline_cache.db`.
   - Raport oficial de QA real generat la `docs/real_desktop_qa_clean_db_6rel21_report.md`.
 
+- **Etapa 6REL.3 (Auto-update pilot / Release packaging)**: **PASS**
+  - S-a auditat configurarea `electron-updater` și s-a confirmat provider-ul ca fiind `github`.
+  - S-au compilat fișierele de producție Vite/TypeScript (`npm run build`) și s-a lansat builder-ul Electron (`npm run electron:build`), generând NSIS Setup, Portable `.exe`, blockmap-ul și `latest.yml`.
+  - S-a implementat suportul pentru un canal de test local (prin variabila `VITE_UPDATE_FEED_URL` din `.env.local` care este extrasă la startup în main process), direcționând update-urile către localhost pentru simulare locală sigură.
+  - S-a optimizat interfața `AppUpdatePanel.tsx` cu noile selectoare `desktop-update-*`, suportul de canal de actualizări și elementele de diagnosticare E2E.
+  - S-au rulat cu succes de 100% testele E2E `test_desktop_update_ui_6rel3.py` și `test_desktop_auto_update_6app2.py` (inclusiv siguranța coșului POS active).
+  - Raport oficial generat la `docs/auto_update_pilot_6rel3_report.md`.
+
 ### Următorul pas recomandat:
-- **6REL.3 — Auto-update pilot / Release packaging**: Configurarea auto-update-ului pe baza fișierelor `latest.yml` și `.blockmap` generate local și publicarea build-ului pentru actualizare automată.
+- **6REL.4 — Pilot release pe canal controlat**: Lansarea executabilului generat pe un branch sau release GitHub sub formă de pre-release/draft pilot, conectând stația de lucru fizică pentru actualizarea automată reală.

@@ -237,7 +237,7 @@ export const AppUpdatePanel: React.FC = () => {
 
   return (
     <div 
-      data-testid="app-update-panel"
+      data-testid="desktop-update-panel"
       className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-gray-100/50 p-6 md:p-8 font-sans"
     >
       <div className="flex items-center gap-4 border-b border-gray-100 pb-5 mb-6">
@@ -250,15 +250,25 @@ export const AppUpdatePanel: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         {/* Info carduri */}
         <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
           <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-1">Versiune Curentă</span>
           <span 
-            data-testid="app-update-current-version"
+            data-testid="desktop-update-current-version"
             className="text-lg font-black text-gray-800"
           >
             {currentVersion}
+          </span>
+        </div>
+
+        <div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
+          <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-1">Canal actualizare</span>
+          <span 
+            data-testid="desktop-update-channel"
+            className="text-lg font-black text-gray-800"
+          >
+            Stable / Pilot
           </span>
         </div>
 
@@ -280,13 +290,26 @@ export const AppUpdatePanel: React.FC = () => {
         <div>
           <span className="text-xs font-black uppercase tracking-wider block opacity-70">Stare actualizare</span>
           <span 
-            data-testid="app-update-status"
+            data-testid="desktop-update-status"
             className="font-bold text-sm block mt-0.5"
           >
             {getStatusMessage()}
           </span>
         </div>
       </div>
+
+      {/* States details for E2E testing */}
+      {status === 'error' && (
+        <div data-testid="desktop-update-error" className="hidden">
+          {errorMessage || 'Eroare la actualizare.'}
+        </div>
+      )}
+
+      {status === 'available' && (
+        <div data-testid="desktop-update-available" className="hidden">
+          Update Available
+        </div>
+      )}
 
       {/* Fallback pentru browser */}
       {!isElectron && (
@@ -309,7 +332,7 @@ export const AppUpdatePanel: React.FC = () => {
         <div className="mb-6">
           <div className="flex justify-between items-center text-xs font-bold text-gray-500 mb-2">
             <span>Descarcare actualizare...</span>
-            <span data-testid="app-update-progress">{progress}%</span>
+            <span data-testid="desktop-update-progress">{progress}%</span>
           </div>
           <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden shadow-inner border border-gray-200/50">
             <div 
@@ -324,7 +347,7 @@ export const AppUpdatePanel: React.FC = () => {
       {isElectron && (
         <div className="flex flex-wrap gap-4 pt-2 border-t border-gray-50">
           <button
-            data-testid="app-update-check-button"
+            data-testid="desktop-update-check-button"
             onClick={handleCheckForUpdates}
             disabled={status === 'checking' || status === 'downloading'}
             className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 transition-all active:scale-95 cursor-pointer"
@@ -335,7 +358,7 @@ export const AppUpdatePanel: React.FC = () => {
 
           {status === 'available' && (
             <button
-              data-testid="app-update-download-button"
+              data-testid="desktop-update-download-button"
               onClick={handleDownloadUpdate}
               className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-100 transition-all active:scale-95 cursor-pointer"
             >
@@ -346,7 +369,7 @@ export const AppUpdatePanel: React.FC = () => {
 
           {status === 'downloaded' && (
             <button
-              data-testid="app-update-install-button"
+              data-testid="desktop-update-install-button"
               onClick={handleInstallUpdate}
               className="flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-teal-100 transition-all active:scale-95 cursor-pointer"
             >

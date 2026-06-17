@@ -283,3 +283,10 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Verificat: instalare per-machine, pornire curată, SQLite local, login pe roluri (Platform Owner, Admin, Casier), POS, NIR, catalog real (568 produse, 6 categorii, 123 vânzări reale), offline fallback și dezinstalare curată.
   - Raport oficial generat în `docs/real_desktop_qa_clean_db_6rel21_report.md`.
 
+- **Etapa 6REL.3 (Auto-update pilot / Release packaging)**: **PASS**
+  - Auditat configurația auto-updater (provider `github`), finalizat build-ul local Vite/TypeScript și generat executabilul desktop, blockmap-ul și `latest.yml` prin `electron-builder`.
+  - Integrat noile selectoare de testare E2E (`desktop-update-*`) în componenta `AppUpdatePanel.tsx` din Store Settings, adăugat indicator de canal, și validat local cu succes prin testele `test_desktop_update_ui_6rel3.py` și `test_desktop_auto_update_6app2.py`.
+  - Configurat un feed local securizat pe localhost:8088 în folderul `release-feed-test/` (ignorat prin `.gitignore`) și testat feedback-ul de eroare / conexiune lipsă / update disponibil.
+  - Raport detaliat în `docs/auto_update_pilot_6rel3_report.md`.
+
+

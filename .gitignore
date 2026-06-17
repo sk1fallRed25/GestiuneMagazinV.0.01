@@ -18,6 +18,7 @@ mobile/web-build/
 scratch/
 artifacts/
 release/
+release-feed-test/
 *.png
 *.html
 release.zip
