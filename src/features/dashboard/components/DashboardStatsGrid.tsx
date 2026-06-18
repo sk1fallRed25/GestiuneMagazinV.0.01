@@ -1,12 +1,9 @@
 import React from 'react';
 import { 
     TrendingUp, 
-    ShoppingBag, 
-    Package, 
+    Coins, 
     AlertTriangle, 
-    CalendarClock, 
-    History, 
-    Coins
+    CalendarClock 
 } from 'lucide-react';
 import StatCard from '../../../shared/components/StatCard';
 import { DashboardStats } from '../types';
@@ -29,55 +26,32 @@ export const DashboardStatsGrid: React.FC<DashboardStatsGridProps> = ({ stats, l
             />
 
             <StatCard
-                title="Vânzări Lună"
-                value={`${stats.monthSalesTotal.toFixed(2)} LEI`}
-                icon={ShoppingBag}
+                title="Profit Azi"
+                value={`${stats.todayProfitTotal.toFixed(2)} LEI`}
+                icon={Coins}
                 color="bg-indigo-600"
-                trend={{ isPositive: true, value: "Luna curentă" }}
+                trend={{ isPositive: stats.todayProfitTotal >= 0, value: "Estimare brută" }}
                 loading={loading}
             />
 
             <StatCard
-                title="Stocuri Critice"
+                title="Produse Stoc Mic"
                 value={`${stats.lowStockProductsCount} Produse`}
                 icon={AlertTriangle}
-                color={stats.lowStockProductsCount > 0 ? "bg-red-500" : "bg-emerald-500"}
-                trend={{ isPositive: stats.lowStockProductsCount === 0, value: stats.lowStockProductsCount > 0 ? "Reaprovizionare" : "Optim" }}
+                color={stats.lowStockProductsCount > 0 ? "bg-amber-500" : "bg-emerald-500"}
+                trend={{ isPositive: stats.lowStockProductsCount === 0, value: stats.lowStockProductsCount > 0 ? "Necesită reaprovizionare" : "Stoc optim" }}
                 loading={loading}
             />
 
             <StatCard
-                title="Termene Expirare"
+                title="Alerte Expirare"
                 value={`${stats.expiredBatchesCount + stats.criticalExpiryBatchesCount} Loturi`}
                 icon={CalendarClock}
                 color={stats.expiredBatchesCount > 0 ? "bg-red-600" : (stats.criticalExpiryBatchesCount > 0 ? "bg-orange-500" : "bg-emerald-500")}
-                trend={{ isPositive: stats.expiredBatchesCount === 0, value: stats.expiredBatchesCount > 0 ? "Expirate" : "Sigur" }}
-                loading={loading}
-            />
-
-            <StatCard
-                title="Produse Active"
-                value={`${stats.activeProductsCount}`}
-                icon={Package}
-                color="bg-blue-500"
-                loading={loading}
-            />
-
-            <StatCard
-                title="Pierderi / Casări"
-                value={`${stats.wasteEventsThisMonth} Luna aceasta`}
-                icon={History}
-                color="bg-amber-500"
-                loading={loading}
-            />
-
-            <StatCard
-                title="Valoare Stoc (Est.)"
-                value={`${stats.stockValueEstimate.toFixed(0)} LEI`}
-                icon={Coins}
-                color="bg-slate-700"
+                trend={{ isPositive: stats.expiredBatchesCount === 0, value: stats.expiredBatchesCount > 0 ? "Expirate sau critice" : "Termene sigure" }}
                 loading={loading}
             />
         </div>
     );
 };
+

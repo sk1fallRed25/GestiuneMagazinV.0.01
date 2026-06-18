@@ -236,11 +236,12 @@ export const StoreSettingsPage: React.FC = () => {
 
         <FiscalNetStationSettings disabled={!canView} />
 
-        <AiConsentSettingsCard storeId={storeInfo.storeId} canEdit={canEdit} />
+        <AiConsentSettingsCard storeId={storeInfo.storeId || ''} canEdit={canEdit} />
 
-        <OfflineCacheSyncPanel storeId={storeInfo.storeId} />
+        <OfflineCacheSyncPanel storeId={storeInfo.storeId || ''} />
 
-        <StoreDiagnosticsPanel storeId={storeInfo.storeId} />
+        <StoreDiagnosticsPanel storeId={storeInfo.storeId || ''} />
+
 
         {/* Coadă Vânzări Offline */}
         <Card className="p-6 border border-slate-300 shadow-sm flex flex-col gap-4">

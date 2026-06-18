@@ -82,19 +82,58 @@ export const dashboardService = {
         const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-        // A. Vânzări Azi
+        // A. Vânzări Azi & Profit Azi
         const { data: todaySalesRaw, error: tsError } = await supabase
             .from('sales')
-            .select('total')
+            .select(`
+                total,
+                sale_items (
+                    quantity,
+                    total_item,
+                    stock_batches (
+                        purchase_price
+                    ),
+                    products (
+                        product_prices (
+                            store_id,
+                            price_purchase
+                        )
+                    )
+                )
+            `)
             .eq('store_id', storeId)
             .eq('status', 'finalized')
             .gte('created_at', todayStart)
             .lte('created_at', todayEnd);
 
         if (tsError) throw tsError;
-        const todaySales = (todaySalesRaw as unknown as SimpleSaleTotalRow[]) || [];
+        const todaySales = (todaySalesRaw as any[]) || [];
         const todaySalesTotal = todaySales.reduce((acc, s) => acc + toNumberSafe(s.total, 0), 0);
         const todaySalesCount = todaySales.length;
+
+        let todayProfitTotal = 0;
+        todaySales.forEach(s => {
+            const items = s.sale_items || [];
+            items.forEach((item: any) => {
+                const qty = toNumberSafe(item.quantity, 0);
+                const totalItem = toNumberSafe(item.total_item, 0);
+                
+                let purchasePrice = 0;
+                const batch = pickFirst(item.stock_batches);
+                if (batch && batch.purchase_price !== null) {
+                    purchasePrice = toNumberSafe(batch.purchase_price, 0);
+                } else {
+                    const prod = pickFirst(item.products);
+                    const prices = prod ? (Array.isArray(prod.product_prices) ? prod.product_prices : [prod.product_prices]) : [];
+                    const prodPrice = prices.find((pr: any) => pr && pr.store_id === storeId) || prices[0];
+                    if (prodPrice && prodPrice.price_purchase !== null) {
+                        purchasePrice = toNumberSafe(prodPrice.price_purchase, 0);
+                    }
+                }
+                const cost = purchasePrice * qty;
+                todayProfitTotal += (totalItem - cost);
+            });
+        });
 
         // B. Vânzări Lună
         const { data: monthSalesRaw, error: msError } = await supabase
@@ -274,6 +313,31 @@ export const dashboardService = {
             cashierName: pickFirst(s.profiles)?.full_name || 'N/A'
         }));
 
+        // I. Recent Receptions
+        const { data: recentReceptionsRaw, error: rrError } = await supabase
+            .from('receptions')
+            .select(`
+                id,
+                created_at,
+                document_number,
+                supplier_text,
+                status,
+                reception_date
+            `)
+            .eq('store_id', storeId)
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        if (rrError) throw rrError;
+        const recentReceptions = ((recentReceptionsRaw as any[]) || []).map(r => ({
+            id: r.id,
+            createdAt: r.created_at,
+            documentNumber: r.document_number || 'N/A',
+            supplierText: r.supplier_text || 'N/A',
+            status: r.status,
+            receptionDate: r.reception_date || 'N/A'
+        }));
+
         // H. Sales Chart (Last 7 Days)
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
@@ -317,6 +381,7 @@ export const dashboardService = {
             stats: {
                 todaySalesTotal,
                 todaySalesCount,
+                todayProfitTotal,
                 monthSalesTotal,
                 activeProductsCount: activeProductsCount || 0,
                 lowStockProductsCount: Object.values(productStockMap).filter(p => p.total <= 5).length,
@@ -336,7 +401,8 @@ export const dashboardService = {
             wasteSummary: {
                 monthCount: wasteCount,
                 topReasons
-            }
+            },
+            recentReceptions
         };
     }
 };

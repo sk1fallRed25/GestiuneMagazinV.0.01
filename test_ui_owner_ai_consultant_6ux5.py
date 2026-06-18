@@ -158,12 +158,12 @@ def run_e2e_tests():
             assert page1.locator('[data-testid="owner-global-stats"]').is_visible(), "owner-global-stats missing"
 
             # Switch to Magazine Tab
-            page1.locator('[data-testid="owner-console-tabs"] >> text=Magazine').click()
+            page1.locator('[data-testid="owner-console-tab-stores"]').click()
             page1.wait_for_timeout(1000)
             assert page1.locator('[data-testid="owner-console-store-table"]').is_visible(), "owner-console-store-table missing"
 
             # Switch to Users Tab
-            page1.locator('[data-testid="owner-console-tabs"] >> text=Utilizatori').click()
+            page1.locator('[data-testid="owner-console-tab-users"]').click()
             page1.wait_for_timeout(1000)
             assert page1.locator('[data-testid="owner-console-user-table"]').is_visible(), "owner-console-user-table missing"
             safe_print("PASS: Owner Console elements verified successfully.")

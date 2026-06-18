@@ -1,6 +1,7 @@
 export interface DashboardStats {
     todaySalesTotal: number;
     todaySalesCount: number;
+    todayProfitTotal: number;
     monthSalesTotal: number;
     activeProductsCount: number;
     lowStockProductsCount: number;
@@ -41,6 +42,15 @@ export interface ExpirationAlert {
     status: 'expired' | 'critical' | 'warning';
 }
 
+export interface RecentReception {
+    id: string;
+    createdAt: string;
+    documentNumber: string;
+    supplierText: string;
+    status: string;
+    receptionDate: string;
+}
+
 export interface SalesChartPoint {
     date: string;
     total: number;
@@ -59,4 +69,6 @@ export interface DashboardData {
     expirationAlerts: ExpirationAlert[];
     salesChart: SalesChartPoint[];
     wasteSummary: WasteSummary;
+    recentReceptions: RecentReception[];
 }
+
