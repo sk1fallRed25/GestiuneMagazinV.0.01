@@ -595,6 +595,13 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-a adăugat parametrul `"private": true` în configurația `publish` din `package.json` ca măsură de remediere a accesibilității private a feed-ului.
   - Raport oficial de monitorizare generat la `docs/pilot_release_monitoring_6rel5_report.md`.
 
+- **Etapa 6OPS.1 (Production Readiness Audit & Operational Monitoring)**: **PASS**
+  - S-a realizat auditul tehnic complet de pregătire pentru producție pentru mediile Electron, Supabase și fluxurile tranzacționale POS.
+  - S-au generat documentele oficiale: raportul de audit `docs/production_readiness_audit_6ops1.md`, lista de verificare `docs/go_live_checklist_6ops1.md` și planul de restaurare în caz de incidente `docs/incident_recovery_plan_6ops1.md`.
+  - S-au evaluat riscurile arhitecturale și de securitate (inclusiv detaliile legăturilor publice pe funcții SQL legacy, lipsa persistence-ului de loguri pe app packaged și controlul feed-ului auto-update).
+  - S-a stabilit scorul Go-Live la **85/100** cu recomandare de **GO LIVE WITH CONDITIONS**.
+
 ### Următorul pas recomandat:
-- **6REL.6 — Pilot Monitored Rollout pe 1-2 stații POS**: Activarea descărcării și instalării controlate de către Stefan direct pe 1 sau 2 stații reale din magazin, urmată de monitorizarea comportamentului în producție.
+- **6OPS.2 — Operational Logging & Telemetry Integration**: Implementarea logării structurate în fișiere fizice locale pe client (`electron-log`) și a logării automate a excepțiilor renderer direct în tabela publică de `error_reports`.
+
 

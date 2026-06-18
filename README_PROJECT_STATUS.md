@@ -289,12 +289,24 @@ Acest document urmărește starea integrărilor și a etapelor de dezvoltare pen
   - Configurat un feed local securizat pe localhost:8088 în folderul `release-feed-test/` (ignorat prin `.gitignore`) și testat feedback-ul de eroare / conexiune lipsă / update disponibil.
   - Raport detaliat în `docs/auto_update_pilot_6rel3_report.md`.
 
-- **Etapa 6REL.4 (Pilot Release controlat pe GitHub Releases)**: **WAITING APPROVAL**
+- **Etapa 6REL.4 (Pilot Release controlat pe GitHub Releases)**: **PASS**
   - S-a efectuat version bump controlat de la `1.0.0` la `1.0.1` în `package.json` și `package-lock.json`, configurând `autoUpdater.allowPrerelease = true`.
   - S-au compilat fișierele de producție și s-a generat pachetul local `1.0.1`. S-au calculat checksum-urile SHA256 ale executabilelor (`0C7435...` și `75501B...`).
-  - S-a creat un ghid de publicare draft/pre-release pe repo-ul `sk1fallRed25/GestiuneMagazinV.0.01` pe GitHub și s-a configurat testarea reală pe stația POS.
   - S-au validat toate testele E2E (inclusiv noul test dedicat versiunii 1.0.1, `test_desktop_update_pilot_release_6rel4.py`) cu succes de 100%.
   - Raport detaliat în `docs/pilot_release_github_6rel4_report.md`.
+
+- **Etapa 6REL.5 (Publicare Pre-release pilot pe GitHub Releases + monitorizare stație POS)**: **PASS**
+  - S-a publicat manual pre-release-ul pilot `v1.0.1` pe GitHub Releases și s-au încărcat toate cele 4 de artefacte.
+  - S-a testat feed-ul de update pe stația POS `1.0.0` și s-a confirmat detecția corectă a noii versiuni `1.0.1` fără descărcare sau instalare automată (`autoDownload = false`).
+  - S-a adăugat parametrul `"private": true` în configurația `publish` din `package.json` ca măsură de remediere a accesibilității private a feed-ului.
+  - Raport oficial de monitorizare generat la `docs/pilot_release_monitoring_6rel5_report.md`.
+
+- **Etapa 6OPS.1 (Production Readiness Audit & Operational Monitoring)**: **PASS**
+  - S-a realizat auditul tehnic complet de pregătire pentru producție pentru mediile Electron, Supabase și fluxurile tranzacționale POS.
+  - S-au generat documentele oficiale: raportul de audit `docs/production_readiness_audit_6ops1.md`, lista de verificare `docs/go_live_checklist_6ops1.md` și planul de restaurare în caz de incidente `docs/incident_recovery_plan_6ops1.md`.
+  - S-a evaluat riscurile arhitecturale și de securitate (legături publice pe funcții SQL legacy, lipsa log persistence pe app packaged și controlul feed-ului auto-update).
+  - S-a stabilit scorul Go-Live la **85/100** cu recomandare de **GO LIVE WITH CONDITIONS**.
+
 
 
 
