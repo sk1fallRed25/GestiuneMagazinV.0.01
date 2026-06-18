@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import AppWrapper from './App'
 import './index.css'
+import { reportErrorToSupabase } from './shared/utils/errorReporter'
 
 // Monkey-patch for legacy E2E compatibility mapping old test IDs to new ones
 if (typeof window !== 'undefined') {
@@ -78,6 +79,31 @@ if (typeof window !== 'undefined') {
     }
     return origHasAttr.apply(this, arguments as any);
   };
+}
+
+if (typeof window !== 'undefined') {
+  window.onerror = function (message, source, lineno, colno, error) {
+    const msg = String(message || 'Unknown error');
+    const stack = error?.stack || `at ${source}:${lineno}:${colno}`;
+    
+    // Log to Supabase and file
+    reportErrorToSupabase(msg, stack, { source, lineno, colno });
+  };
+
+  window.onunhandledrejection = function (event) {
+    const reason = event.reason;
+    const msg = reason instanceof Error ? reason.message : String(reason || 'Unhandled promise rejection');
+    const stack = reason instanceof Error ? reason.stack : '';
+    
+    // Log to Supabase and file
+    reportErrorToSupabase(msg, stack, { unhandledRejection: true });
+  };
+
+  if ((window as any).electronAPI?.onMainError) {
+    (window as any).electronAPI.onMainError((err: { message: string, stack: string }) => {
+      reportErrorToSupabase(`[Main Process Error] ${err.message}`, err.stack, { mainProcess: true });
+    });
+  }
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

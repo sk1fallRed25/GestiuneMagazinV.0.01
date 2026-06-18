@@ -31,10 +31,15 @@ try {
 import fs from 'fs';
 import path from 'path';
 
-// Local console-based logger fallback
+import logLib from 'electron-log/main.js';
+const updaterLog = logLib.create({ logId: 'updater' });
+updaterLog.transports.file.resolvePathFn = () => {
+    return path.join(app.getPath('userData'), 'logs', 'updater.log');
+};
+
 const log = {
-    info: (...args) => console.log('[Updater Info]', ...args),
-    error: (...args) => console.error('[Updater Error]', ...args)
+    info: (...args) => updaterLog.info('[Updater Info]', ...args),
+    error: (...args) => updaterLog.error('[Updater Error]', ...args)
 };
 
 let mainWindow = null;
@@ -72,6 +77,9 @@ if (!feedUrl) {
 
 export function initializeUpdater(win) {
     mainWindow = win;
+    
+    // Assign logger to autoUpdater
+    autoUpdater.logger = updaterLog;
     
     // Disable automatic downloading of updates on check
     autoUpdater.autoDownload = false;

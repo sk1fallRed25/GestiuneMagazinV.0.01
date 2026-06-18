@@ -18,6 +18,7 @@ import { AppUpdatePanel } from '../app-update/AppUpdatePanel';
 import { OfflineCacheSyncPanel } from '../pos/components/OfflineCacheSyncPanel';
 import { PosCartEventsPanel } from '../pos/components/PosCartEventsPanel';
 import { PageHeader, Card } from '../../shared/components/ui';
+import { StoreDiagnosticsPanel } from './components/StoreDiagnosticsPanel';
 
 export const StoreSettingsPage: React.FC = () => {
 
@@ -238,6 +239,8 @@ export const StoreSettingsPage: React.FC = () => {
         <AiConsentSettingsCard storeId={storeInfo.storeId} canEdit={canEdit} />
 
         <OfflineCacheSyncPanel storeId={storeInfo.storeId} />
+
+        <StoreDiagnosticsPanel storeId={storeInfo.storeId} />
 
         {/* Coadă Vânzări Offline */}
         <Card className="p-6 border border-slate-300 shadow-sm flex flex-col gap-4">

@@ -5,8 +5,28 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import os from 'os';
+import { app } from 'electron';
+import logLib from 'electron-log/main.js';
+
+const mainLog = logLib.create({ logId: 'main' });
+mainLog.transports.file.resolvePathFn = () => path.join(app.getPath('userData'), 'logs', 'main.log');
 
 let db = null;
+
+let dbState = {
+    initialized: false,
+    corrupted: false,
+    recreated: false,
+    path: '',
+    error: null
+};
+
+/**
+ * Returns the SQLite diagnostics state.
+ */
+export function getDbState() {
+    return dbState;
+}
 
 /**
  * Initializes the SQLite database file and tables in the userData folder.
@@ -15,28 +35,74 @@ let db = null;
 export function initDb(userDataPath) {
     if (db) return db;
 
+    const dbPath = path.join(userDataPath, 'offline_cache.db');
+    dbState.path = dbPath;
+
+    const tryInit = (attemptPath) => {
+        const localDb = new Database(attemptPath);
+        // Enable WAL mode and foreign key constraints
+        localDb.pragma('journal_mode = WAL');
+        localDb.pragma('synchronous = NORMAL');
+        localDb.pragma('foreign_keys = ON');
+
+        // Integrity check
+        const check = localDb.pragma('integrity_check');
+        if (!check || check.length === 0 || check[0].integrity_check !== 'ok') {
+            throw new Error('SQLite integrity check failed: ' + JSON.stringify(check));
+        }
+        return localDb;
+    };
+
     try {
         if (!fs.existsSync(userDataPath)) {
             fs.mkdirSync(userDataPath, { recursive: true });
         }
-
-        const dbPath = path.join(userDataPath, 'offline_cache.db');
-        console.log(`[SQLite Service] Opening SQLite database at: ${dbPath}`);
-
-        db = new Database(dbPath, { verbose: console.log });
-
-        // Enable WAL mode and foreign key constraints
-        db.pragma('journal_mode = WAL');
-        db.pragma('synchronous = NORMAL');
-        db.pragma('foreign_keys = ON');
-
+        mainLog.info(`[SQLite Service] Opening SQLite database at: ${dbPath}`);
+        db = tryInit(dbPath);
         createSchemas();
-
-        console.log('[SQLite Service] Database schemas initialized successfully.');
+        mainLog.info('[SQLite Service] Database schemas initialized successfully.');
+        dbState.initialized = true;
         return db;
     } catch (err) {
-        console.error('[SQLite Service] Failed to initialize SQLite database:', err);
-        throw err;
+        mainLog.error('[SQLite Service] Local database is corrupt or failed to initialize, running recovery...', err);
+        
+        dbState.corrupted = true;
+        dbState.error = err.message || String(err);
+
+        // Close connection safely
+        if (db) {
+            try { db.close(); } catch (e) {}
+            db = null;
+        }
+
+        // Automatic backup of corrupt database
+        if (fs.existsSync(dbPath)) {
+            try {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const backupPath = path.join(userDataPath, `offline_cache.corrupt.${timestamp}.db`);
+                fs.renameSync(dbPath, backupPath);
+                mainLog.info(`[SQLite Service] Backed up corrupt database to: ${backupPath}`);
+            } catch (backupErr) {
+                mainLog.error('[SQLite Service] Failed to backup corrupt database:', backupErr);
+            }
+        }
+
+        // Recreate database file and schemas
+        try {
+            mainLog.info('[SQLite Service] Recreating clean database...');
+            db = new Database(dbPath);
+            db.pragma('journal_mode = WAL');
+            db.pragma('synchronous = NORMAL');
+            db.pragma('foreign_keys = ON');
+            createSchemas();
+            mainLog.info('[SQLite Service] Recreated and initialized schemas successfully.');
+            dbState.recreated = true;
+            dbState.initialized = true;
+            return db;
+        } catch (recreateErr) {
+            mainLog.error('[SQLite Service] CRITICAL: Failed to recreate database after corruption:', recreateErr);
+            throw recreateErr;
+        }
     }
 }
 

@@ -4,6 +4,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     writeFiscalNetFile: (args) => ipcRenderer.invoke('write-fiscal-net-file', args),
     readFiscalNetResponse: (args) => ipcRenderer.invoke('read-fiscal-net-response', args),
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+    log: (level, ...args) => ipcRenderer.invoke('log:renderer', level, ...args),
+    onMainError: (callback) => {
+        const subscription = (event, err) => callback(err);
+        ipcRenderer.on('app:main-error', subscription);
+        return () => {
+            ipcRenderer.removeListener('app:main-error', subscription);
+        };
+    },
     isElectron: true,
     appControls: {
         quitApp: () => ipcRenderer.invoke('app:quit'),
@@ -30,7 +38,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
         getAllProducts: (args) => ipcRenderer.invoke('sqlite:get-all-products', args),
         logCartEvent: (args) => ipcRenderer.invoke('sqlite:log-cart-event', args),
         listCartEvents: (args) => ipcRenderer.invoke('sqlite:list-cart-events', args),
-        getCategories: () => ipcRenderer.invoke('sqlite:get-categories')
+        getCategories: () => ipcRenderer.invoke('sqlite:get-categories'),
+        getState: () => ipcRenderer.invoke('sqlite:get-state')
     },
     updater: {
         checkForUpdates: () => ipcRenderer.invoke('updater:check-for-updates'),

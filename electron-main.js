@@ -2,13 +2,33 @@ import { app, BrowserWindow, ipcMain, screen } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+
+// Configure Structured Logging with electron-log
+import log from 'electron-log/main.js';
+log.initialize();
+
+const mainLog = log.create({ logId: 'main' });
+const rendererLog = log.create({ logId: 'renderer' });
+const updaterLog = log.create({ logId: 'updater' });
+
+const getLogPath = (filename) => {
+    return path.join(app.getPath('userData'), 'logs', filename);
+};
+
+mainLog.transports.file.resolvePathFn = () => getLogPath('main.log');
+rendererLog.transports.file.resolvePathFn = () => getLogPath('renderer.log');
+updaterLog.transports.file.resolvePathFn = () => getLogPath('updater.log');
+
+export { mainLog, rendererLog, updaterLog };
+
 import { initializeUpdater } from './electron-updater-service.js';
 import { 
     initDb, saveCacheBundle, searchLocalProducts, getLocalProductByBarcode, 
     getLocalCacheStatus, saveLocalShiftState, getLocalShiftState, getOrCreateDeviceInfo,
     validateCartItemsLocal, enqueueOfflineSale, listOfflineSales, getOfflineSale, 
     updateOfflineSaleStatus, deleteOfflineSale, getOfflineSalesSummary,
-    getAllLocalProducts, logPosCartEvent, listLocalPosCartEvents, getLocalCategories
+    getAllLocalProducts, logPosCartEvent, listLocalPosCartEvents, getLocalCategories,
+    getDbState
 } from './electron-sqlite-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -53,7 +73,7 @@ app.whenReady().then(() => {
     try {
         initDb(app.getPath('userData'));
     } catch (err) {
-        console.error('Failed to initialize local database:', err);
+        mainLog.error('Failed to initialize local database:', err);
     }
     createWindow();
 });
@@ -111,8 +131,48 @@ function serializeError(err) {
     return String(err || 'Eroare necunoscută.');
 }
 
+// Process Exception/Rejection Listeners
+process.on('uncaughtException', (err) => {
+    mainLog.error('Uncaught Exception:', err);
+    if (win && !win.isDestroyed()) {
+        win.webContents.send('app:main-error', {
+            message: err.message || String(err),
+            stack: err.stack || ''
+        });
+    }
+});
+
+process.on('unhandledRejection', (reason) => {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
+    mainLog.error('Unhandled Rejection:', err);
+    if (win && !win.isDestroyed()) {
+        win.webContents.send('app:main-error', {
+            message: err.message,
+            stack: err.stack || ''
+        });
+    }
+});
+
+// Structured Logging & SQLite Diagnostics IPC Handlers
+ipcMain.handle('log:renderer', (event, level, ...args) => {
+    if (rendererLog[level]) {
+        rendererLog[level](...args);
+    } else {
+        rendererLog.info(...args);
+    }
+    return { success: true };
+});
+
+ipcMain.handle('sqlite:get-state', () => {
+    try {
+        return getDbState();
+    } catch (err) {
+        return { initialized: false, corrupted: true, recreated: false, error: err.message };
+    }
+});
+
 ipcMain.handle('app:quit', () => {
-    console.log('[AppControls] Quit requested via IPC.');
+    mainLog.info('[AppControls] Quit requested via IPC.');
     app.quit();
 });
 
