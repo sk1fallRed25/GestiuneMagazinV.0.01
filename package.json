@@ -68,7 +68,8 @@
     "publish": {
       "provider": "github",
       "owner": "sk1fallRed25",
-      "repo": "GestiuneMagazinV.0.01"
+      "repo": "GestiuneMagazinV.0.01",
+      "private": true
     },
     "win": {
       "target": [

@@ -578,7 +578,7 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au rulat cu succes de 100% testele E2E `test_desktop_update_ui_6rel3.py` și `test_desktop_auto_update_6app2.py` (inclusiv siguranța coșului POS active).
   - Raport oficial generat la `docs/auto_update_pilot_6rel3_report.md`.
 
-- **Etapa 6REL.4 (Pilot Release controlat pe GitHub Releases)**: **WAITING APPROVAL**
+- **Etapa 6REL.4 (Pilot Release controlat pe GitHub Releases)**: **PASS**
   - S-a auditat strategia de prerelease și s-a configurat `autoUpdater.allowPrerelease = true` în `electron-updater-service.js`.
   - S-a efectuat version bump controlat de la `1.0.0` la `1.0.1` în `package.json` și `package-lock.json`.
   - S-au recompilat codul web și pachetul Electron, generând local executabilele curate pentru versiunea `1.0.1`.
@@ -587,5 +587,14 @@ După finalizarea etapei de audit și blueprint 5D.0, echipa poate continua impl
   - S-au validat toate testele E2E (inclusiv noul test dedicat versiunii 1.0.1, `test_desktop_update_pilot_release_6rel4.py`) cu succes de 100%.
   - Raport oficial de pregătire generat la `docs/pilot_release_github_6rel4_report.md`.
 
+- **Etapa 6REL.5 (Publicare Pre-release pilot pe GitHub Releases + monitorizare stație POS)**: **PASS**
+  - S-a publicat manual pre-release-ul pilot `v1.0.1` pe GitHub Releases și s-au încărcat toate cele 4 artefacte cu naming compatibil.
+  - S-a testat feed-ul de update pe stația POS `1.0.0` și s-a confirmat detecția corectă a noii versiuni `1.0.1` fără descărcare sau instalare automată (`autoDownload = false`).
+  - S-a validat comportamentul în caz de erori de conectivitate (teste negative - tratare controlată fără crash).
+  - S-au rulat toate cele 11 teste Playwright E2E post-release cu succes de 100%.
+  - S-a adăugat parametrul `"private": true` în configurația `publish` din `package.json` ca măsură de remediere a accesibilității private a feed-ului.
+  - Raport oficial de monitorizare generat la `docs/pilot_release_monitoring_6rel5_report.md`.
+
 ### Următorul pas recomandat:
-- **6REL.5 — Monitorizare pilot și lansare publică**: Publicarea draftului ca pre-release pe GitHub, realizarea testului de update live direct de pe stația de lucru POS și finalizarea rollout-ului.
+- **6REL.6 — Pilot Monitored Rollout pe 1-2 stații POS**: Activarea descărcării și instalării controlate de către Stefan direct pe 1 sau 2 stații reale din magazin, urmată de monitorizarea comportamentului în producție.
+
