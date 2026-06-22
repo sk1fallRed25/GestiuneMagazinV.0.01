@@ -9,6 +9,7 @@ import { ReceptionSummaryCard } from './components/ReceptionSummaryCard';
 import { ReceptionHistory } from './components/ReceptionHistory';
 import { ReceptionDetail } from './components/ReceptionDetail';
 import { AlertCircle, PlusCircle, Check } from 'lucide-react';
+import { LoadingState } from '../../shared/components/ui';
 
 export const ReceptionPage = () => {
     const { currentStoreName } = useAuth();
@@ -72,6 +73,12 @@ export const ReceptionPage = () => {
     const handleExecuteConfirm = async () => {
         setShowConfirmModal(false);
         await confirmReception();
+    };
+
+    const handleLegacyConfirm = async () => {
+        if (window.confirm("Sigur dorești să finalizezi recepția?")) {
+            await confirmReception();
+        }
     };
 
     return (
@@ -168,6 +175,7 @@ export const ReceptionPage = () => {
                                 savingDraft={savingDraft}
                                 onSaveDraft={() => saveCurrentDraft(false)}
                                 onConfirm={triggerConfirm}
+                                onLegacyConfirm={handleLegacyConfirm}
                                 onCancel={activeDraftId ? cancelActiveDraft : undefined}
                                 hasActiveDraft={!!activeDraftId}
                                 disabled={!document.documentNumber}
@@ -183,18 +191,25 @@ export const ReceptionPage = () => {
                         filters={historyFilters}
                         onFilterChange={setHistoryFilters}
                         onViewDetails={viewDetails}
+                        onNewReception={startNewReception}
                     />
                 )}
 
                 {view === 'detail' && (
-                    <ReceptionDetail
-                        reception={selectedReceptionDetails}
-                        onBack={() => setView('history')}
-                        onEdit={editDraft}
-                        onConfirm={triggerConfirm}
-                        onCancel={cancelActiveDraft}
-                        submitting={submitting}
-                    />
+                    loadingDetails ? (
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-16 flex justify-center">
+                            <LoadingState message="Se încarcă detaliile documentului..." size="lg" />
+                        </div>
+                    ) : (
+                        <ReceptionDetail
+                            reception={selectedReceptionDetails}
+                            onBack={() => setView('history')}
+                            onEdit={editDraft}
+                            onConfirm={triggerConfirm}
+                            onCancel={cancelActiveDraft}
+                            submitting={submitting}
+                        />
+                    )
                 )}
             </div>
 

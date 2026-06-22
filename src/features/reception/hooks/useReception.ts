@@ -130,9 +130,13 @@ export const useReception = () => {
         }
     };
 
-    const selectProduct = (p: ReceptionProduct) => {
+    const selectProduct = (p: ReceptionProduct | null) => {
         setSelectedProduct(p);
-        setSearch(p.nume);
+        if (p) {
+            setSearch(p.nume);
+        } else {
+            setSearch('');
+        }
     };
 
     // --- Calcule ---
@@ -224,11 +228,33 @@ export const useReception = () => {
     };
 
     const addLine = () => {
-        if (!selectedProduct) return toast.error("Selectează un produs!");
-        if (invoiceQty <= 0) return toast.error("Cantitatea facturată trebuie să fie pozitivă.");
-        if (receivedQty <= 0) return toast.error("Cantitatea recepționată trebuie să fie pozitivă.");
-        if (lineNetValue <= 0) return toast.error("Valoarea totală fără TVA trebuie să fie pozitivă.");
-        if (decidedSalePrice <= 0) return toast.error("Prețul de vânzare stabilit trebuie să fie pozitiv.");
+        console.log("DEBUG ADD LINE:", { 
+            selectedProduct: selectedProduct?.nume, 
+            invoiceQty, 
+            receivedQty, 
+            lineNetValue, 
+            decidedSalePrice 
+        });
+        if (!selectedProduct) {
+            console.log("addLine failed: selectedProduct is null");
+            return toast.error("Selectează un produs!");
+        }
+        if (invoiceQty <= 0) {
+            console.log("addLine failed: invoiceQty <= 0", invoiceQty);
+            return toast.error("Cantitatea facturată trebuie să fie pozitivă.");
+        }
+        if (receivedQty <= 0) {
+            console.log("addLine failed: receivedQty <= 0", receivedQty);
+            return toast.error("Cantitatea recepționată trebuie să fie pozitivă.");
+        }
+        if (lineNetValue <= 0) {
+            console.log("addLine failed: lineNetValue <= 0", lineNetValue);
+            return toast.error("Valoarea totală fără TVA trebuie să fie pozitivă.");
+        }
+        if (decidedSalePrice <= 0) {
+            console.log("addLine failed: decidedSalePrice <= 0", decidedSalePrice);
+            return toast.error("Prețul de vânzare stabilit trebuie să fie pozitiv.");
+        }
 
         const newLine: ReceptionLine = {
             tempId: crypto.randomUUID(),
@@ -346,7 +372,7 @@ export const useReception = () => {
         setSubmitting(true);
         try {
             await receptionService.postReception(draftId, currentStoreId!, user!.id);
-            toast.success("Recepție confirmată și postată în stoc cu succes!");
+            toast.success("Recepție înregistrată. Documentul a fost finalizat cu succes!");
             
             // Go to detail view of the posted reception
             await viewDetails(draftId);
@@ -361,7 +387,7 @@ export const useReception = () => {
     // --- Cancel Draft ---
     const cancelActiveDraft = async () => {
         if (!activeDraftId) return;
-        if (!window.confirm("Sigur dorești să anulezi acest draft de recepție? Această acțiune nu poate fi anulată.")) {
+        if (!window.confirm("Ești sigur? Această operație nu poate fi anulată. Sigur dorești să anulezi acest draft de recepție?")) {
             return;
         }
         try {

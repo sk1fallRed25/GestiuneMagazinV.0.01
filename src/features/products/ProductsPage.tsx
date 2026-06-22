@@ -10,7 +10,7 @@ import ProductTable from './components/ProductTable';
 import ProductEditModal from './components/ProductEditModal';
 import CategoryManagerModal from './components/CategoryManagerModal';
 import BulkMoveCategoryModal from './components/BulkMoveCategoryModal';
-import { PageHeader } from '../../shared/components/ui';
+import { PageHeader, LoadingState } from '../../shared/components/ui';
 
 const ProductsPage = () => {
     const { role } = useAuth();
@@ -135,9 +135,8 @@ const ProductsPage = () => {
     }, [products, selectedIds]);
 
     if (loading) return (
-        <div className="flex h-screen items-center justify-center text-gray-500 font-medium">
-            <RefreshCw className="animate-spin mr-3 text-indigo-600" />
-            Se accesează serverul de baze de date...
+        <div className="flex h-screen items-center justify-center bg-slate-50/50">
+            <LoadingState message="Se accesează serverul de baze de date..." size="lg" />
         </div>
     );
 

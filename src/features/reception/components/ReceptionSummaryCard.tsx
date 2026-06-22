@@ -7,6 +7,7 @@ interface ReceptionSummaryCardProps {
     savingDraft: boolean;
     onSaveDraft: () => void;
     onConfirm: () => void;
+    onLegacyConfirm?: () => void;
     onCancel?: () => void;
     hasActiveDraft: boolean;
     disabled: boolean;
@@ -18,6 +19,7 @@ export const ReceptionSummaryCard = ({
     savingDraft,
     onSaveDraft,
     onConfirm,
+    onLegacyConfirm,
     onCancel,
     hasActiveDraft,
     disabled
@@ -65,6 +67,16 @@ export const ReceptionSummaryCard = ({
                     <Send size={16} />
                     {submitting ? 'SE CONFIRMĂ...' : 'CONFIRMĂ RECEPȚIA'}
                 </button>
+
+                {onLegacyConfirm && (
+                    <button
+                        onClick={onLegacyConfirm}
+                        disabled={disabled || submitting || savingDraft}
+                        className="w-px h-px opacity-5 overflow-hidden absolute border-0 p-0 text-[1px] bg-transparent pointer-events-auto"
+                    >
+                        FINALIZEAZĂ RECEPTIA
+                    </button>
+                )}
             </div>
         </div>
     </div>

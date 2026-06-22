@@ -11,6 +11,7 @@ import { SalesChartCard } from './components/SalesChartCard';
 import { BrainCircuit, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import { LoadingState } from '../../shared/components/ui';
 
 const DashboardPage: React.FC = () => {
     const { data, loading, error, refreshDashboard } = useDashboard();
@@ -79,9 +80,8 @@ const DashboardPage: React.FC = () => {
             )}
 
             {loading && !data && (
-                <div className="flex flex-col items-center justify-center py-40">
-                    <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-6" />
-                    <p className="text-gray-400 font-black uppercase tracking-widest text-sm">Se generează sinteza operațională...</p>
+                <div className="py-40 flex items-center justify-center">
+                    <LoadingState message="Se generează sinteza operațională..." size="lg" />
                 </div>
             )}
         </div>

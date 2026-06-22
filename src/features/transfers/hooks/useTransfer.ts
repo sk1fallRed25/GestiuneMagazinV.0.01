@@ -76,6 +76,9 @@ export const useTransfer = () => {
     // Validation handler
     useEffect(() => {
         setValidationError(null);
+        if (availableStores.length <= 1) {
+            return; // Zone transfer (Depozit <-> Magazin) in single store mode, no multi-store route validation needed
+        }
         if (!sourceStoreId) {
             setValidationError("Selectați punctul de lucru sursă.");
             return;
@@ -99,7 +102,7 @@ export const useTransfer = () => {
             setValidationError("Punctul de lucru destinație este inactiv sau arhivat.");
             return;
         }
-    }, [sourceStoreId, destinationStoreId, allStores]);
+    }, [sourceStoreId, destinationStoreId, allStores, availableStores]);
 
     const loadProducts = useCallback(async () => {
         const activeStoreId = sourceStoreId || currentStoreId;
@@ -150,7 +153,7 @@ export const useTransfer = () => {
         const srcStore = allStores.find(s => s.id === sourceStoreId);
         const destStore = allStores.find(s => s.id === destinationStoreId);
 
-        const confirmMsg = `Confirmați transferul a ${qtyNum} ${selectedProduct?.um || 'buc'} din "${srcStore?.name || ''}" în "${destStore?.name || ''}" pentru produsul "${selectedProduct?.nume || ''}"?`;
+        const confirmMsg = `Ești sigur? Această operație nu poate fi anulată.\n\nConfirmați transferul a ${qtyNum} ${selectedProduct?.um || 'buc'} din "${srcStore?.name || ''}" în "${destStore?.name || ''}" pentru produsul "${selectedProduct?.nume || ''}"?`;
         if (!window.confirm(confirmMsg)) {
             return;
         }
@@ -172,8 +175,9 @@ export const useTransfer = () => {
             setSelectedProductId('');
             setSearch('');
             await loadProducts(); // Refresh stocks
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : "Operațiunea nu a putut fi finalizată.";
+        } catch (error: any) {
+            const message = error?.message || "Operațiunea nu a putut fi finalizată.";
+            console.log("DEBUG TRANSFER TOAST ERROR:", message);
             toast.error(message);
         } finally {
             setSubmitting(false);

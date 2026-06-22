@@ -63,10 +63,41 @@ def run_test():
         page.locator("button:has-text('FINALIZEAZ')").click(no_wait_after=True)
         
         try:
-            page.locator("text=finalizat").wait_for(state="attached", timeout=5000)
+            page.wait_for_selector("[data-testid='reception-detail-page']", timeout=10000)
             print("[DEBUG] Pre-step reception confirmed.")
         except Exception as e:
             print("[DEBUG] Timeout waiting for reception confirm.")
+            
+        page.wait_for_timeout(2000)
+        
+        # --- PRE-STEP PART 2: Transfer 10 buc of OTET 1L to Magazin ---
+        print("\n--- PRE-STEP PART 2: Transfer 10 buc OTET 1L to Magazin ---")
+        page.goto("http://localhost:5173/#/transfer")
+        page.wait_for_load_state("networkidle")
+        
+        page.locator("input[placeholder*='Caut']").last.wait_for(state="visible", timeout=10000)
+        page.locator("input[placeholder*='Caut']").last.fill("OTET 1L")
+        
+        product_btn = page.locator("div.cursor-pointer:has-text('OTET 1L')")
+        product_btn.wait_for(state="visible", timeout=5000)
+        product_btn.click()
+        
+        page.locator("input[type='number']").wait_for(state="visible", timeout=5000)
+        page.locator("input[type='number']").fill("10")
+        page.wait_for_timeout(500)
+        
+        print("[DEBUG] Submitting transfer...")
+        page.locator("button:has-text('TRANSFER')").click(no_wait_after=True)
+        
+        try:
+            page.locator("text=Transfer realizat").wait_for(state="attached", timeout=10000)
+            print("[DEBUG] Pre-step transfer confirmed (toast).")
+        except Exception:
+            qty_val = page.locator("input[type='number']").input_value()
+            if qty_val == "":
+                print("[DEBUG] Pre-step transfer confirmed (reset).")
+            else:
+                print("[WARNING] Pre-step transfer might have failed or slow.")
             
         page.wait_for_timeout(2000)
         

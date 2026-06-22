@@ -54,7 +54,18 @@ const ProductSearchBar = ({
                     className="w-full outline-none text-slate-800 placeholder-slate-400 font-semibold bg-transparent"
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
+                    autoFocus
                 />
+                {value && (
+                    <button
+                        type="button"
+                        onClick={() => onChange('')}
+                        className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-650 transition-colors"
+                        aria-label="Șterge căutarea"
+                    >
+                        <X size={16} />
+                    </button>
+                )}
             </div>
 
             {/* Category Filters */}

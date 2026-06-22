@@ -4,6 +4,7 @@ import { TransferHeader } from './components/TransferHeader';
 import { TransferProductSelector } from './components/TransferProductSelector';
 import { TransferStockStatusCard } from './components/TransferStockStatusCard';
 import { AlertCircle, Send, RefreshCw } from 'lucide-react';
+import { TransferDirectionSelector } from './components/TransferDirectionSelector';
 
 export const TransferPage = () => {
     const {
@@ -23,7 +24,9 @@ export const TransferPage = () => {
         quantity,
         setQuantity,
         submitting,
-        submitTransfer
+        submitTransfer,
+        direction,
+        setDirection
     } = useTransfer();
 
     return (
@@ -70,27 +73,36 @@ export const TransferPage = () => {
                             )}
                         </div>
 
-                        {/* Punct Lucru Destinație */}
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Punct de Lucru Destinație</label>
-                            <select
-                                data-testid="transfer-destination-select"
-                                value={destinationStoreId}
-                                onChange={e => setDestinationStoreId(e.target.value)}
-                                className="w-full p-3 bg-white border border-slate-205 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold text-slate-800"
-                            >
-                                <option value="">Alege Punct Lucru Destinație...</option>
-                                {allStores.map(store => (
-                                    <option 
-                                        key={store.id} 
-                                        value={store.id}
-                                        disabled={store.active === false || store.lifecycle_status === 'archived'}
-                                    >
-                                        {store.name} {store.lifecycle_status === 'archived' ? '(Arhivat)' : store.active === false ? '(Inactiv)' : ''}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                        {/* Punct Lucru Destinație sau TransferDirectionSelector */}
+                        {availableStores.length <= 1 ? (
+                            <div>
+                                <TransferDirectionSelector
+                                    direction={direction}
+                                    setDirection={setDirection}
+                                />
+                            </div>
+                        ) : (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Punct de Lucru Destinație</label>
+                                <select
+                                    data-testid="transfer-destination-select"
+                                    value={destinationStoreId}
+                                    onChange={e => setDestinationStoreId(e.target.value)}
+                                    className="w-full p-3 bg-white border border-slate-205 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold text-slate-800"
+                                >
+                                    <option value="">Alege Punct Lucru Destinație...</option>
+                                    {allStores.map(store => (
+                                        <option 
+                                            key={store.id} 
+                                            value={store.id}
+                                            disabled={store.active === false || store.lifecycle_status === 'archived'}
+                                        >
+                                            {store.name} {store.lifecycle_status === 'archived' ? '(Arhivat)' : store.active === false ? '(Inactiv)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     {/* Validation Error Message */}

@@ -71,24 +71,34 @@ def run_test():
         page.wait_for_timeout(1000)
         
         print("[DEBUG] Clicking FINALIZEAZA RECEPTIA button...")
-        page.locator("button:has-text('FINALIZEAZ')").click(no_wait_after=True)
-        page.wait_for_timeout(1000)
+        try:
+            page.locator("button:has-text('FINALIZEAZ')").click(timeout=5000)
+            page.wait_for_timeout(1000)
+        except Exception as e:
+            page.screenshot(path="debug_reception_timeout.png", full_page=True)
+            raise e
         
         try:
-            page.locator("text=finalizat").wait_for(state="attached", timeout=5000)
-            print("[PASS] Scenario 1 PASS: Receptie realizata cu succes! (Toast detectat)")
+            page.wait_for_selector("[data-testid='reception-detail-page']", timeout=10000)
+            print("[PASS] Scenario 1 PASS: Receptie realizata cu succes! (Toast or detail page detected)")
         except Exception as e:
-            print("[DEBUG] Toast not detected directly. Checking if form reset successfully (Document Number empty)...")
-            doc_val = page.locator("input[placeholder='Ex: 123456']").input_value()
-            if not doc_val:
-                print("[PASS] Scenario 1 PASS: Receptie realizata cu succes! (Formular resetat corect)")
-            else:
-                raise Exception("Formularul nu s-a resetat.")
+            print("[DEBUG] Toast or detail page not detected directly. Trying fallback check...")
+            try:
+                doc_val = page.locator("input[placeholder='Ex: 123456']").input_value(timeout=2000)
+                if not doc_val:
+                    print("[PASS] Scenario 1 PASS: Receptie realizata cu succes! (Formular resetat corect)")
+                else:
+                    raise Exception("Formularul nu s-a resetat.")
+            except Exception:
+                raise e
         
         page.wait_for_timeout(3000)
         
         # --- SCENARIO 2: Formular Incomplet (Fara produse) ---
         print("\n--- SCENARIO 2: Formular Incomplet (Fara produse) ---")
+        page.reload()
+        page.wait_for_load_state("networkidle")
+        page.locator("input[placeholder='Ex: 123456']").wait_for(state="visible", timeout=10000)
         print("[DEBUG] Completing Document Info without adding lines...")
         page.locator("input[placeholder='Ex: 123456']").fill("REC-INVALID-002")
         page.wait_for_timeout(500)

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Package } from 'lucide-react';
+import { Search, Package, X } from 'lucide-react';
 import { TransferProduct } from '../types';
 
 interface TransferProductSelectorProps {
@@ -20,12 +20,22 @@ export const TransferProductSelector = ({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
                 type="text"
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 font-bold text-gray-700 transition-all"
+                className="w-full pl-10 pr-10 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 font-bold text-gray-700 transition-all"
                 placeholder="Caută după nume sau cod bare..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 autoComplete="off"
+                autoFocus
             />
+            {search && (
+                <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-250/60 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                    <X size={16} />
+                </button>
+            )}
 
             {filteredProducts.length > 0 && (
                 <div className="absolute z-20 w-full bg-white shadow-2xl border border-gray-100 rounded-2xl mt-2 max-h-60 overflow-y-auto">

@@ -164,7 +164,7 @@ export const useProducts = () => {
             return;
         }
 
-        if (!window.confirm("Confirmi ștergerea (arhivarea) acestui produs?")) {
+        if (!window.confirm("Ești sigur? Această operație nu poate fi anulată. Confirmi ștergerea (arhivarea) acestui produs?")) {
             return;
         }
 

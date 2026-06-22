@@ -14,21 +14,34 @@ async function run() {
         });
         if (authError) throw authError;
 
+        console.log("Signed in successfully!");
+
+        const { data: stores, error: storesError } = await supabase
+            .from('stores')
+            .select('id, name, active, lifecycle_status');
+        if (storesError) throw storesError;
+        console.log("Stores:", stores);
+
+        const { data: categories, error: catsError } = await supabase
+            .from('categories')
+            .select('id, name, parent_id');
+        if (catsError) throw catsError;
+        console.log("Categories count:", categories.length);
+        console.log("Categories sample:", categories.slice(0, 5));
+
+        const { data: receptions, error: recsError } = await supabase
+            .from('receptions')
+            .select('id, document_number, status, total_value');
+        if (recsError) throw recsError;
+        console.log("Receptions:", receptions);
+
         const { data: products, error: prodError } = await supabase
             .from('products')
             .select('id, name, barcode, category_id, status, store_id');
         if (prodError) throw prodError;
 
         console.log(`Total Products: ${products.length}`);
-        
-        const withCat = products.filter(p => p.category_id !== null);
-        console.log(`Products with category_id !== null: ${withCat.length}`);
-        if (withCat.length > 0) {
-            console.log("Sample products with category:", withCat.slice(0, 5));
-        }
-
-        const uniqueStoreIds = [...new Set(products.map(p => p.store_id))];
-        console.log("Unique store_ids on products:", uniqueStoreIds);
+        console.log("Products:", products);
 
     } catch (err) {
         console.error('Error:', err);

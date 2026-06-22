@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 interface PosSearchBarProps {
     query: string;
@@ -37,8 +37,8 @@ export const PosSearchBar = forwardRef<HTMLInputElement, PosSearchBarProps>(
                     <input
                         ref={ref}
                         type="text"
-                        placeholder="Scanează codul de bare sau caută produs..."
-                        className={`w-full pl-12 pr-4 py-4 border-2 rounded-xl text-xl outline-none transition-all shadow-sm ${
+                        placeholder="Caută produs (nume sau cod)..."
+                        className={`w-full pl-12 pr-12 py-4 border-2 rounded-xl text-xl outline-none transition-all shadow-sm ${
                             isScannerReady
                                 ? 'border-emerald-400 ring-4 ring-emerald-500/15 shadow-emerald-100'
                                 : 'border-gray-100 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10'
@@ -49,6 +49,20 @@ export const PosSearchBar = forwardRef<HTMLInputElement, PosSearchBarProps>(
                         autoFocus
                         data-testid="pos-scan-input"
                     />
+                    {query && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onQueryChange('');
+                                if (ref && 'current' in ref) {
+                                    ref.current?.focus();
+                                }
+                            }}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    )}
                 </div>
             </div>
         );

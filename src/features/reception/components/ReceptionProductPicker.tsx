@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Plus, ArrowRight, AlertTriangle, AlertCircle, HelpCircle } from 'lucide-react';
+import { Search, Plus, ArrowRight, AlertTriangle, AlertCircle, HelpCircle, X } from 'lucide-react';
 import { ReceptionProduct } from '../types';
 
 interface ReceptionProductPickerProps {
     search: string;
     setSearch: (s: string) => void;
     filteredProducts: ReceptionProduct[];
-    onSelect: (p: ReceptionProduct) => void;
+    onSelect: (p: ReceptionProduct | null) => void;
     selectedProduct: ReceptionProduct | null;
     isBax: boolean;
     setIsBax: (b: boolean) => void;
@@ -98,15 +98,7 @@ export const ReceptionProductPicker = ({
         };
     }, []);
 
-    // Focus pe inputul de cantitate când se selectează un produs
-    useEffect(() => {
-        if (selectedProduct) {
-            const timer = setTimeout(() => {
-                quantityInputRef.current?.focus();
-            }, 30);
-            return () => clearTimeout(timer);
-        }
-    }, [selectedProduct, isBax]);
+
 
     const handleSelect = (p: ReceptionProduct) => {
         isSelectingRef.current = true;
@@ -174,7 +166,7 @@ export const ReceptionProductPicker = ({
                         ref={searchInputRef}
                         data-testid="reception-product-search"
                         type="text"
-                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-bold text-slate-700 transition-all placeholder:font-medium"
+                        className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-bold text-slate-700 transition-all placeholder:font-medium"
                         placeholder="Scrie denumirea sau codul..."
                         value={search}
                         onFocus={() => {
@@ -189,7 +181,17 @@ export const ReceptionProductPicker = ({
                             setHighlightedIndex(-1);
                         }}
                         autoComplete="off"
+                        autoFocus
                     />
+                    {search && (
+                        <button
+                            type="button"
+                            onClick={() => setSearch('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200/50 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
                 </div>
 
                 {shouldShowDropdown && (
@@ -252,20 +254,29 @@ export const ReceptionProductPicker = ({
                             )}
                         </div>
 
-                        <div className="flex flex-wrap gap-3 items-center text-xs bg-white px-4 py-2.5 rounded-xl border border-slate-100 shadow-xs">
-                            <div className="flex flex-col">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Stoc curent</span>
-                                <span data-testid="reception-selected-product-current-stock" className="font-extrabold text-slate-700">
-                                    {selectedProduct.stoc !== undefined ? `${selectedProduct.stoc} ${selectedProduct.um}` : `0 ${selectedProduct.um}`}
-                                </span>
+                        <div className="flex flex-wrap gap-3 items-center">
+                            <div className="flex flex-wrap gap-3 items-center text-xs bg-white px-4 py-2.5 rounded-xl border border-slate-100 shadow-xs">
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Stoc curent</span>
+                                    <span data-testid="reception-selected-product-current-stock" className="font-extrabold text-slate-700">
+                                        {selectedProduct.stoc !== undefined ? `${selectedProduct.stoc} ${selectedProduct.um}` : `0 ${selectedProduct.um}`}
+                                    </span>
+                                </div>
+                                <span className="text-slate-200">|</span>
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Preț vânzare curent</span>
+                                    <span data-testid="reception-selected-product-current-price" className="font-extrabold text-indigo-600">
+                                        {selectedProduct.pret_vanzare.toFixed(2)} LEI
+                                    </span>
+                                </div>
                             </div>
-                            <span className="text-slate-200">|</span>
-                            <div className="flex flex-col">
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Preț vânzare curent</span>
-                                <span data-testid="reception-selected-product-current-price" className="font-extrabold text-indigo-600">
-                                    {selectedProduct.pret_vanzare.toFixed(2)} LEI
-                                </span>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => onSelect(null)}
+                                className="px-3.5 py-2.5 bg-slate-150 hover:bg-slate-200 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold border border-slate-200 transition-all active:scale-[0.97]"
+                            >
+                                Schimbă Produsul
+                            </button>
                         </div>
                     </div>
 
@@ -471,7 +482,7 @@ export const ReceptionProductPicker = ({
                                         data-testid="reception-batch-number-input"
                                         type="text"
                                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 text-xs font-mono font-bold"
-                                        placeholder="Lot optional"
+                                        placeholder="Lot"
                                         value={batchNumber}
                                         onChange={e => setBatchNumber(e.target.value)}
                                     />
@@ -641,7 +652,7 @@ export const ReceptionProductPicker = ({
                         <button
                             data-testid="reception-add-line-button"
                             onClick={onAddLine}
-                            disabled={!selectedProduct || calculations.invoiceQty <= 0 || calculations.receivedQty <= 0 || calculations.decidedSalePrice <= 0}
+                            disabled={!selectedProduct}
                             className="w-full md:w-auto px-8 py-4 bg-slate-900 hover:bg-black text-white rounded-xl shadow-xl shadow-slate-100 transition-all active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed font-black flex items-center justify-center gap-2 uppercase tracking-widest text-xs"
                         >
                             <Plus size={18} /> Adaugă linie în draft

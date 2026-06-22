@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, Calendar, FileText, ChevronRight, User } from 'lucide-react';
 import { ReceptionDbRow } from '../types';
+import { EmptyState, Button, LoadingState } from '../../../shared/components/ui';
 
 interface ReceptionHistoryProps {
     receptions: ReceptionDbRow[];
@@ -12,6 +13,7 @@ interface ReceptionHistoryProps {
     };
     onFilterChange: (filters: any) => void;
     onViewDetails: (id: string) => void;
+    onNewReception?: () => void;
 }
 
 export const ReceptionHistory = ({
@@ -19,7 +21,8 @@ export const ReceptionHistory = ({
     loading,
     filters,
     onFilterChange,
-    onViewDetails
+    onViewDetails,
+    onNewReception
 }: ReceptionHistoryProps) => {
 
     const handleClearFilters = () => {
@@ -82,35 +85,43 @@ export const ReceptionHistory = ({
             </div>
 
             {/* Listă Recepții */}
+            {/* Listă Recepții */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-slate-50/50 text-slate-400 text-[10px] uppercase font-bold tracking-widest border-b border-slate-100">
-                                <th className="p-4 pl-6">Nr. Document / NIR</th>
-                                <th className="p-4">Dată</th>
-                                <th className="p-4">Furnizor</th>
-                                <th className="p-4 text-center">Status</th>
-                                <th className="p-4 text-right">Valoare Totală</th>
-                                <th className="p-4">Operat de</th>
-                                <th className="p-4 text-center">Acțiuni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-xs">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={7} className="p-16 text-center text-slate-400 italic">
-                                        Se încarcă istoricul...
-                                    </td>
+                {loading ? (
+                    <div className="p-16 flex justify-center">
+                        <LoadingState message="Se încarcă istoricul recepțiilor..." />
+                    </div>
+                ) : receptions.length === 0 ? (
+                    <div className="p-12">
+                        <EmptyState
+                            title="Nu există recepții"
+                            description="Nu au fost găsite recepții care să corespundă criteriilor de căutare în acest magazin."
+                            icon={<FileText size={40} className="text-slate-400" />}
+                            action={
+                                onNewReception && (
+                                    <Button size="sm" variant="primary" onClick={onNewReception}>
+                                        Creează prima recepție
+                                    </Button>
+                                )
+                            }
+                        />
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50/50 text-slate-400 text-[10px] uppercase font-bold tracking-widest border-b border-slate-100">
+                                    <th className="p-4 pl-6">Nr. Document / NIR</th>
+                                    <th className="p-4">Dată</th>
+                                    <th className="p-4">Furnizor</th>
+                                    <th className="p-4 text-center">Status</th>
+                                    <th className="p-4 text-right">Valoare Totală</th>
+                                    <th className="p-4">Operat de</th>
+                                    <th className="p-4 text-center">Acțiuni</th>
                                 </tr>
-                            ) : receptions.length === 0 ? (
-                                <tr>
-                                    <td colSpan={7} className="p-16 text-center text-slate-400 italic">
-                                        Nu s-a găsit nicio recepție.
-                                    </td>
-                                </tr>
-                            ) : (
-                                receptions.map((r) => {
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-xs">
+                                {receptions.map((r) => {
                                     const profEmail = r.profiles?.email || 'Sistem';
                                     const displayNir = r.nir_number ? ` / NIR: ${r.nir_number}` : '';
                                     return (
@@ -170,11 +181,11 @@ export const ReceptionHistory = ({
                                             </td>
                                         </tr>
                                     );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         </div>
     );

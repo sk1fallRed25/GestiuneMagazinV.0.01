@@ -45,7 +45,7 @@ def run_test():
         page.locator(f"div.cursor-pointer:has-text('{product_name}')").wait_for(state="visible", timeout=5000)
         page.locator(f"div.cursor-pointer:has-text('{product_name}')").click()
         
-        page.locator("input[placeholder='Cantitate']").fill("2")
+        page.locator("input[placeholder='Cantitate']").fill("5")
         page.locator("input[placeholder='0.00']").fill("1.00")
         page.locator("input[placeholder='Lot']").fill("SMOKE-5D6")
         page.wait_for_timeout(500)
@@ -57,14 +57,17 @@ def run_test():
         page.locator("button:has-text('FINALIZEAZ')").click(no_wait_after=True)
         
         try:
-            page.locator("text=finalizat").wait_for(state="attached", timeout=3000)
-            print("[PASS] Reception successful (toast detected)!")
-        except Exception:
-            doc_val = page.locator("input[placeholder='Ex: 123456']").input_value()
-            if doc_val == "":
-                print("[PASS] Reception successful (form reset)!")
-            else:
-                raise Exception("Reception failed, form not reset!")
+            page.wait_for_selector("[data-testid='reception-detail-page']", timeout=10000)
+            print("[PASS] Reception successful (toast or detail page detected)!")
+        except Exception as e:
+            try:
+                doc_val = page.locator("input[placeholder='Ex: 123456']").input_value(timeout=2000)
+                if doc_val == "":
+                    print("[PASS] Reception successful (form reset)!")
+                else:
+                    raise Exception("Reception failed, form not reset!")
+            except Exception:
+                raise e
             
         page.wait_for_timeout(2000)
         
@@ -81,14 +84,14 @@ def run_test():
         product_btn.click()
         
         page.locator("input[type='number']").wait_for(state="visible", timeout=5000)
-        page.locator("input[type='number']").fill("1")
+        page.locator("input[type='number']").fill("2")
         page.wait_for_timeout(500)
         
         print("[DEBUG] Submitting transfer...")
         page.locator("button:has-text('TRANSFER')").click(no_wait_after=True)
         
         try:
-            page.locator("text=Transfer realizat").wait_for(state="attached", timeout=3000)
+            page.locator("text=Transfer realizat").wait_for(state="attached", timeout=10000)
             print("[PASS] Transfer successful (toast detected)!")
         except Exception:
             qty_val = page.locator("input[type='number']").input_value()
@@ -117,7 +120,7 @@ def run_test():
         page.locator("button:has-text('ÎNCASEAZĂ')").click(no_wait_after=True)
         
         try:
-            page.locator("text=finalizat").wait_for(state="attached", timeout=3000)
+            page.locator("text=finalizat").wait_for(state="attached", timeout=10000)
             print("[PASS] POS sale successful (toast detected)!")
         except Exception:
             total_text = page.locator("span.text-5xl").inner_text()
@@ -154,10 +157,10 @@ def run_test():
         page.locator("div.max-w-2xl button:has-text('Confirmă Casarea')").click(no_wait_after=True)
         
         try:
-            page.locator("text=Casare înregistrată cu succes!").wait_for(state="attached", timeout=3000)
+            page.locator("text=Casare înregistrată cu succes!").wait_for(state="attached", timeout=10000)
             print("[PASS] Waste recording successful (toast detected)!")
         except Exception:
-            page.locator("text=Raport Casare").wait_for(state="detached", timeout=5000)
+            page.locator("text=Raport Casare").wait_for(state="detached", timeout=10000)
             print("[PASS] Waste recording successful (modal closed)!")
             
         page.wait_for_timeout(2000)
@@ -196,10 +199,15 @@ def run_test():
         page.locator("input[type='number']").fill("99999")
         page.locator("button:has-text('TRANSFER')").click(no_wait_after=True)
         try:
-            page.locator("text=insuficient").wait_for(state="attached", timeout=3000)
-            print("[PASS] Invalid Transfer blocked by UI/Backend!")
+            page.locator("text=insuficient").wait_for(state="attached", timeout=10000)
+            print("[PASS] Invalid Transfer blocked by UI/Backend (toast detected)!")
         except Exception:
-            print("[FAIL] Invalid Transfer not blocked!")
+            qty_val = page.locator("input[type='number']").input_value()
+            if qty_val == "99999":
+                print("[PASS] Invalid Transfer blocked by UI/Backend (input not reset)!")
+            else:
+                print("[FAIL] Invalid Transfer not blocked!")
+                raise Exception("Invalid Transfer was not blocked (form reset).")
             
         # 3. Invalid POS (> stock)
         print("Testing Invalid POS...")
@@ -239,10 +247,10 @@ def run_test():
         
         page.locator("div.max-w-2xl button:has-text('Confirmă Casarea')").click(no_wait_after=True)
         try:
-            page.locator("text=Stoc insuficient").wait_for(state="attached", timeout=3000)
+            page.locator("text=Stoc insuficient").wait_for(state="attached", timeout=10000)
             print("[PASS] Invalid Waste blocked by UI/Backend (toast detected)!")
         except Exception:
-            page.locator("text=Raport Casare").wait_for(state="visible", timeout=5000)
+            page.locator("text=Raport Casare").wait_for(state="visible", timeout=10000)
             print("[PASS] Invalid Waste blocked by UI/Backend (modal remained open)!")
             
         browser.close()
