@@ -87,10 +87,14 @@ export const ReceptionProductPicker = ({
         console.log("QUANTITY REF CALLBACK:", node ? "has node" : "null");
         if (node) {
             setTimeout(() => {
-                console.log("FOCUSING QUANTITY INPUT, active element before:", document.activeElement?.tagName);
-                node.focus();
-                node.select();
-                console.log("FOCUSING QUANTITY INPUT, active element after:", document.activeElement?.tagName);
+                if (document.activeElement !== node) {
+                    console.log("FOCUSING QUANTITY INPUT, active element before:", document.activeElement?.tagName);
+                    node.focus();
+                    node.select();
+                    console.log("FOCUSING QUANTITY INPUT, active element after:", document.activeElement?.tagName);
+                } else {
+                    console.log("QUANTITY INPUT ALREADY FOCUSED, skipping focus/select to prevent race condition");
+                }
                 // Legacy E2E static checks compatibility: quantityInputRef.current?.focus()
             }, 100);
         }
