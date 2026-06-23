@@ -200,11 +200,35 @@ const ProductTable = ({
                                             );
                                         })()}
                                     </td>
-                                    <td className="px-6 py-4 text-center font-bold text-indigo-600 bg-indigo-50/30">
-                                        {produs.stoc_depozit}
+                                    <td className="px-6 py-4 text-center">
+                                        {produs.stoc_depozit <= 0 ? (
+                                            <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-100">
+                                                Zero
+                                            </span>
+                                        ) : produs.stoc_depozit <= 5 ? (
+                                            <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-black bg-amber-50 text-amber-750 border border-amber-200 animate-pulse">
+                                                {produs.stoc_depozit} Critic
+                                            </span>
+                                        ) : (
+                                            <span className="font-bold text-indigo-650 bg-indigo-50/30 px-2 py-0.5 rounded">
+                                                {produs.stoc_depozit}
+                                            </span>
+                                        )}
                                     </td>
-                                    <td className="px-6 py-4 text-center font-bold text-purple-600">
-                                        {produs.stoc_magazin}
+                                    <td className="px-6 py-4 text-center">
+                                        {produs.stoc_magazin <= 0 ? (
+                                            <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-100">
+                                                Zero
+                                            </span>
+                                        ) : produs.stoc_magazin <= 5 ? (
+                                            <span className="inline-flex px-2 py-0.5 rounded text-[10px] font-black bg-amber-50 text-amber-750 border border-amber-200 animate-pulse">
+                                                {produs.stoc_magazin} Critic
+                                            </span>
+                                        ) : (
+                                            <span className="font-bold text-purple-650 bg-purple-50/30 px-2 py-0.5 rounded">
+                                                {produs.stoc_magazin}
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-tighter">
                                         {produs.um}

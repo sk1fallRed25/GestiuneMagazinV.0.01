@@ -1,6 +1,7 @@
 import React from 'react';
 import { Warehouse, Store, Info } from 'lucide-react';
 import { TransferProduct } from '../types';
+import { EmptyState } from '../../../shared/components/ui';
 
 interface TransferStockStatusCardProps {
     product: TransferProduct | null;
@@ -9,12 +10,12 @@ interface TransferStockStatusCardProps {
 export const TransferStockStatusCard = ({ product }: TransferStockStatusCardProps) => {
     if (!product) {
         return (
-            <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2rem] p-12 flex flex-col items-center justify-center text-center">
-                <div className="bg-white p-4 rounded-full shadow-sm text-slate-300 mb-4">
-                    <Info size={32} />
-                </div>
-                <h3 className="font-bold text-slate-400">Niciun produs selectat</h3>
-                <p className="text-xs text-slate-300 mt-1 max-w-[200px]">Selectează un produs din listă pentru a vedea disponibilitatea pe zone.</p>
+            <div className="bg-slate-50 border border-slate-250 rounded-[2rem] p-12 flex flex-col items-center justify-center text-center h-full">
+                <EmptyState
+                    title="Niciun produs selectat"
+                    description="Selectează un produs din listă pentru a vedea disponibilitatea pe zone."
+                    icon={<Info size={32} className="text-slate-400" />}
+                />
             </div>
         );
     }

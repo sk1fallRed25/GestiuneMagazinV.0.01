@@ -377,6 +377,57 @@ export const dashboardService = {
             }))
             .sort((a, b) => a.date.localeCompare(b.date));
 
+        // J. Produse fără preț & Produse cu stoc critic/zero
+        const { data: dashboardProductsRaw, error: dpError } = await supabase
+            .from('products')
+            .select(`
+                id,
+                name,
+                barcode,
+                unit,
+                product_prices (
+                    price_sale
+                ),
+                stock_batches (
+                    quantity
+                )
+            `)
+            .eq('store_id', storeId)
+            .eq('status', 'active');
+
+        if (dpError) throw dpError;
+        const dashboardProducts = (dashboardProductsRaw as any[]) || [];
+
+        const productsWithoutPrice = dashboardProducts
+            .map(p => {
+                const prices = p.product_prices || [];
+                const priceSale = prices.length > 0 ? toNumberSafe(prices[0].price_sale, 0) : 0;
+                return {
+                    id: p.id,
+                    name: p.name || 'N/A',
+                    barcode: p.barcode || 'N/A',
+                    unit: p.unit || 'buc',
+                    priceSale
+                };
+            })
+            .filter(p => p.priceSale <= 0)
+            .map(p => ({ id: p.id, name: p.name, barcode: p.barcode, priceSale: p.priceSale }));
+
+        const productsWithZeroStock = dashboardProducts
+            .map(p => {
+                const batches = p.stock_batches || [];
+                const totalStock = batches.reduce((sum: number, b: any) => sum + toNumberSafe(b.quantity, 0), 0);
+                return {
+                    id: p.id,
+                    name: p.name || 'N/A',
+                    barcode: p.barcode || 'N/A',
+                    unit: p.unit || 'buc',
+                    stockTotal: totalStock
+                };
+            })
+            .filter(p => p.stockTotal <= 0)
+            .map(p => ({ id: p.id, name: p.name, barcode: p.barcode, stockTotal: p.stockTotal }));
+
         return {
             stats: {
                 todaySalesTotal,
@@ -388,7 +439,9 @@ export const dashboardService = {
                 expiredBatchesCount: expiredCount,
                 criticalExpiryBatchesCount: criticalCount,
                 wasteEventsThisMonth: wasteCount,
-                stockValueEstimate
+                stockValueEstimate,
+                zeroStockProductsCount: productsWithZeroStock.length,
+                missingPricesCount: productsWithoutPrice.length
             },
             recentSales,
             lowStockProducts,
@@ -402,7 +455,9 @@ export const dashboardService = {
                 monthCount: wasteCount,
                 topReasons
             },
-            recentReceptions
+            recentReceptions,
+            productsWithoutPrice,
+            productsWithZeroStock
         };
     }
 };

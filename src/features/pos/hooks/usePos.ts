@@ -414,6 +414,16 @@ export const usePos = () => {
         return calculateCartSgrTotal(cart);
     }, [cart, calculateCartSgrTotal]);
 
+    const cartVatTotal = useMemo(() => {
+        return cart.reduce((acc, item) => {
+            const linePriceTotal = item.quantity * item.price;
+            const vatRate = item.vatPercent || 0;
+            const baseAmount = linePriceTotal / (1 + vatRate / 100);
+            const vatAmount = linePriceTotal - baseAmount;
+            return acc + vatAmount;
+        }, 0);
+    }, [cart]);
+
     const isSgrBlocked = useMemo(() => {
         return cartSgrTotal > 0 && !SGR_CHECKOUT_BACKEND_ENABLED;
     }, [cartSgrTotal]);
@@ -628,10 +638,11 @@ export const usePos = () => {
             }
         }
 
-        const methodStr = paymentMethod === 'cash' ? 'cash' : (paymentMethod === 'card' ? 'card' : 'mixt');
-        const confirmMsg = `Finalizezi vânzarea în valoare de ${totalBon.toFixed(2)} lei? (Metodă: ${methodStr})`;
-        if (!window.confirm(confirmMsg)) {
-            return;
+        if (paymentMethod === 'mixed') {
+            const confirmMsg = `Finalizezi vânzarea în valoare de ${totalBon.toFixed(2)} lei? (Metodă: mixt)`;
+            if (!window.confirm(confirmMsg)) {
+                return;
+            }
         }
 
         setSubmitting(true);
@@ -864,6 +875,7 @@ export const usePos = () => {
         restoreCartFromDraft,
         productsSubtotal,
         cartSgrTotal,
+        cartVatTotal,
         isSgrBlocked,
         SGR_CHECKOUT_BACKEND_ENABLED,
         finalizeSale,

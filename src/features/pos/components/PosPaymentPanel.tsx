@@ -8,6 +8,7 @@ interface PosPaymentPanelProps {
     total: number;
     productsSubtotal?: number;
     sgrTotal?: number;
+    vatTotal?: number;
     paymentMethod: PaymentMethod;
     onPaymentMethodChange: (m: PaymentMethod) => void;
     cashAmount: string;
@@ -26,6 +27,7 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
     total,
     productsSubtotal,
     sgrTotal,
+    vatTotal,
     paymentMethod,
     onPaymentMethodChange,
     cashAmount,
@@ -106,15 +108,22 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
                 </div>
             )}
 
-            {/* Subtotals breakdown */}
             {productsSubtotal !== undefined && productsSubtotal > 0 && (
-                <div className="space-y-1.5 border-t border-gray-100 pt-4 mb-4 text-xs text-slate-600 font-medium">
+                <div className="space-y-2 border-t border-gray-100 pt-4 mb-4 text-xs text-slate-650 font-medium">
                     <div className="flex justify-between">
-                        <span>Subtotal produse:</span>
+                        <span className="text-slate-500">Subtotal produse (TVA inclus):</span>
                         <span className="font-bold text-gray-800" data-testid="pos-subtotal-display">
                             {productsSubtotal.toFixed(2)} lei
                         </span>
                     </div>
+                    {vatTotal !== undefined && vatTotal > 0 && (
+                        <div className="flex justify-between text-indigo-500 bg-indigo-50/30 px-1 rounded">
+                            <span>Din care TVA inclus:</span>
+                            <span className="font-bold" data-testid="pos-vat-display">
+                                {vatTotal.toFixed(2)} lei
+                            </span>
+                        </div>
+                    )}
                     {sgrTotal !== undefined && sgrTotal > 0 && (
                         <div className="flex justify-between text-indigo-600">
                             <span>Garanții SGR (D - 0%):</span>
@@ -126,10 +135,10 @@ export const PosPaymentPanel: React.FC<PosPaymentPanelProps> = ({
                 </div>
             )}
 
-            <div className="flex justify-between items-end mb-6" data-testid="pos-total-display">
-                <span className="text-gray-500 font-medium text-sm">TOTAL DE PLATĂ</span>
-                <span className="text-5xl font-black text-gray-900 tracking-tight" data-testid="pos-cart-total">
-                    {total.toFixed(2)} <span className="text-lg text-gray-400 font-normal">LEI</span>
+            <div className="flex justify-between items-center mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-inner" data-testid="pos-total-display">
+                <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">TOTAL DE PLATĂ</span>
+                <span className="text-4xl font-black text-slate-900 tracking-tight" data-testid="pos-cart-total">
+                    {total.toFixed(2)} <span className="text-sm text-slate-400 font-bold">LEI</span>
                 </span>
             </div>
 

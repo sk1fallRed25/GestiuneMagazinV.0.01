@@ -2,6 +2,7 @@ import React from 'react';
 import { Trash2, Warehouse, Store, Hash, Package } from 'lucide-react';
 import { ExpirationItem } from '../types';
 import { ExpirationStatusBadge } from './ExpirationStatusBadge';
+import { EmptyState } from '../../../shared/components/ui';
 
 interface ExpirationsTableProps {
     items: ExpirationItem[];
@@ -11,12 +12,12 @@ interface ExpirationsTableProps {
 export const ExpirationsTable: React.FC<ExpirationsTableProps> = ({ items, onReportLoss }) => {
     if (items.length === 0) {
         return (
-            <div className="bg-white rounded-3xl p-20 text-center border border-gray-100 shadow-sm">
-                <div className="bg-emerald-100 text-emerald-600 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Package size={40} />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-800">Totul este în regulă!</h3>
-                <p className="text-gray-500 mt-2">Nu există loturi care să corespundă filtrelor selectate.</p>
+            <div className="bg-white rounded-3xl p-12 text-center border border-gray-150 shadow-sm">
+                <EmptyState
+                    title="Totul este în regulă!"
+                    description="Nu există loturi care să corespundă filtrelor selectate."
+                    icon={<Package size={36} className="text-slate-400" />}
+                />
             </div>
         );
     }

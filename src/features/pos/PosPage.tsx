@@ -68,7 +68,8 @@ const PosPage: React.FC = () => {
         handleBarcodeEnter,
         clearCart,
         productsSubtotal,
-        cartSgrTotal
+        cartSgrTotal,
+        cartVatTotal
     } = usePos();
 
     const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
@@ -506,6 +507,7 @@ const PosPage: React.FC = () => {
                     total={totalBon}
                     productsSubtotal={productsSubtotal}
                     sgrTotal={cartSgrTotal}
+                    vatTotal={cartVatTotal}
                     paymentMethod={paymentMethod}
                     onPaymentMethodChange={setPaymentMethod}
                     cashAmount={cashAmount}

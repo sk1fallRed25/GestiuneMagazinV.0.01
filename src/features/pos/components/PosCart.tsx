@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { ShoppingCart, Trash2, Plus, Minus } from 'lucide-react';
 import { CartItem } from '../types';
 import { EmptyState } from '../../../shared/components/ui';
@@ -10,6 +10,14 @@ interface PosCartProps {
 }
 
 export const PosCart: React.FC<PosCartProps> = ({ items, onUpdateQuantity, onRemoveItem }) => {
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        }
+    }, [items.length]);
+
     return (
         <div data-testid="pos-cart-panel" className="flex flex-col h-full overflow-hidden">
             <div className="p-6 bg-gray-900 text-white flex justify-between items-center shadow-lg">
@@ -20,7 +28,7 @@ export const PosCart: React.FC<PosCartProps> = ({ items, onUpdateQuantity, onRem
                 <div className="text-sm text-gray-400 mt-1">{items.length} linii active</div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50">
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50">
                 {items.length === 0 ? (
                     <div data-testid="pos-cart-empty-state" className="h-full flex items-center justify-center p-4">
                         <EmptyState

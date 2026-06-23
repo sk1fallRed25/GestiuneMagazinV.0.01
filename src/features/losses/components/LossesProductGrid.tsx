@@ -1,6 +1,7 @@
 import React from 'react';
 import { Package, Warehouse, Store } from 'lucide-react';
 import { LossProduct } from '../types';
+import { EmptyState } from '../../../shared/components/ui';
 
 interface LossesProductGridProps {
     products: LossProduct[];
@@ -8,27 +9,43 @@ interface LossesProductGridProps {
     loading: boolean;
 }
 
+const LossesSkeleton: React.FC = () => {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="bg-white p-6 rounded-3xl border border-gray-150 shadow-sm h-60 flex flex-col justify-between">
+                    <div className="space-y-2">
+                        <div className="h-6 bg-slate-200 rounded-lg w-2/3" />
+                        <div className="h-4 bg-slate-200 rounded-md w-1/3" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 my-4">
+                        <div className="h-14 bg-slate-100 rounded-2xl" />
+                        <div className="h-14 bg-slate-100 rounded-2xl" />
+                    </div>
+                    <div className="h-8 bg-slate-100 rounded-xl w-full" />
+                </div>
+            ))}
+        </div>
+    );
+};
+
 export const LossesProductGrid: React.FC<LossesProductGridProps> = ({ 
     products, 
     onSelectProduct, 
     loading 
 }) => {
     if (loading) {
-        return (
-            <div className="flex justify-center py-20">
-                <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-            </div>
-        );
+        return <LossesSkeleton />;
     }
 
     if (products.length === 0) {
         return (
-            <div className="text-center py-24 bg-white rounded-[2rem] border-2 border-dashed border-gray-100">
-                <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Package className="text-gray-300" size={32} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-800">Fără rezultate</h3>
-                <p className="text-gray-400 mt-1">Nu am găsit produse care să corespundă criteriilor.</p>
+            <div className="p-12 bg-white rounded-[2rem] border border-slate-150">
+                <EmptyState
+                    title="Niciun produs găsit"
+                    description="Nu am găsit produse active care să corespundă criteriilor sau stocul este zero."
+                    icon={<Package className="text-slate-400" size={36} />}
+                />
             </div>
         );
     }

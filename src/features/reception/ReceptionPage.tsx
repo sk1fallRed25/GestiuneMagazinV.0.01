@@ -47,7 +47,8 @@ export const ReceptionPage = () => {
         loadingDetails,
         xmlStatus, parseXMLInvoice,
         calculations,
-        addLine
+        addLine,
+        missingPricesCount
     } = useReception();
 
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -179,6 +180,8 @@ export const ReceptionPage = () => {
                                 onCancel={activeDraftId ? cancelActiveDraft : undefined}
                                 hasActiveDraft={!!activeDraftId}
                                 disabled={!document.documentNumber}
+                                lines={lines}
+                                missingPricesCount={missingPricesCount}
                             />
                         )}
                     </div>

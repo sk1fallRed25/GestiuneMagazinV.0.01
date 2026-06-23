@@ -1,6 +1,7 @@
 import React from 'react';
 import { Package, Trash2, Calendar, Tag } from 'lucide-react';
 import { ReceptionLine } from '../types';
+import { EmptyState } from '../../../shared/components/ui';
 
 interface ReceptionItemsTableProps {
     lines: ReceptionLine[];
@@ -35,8 +36,12 @@ export const ReceptionItemsTable = ({ lines, onRemove }: ReceptionItemsTableProp
                 <tbody className="divide-y divide-gray-50 text-sm">
                     {lines.length === 0 ? (
                         <tr>
-                            <td colSpan={7} className="p-16 text-center text-slate-300 italic font-medium">
-                                Nu ai adăugat niciun produs în recepția curentă.
+                            <td colSpan={7} className="p-12 text-center">
+                                <EmptyState
+                                    title="Nicio linie de recepție"
+                                    description="Nu ai adăugat niciun produs în recepția curentă."
+                                    icon={<Package className="text-slate-400" size={32} />}
+                                />
                             </td>
                         </tr>
                     ) : (

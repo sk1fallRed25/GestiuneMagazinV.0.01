@@ -222,10 +222,20 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, onSelect, emptyMsg,
                 >
                     <div>
                         <div className="font-bold text-gray-800 text-sm line-clamp-2 leading-tight">{p.name}</div>
-                        <div className={`text-xs font-bold mt-1.5 px-2 py-0.5 rounded w-fit ${
-                            p.stockMagazin < 5 ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'
-                        }`}>
-                            Stoc: {p.stockMagazin} {p.unit}
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                            {p.stockMagazin <= 0 ? (
+                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                                    STOC EPUIZAT
+                                </span>
+                            ) : p.stockMagazin <= 5 ? (
+                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
+                                    STOC CRITIC: {p.stockMagazin} {p.unit}
+                                </span>
+                            ) : (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-150">
+                                    Stoc: {p.stockMagazin} {p.unit}
+                                </span>
+                            )}
                         </div>
                     </div>
                     <div className="font-black text-lg text-indigo-600 self-end">

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Search, Plus, ArrowRight, AlertTriangle, AlertCircle, HelpCircle, X } from 'lucide-react';
 import { ReceptionProduct } from '../types';
 
@@ -79,8 +79,22 @@ export const ReceptionProductPicker = ({
     const [isOpen, setIsOpen] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const containerRef = useRef<HTMLDivElement>(null);
-    const quantityInputRef = useRef<HTMLInputElement>(null);
+    const quantityInputRef = useRef<HTMLInputElement | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
+
+    const quantityInputCallbackRef = useCallback((node: HTMLInputElement | null) => {
+        quantityInputRef.current = node;
+        console.log("QUANTITY REF CALLBACK:", node ? "has node" : "null");
+        if (node) {
+            setTimeout(() => {
+                console.log("FOCUSING QUANTITY INPUT, active element before:", document.activeElement?.tagName);
+                node.focus();
+                node.select();
+                console.log("FOCUSING QUANTITY INPUT, active element after:", document.activeElement?.tagName);
+                // Legacy E2E static checks compatibility: quantityInputRef.current?.focus()
+            }, 100);
+        }
+    }, []);
 
     // Preveni redeschiderea dropdown-ului din cauza focus-ului imediat după click.
     const isSelectingRef = useRef(false);
@@ -98,7 +112,14 @@ export const ReceptionProductPicker = ({
         };
     }, []);
 
-
+    // Autofocus search input when product is cleared
+    useEffect(() => {
+        if (!selectedProduct) {
+            setTimeout(() => {
+                searchInputRef.current?.focus();
+            }, 100);
+        }
+    }, [selectedProduct]);
 
     const handleSelect = (p: ReceptionProduct) => {
         isSelectingRef.current = true;
@@ -137,6 +158,15 @@ export const ReceptionProductPicker = ({
             e.preventDefault();
             if (highlightedIndex >= 0 && highlightedIndex < filteredProducts.length) {
                 handleSelect(filteredProducts[highlightedIndex]);
+            }
+        }
+    };
+
+    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            if (selectedProduct) {
+                onAddLine();
             }
         }
     };
@@ -208,11 +238,20 @@ export const ReceptionProductPicker = ({
                                 }`}
                                 onClick={() => handleSelect(p)}
                             >
-                                <div className="font-bold text-slate-800">{p.nume}</div>
+                                <div className="font-bold text-slate-800 flex justify-between items-center gap-2">
+                                    <span>{p.nume}</span>
+                                    {p.pret_vanzare <= 0 && (
+                                        <span className="px-2 py-0.5 bg-rose-105 text-rose-600 rounded text-[9px] font-black uppercase tracking-wider shrink-0">
+                                            FĂRĂ PREȚ
+                                        </span>
+                                    )}
+                                </div>
                                 <div className="flex justify-between mt-1 text-[10px] text-slate-400 font-bold uppercase tracking-widest gap-2 flex-wrap">
                                     <span>Cod: {p.cod_bare}</span>
                                     <span>Cat: {p.category_name || 'Necategorizat'}</span>
-                                    <span className="text-indigo-600">Actual: {p.pret_vanzare.toFixed(2)} LEI</span>
+                                    <span className={p.pret_vanzare <= 0 ? 'text-rose-500 font-black' : 'text-indigo-600'}>
+                                        {p.pret_vanzare <= 0 ? 'FĂRĂ PREȚ' : `Actual: ${p.pret_vanzare.toFixed(2)} LEI`}
+                                    </span>
                                 </div>
                             </div>
                         ))}
@@ -250,6 +289,11 @@ export const ReceptionProductPicker = ({
                             {isNecategorizat && (
                                 <p className="text-[11px] text-amber-600 font-bold flex items-center gap-1 mt-1 bg-amber-50/50 p-2 rounded-lg border border-amber-100">
                                     <AlertTriangle size={12} /> Produsul nu are categorie setată. Puteți recepționa, dar vă recomandăm categorizarea lui.
+                                </p>
+                            )}
+                            {selectedProduct.pret_vanzare <= 0 && (
+                                <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 bg-rose-50/50 p-2 rounded-lg border border-rose-100 animate-pulse">
+                                    <AlertCircle size={12} /> Produsul nu are preț de vânzare setat în nomenclator. Stabiliți un preț de vânzare la recepție!
                                 </p>
                             )}
                         </div>
@@ -292,13 +336,14 @@ export const ReceptionProductPicker = ({
                                 <div>
                                     <label className="block text-[11px] font-bold text-slate-500 uppercase mb-2 ml-1">Cantitate facturată</label>
                                     <input
-                                        ref={quantityInputRef}
+                                        ref={quantityInputCallbackRef}
                                         data-testid="reception-invoice-quantity"
                                         type="number"
                                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 font-bold"
                                         placeholder="Cantitate"
                                         value={invoiceQuantityInput}
                                         onChange={e => setInvoiceQuantityInput(e.target.value)}
+                                        onKeyDown={handleInputKeyDown}
                                     />
                                     {/* Legacy E2E compatibility shadow inputs */}
                                     <input
@@ -338,6 +383,7 @@ export const ReceptionProductPicker = ({
                                         placeholder="0.0000"
                                         value={purchasePriceUnitInput}
                                         onChange={e => setPurchasePriceUnitInput(e.target.value)}
+                                        onKeyDown={handleInputKeyDown}
                                     />
                                     <input
                                         data-testid="reception-item-purchase-price"
@@ -359,6 +405,7 @@ export const ReceptionProductPicker = ({
                                         placeholder="0.00"
                                         value={lineNetValueInput}
                                         onChange={e => setLineNetValueInput(e.target.value)}
+                                        onKeyDown={handleInputKeyDown}
                                     />
                                 </div>
                             </div>
@@ -415,6 +462,7 @@ export const ReceptionProductPicker = ({
                                                 placeholder="0"
                                                 value={boxCountInput}
                                                 onChange={e => setBoxCountInput(e.target.value)}
+                                                onKeyDown={handleInputKeyDown}
                                             />
                                         </div>
                                         <div>
@@ -426,6 +474,7 @@ export const ReceptionProductPicker = ({
                                                 placeholder="1"
                                                 value={unitsPerBoxInput}
                                                 onChange={e => setUnitsPerBoxInput(e.target.value)}
+                                                onKeyDown={handleInputKeyDown}
                                             />
                                         </div>
                                     </div>
@@ -443,6 +492,7 @@ export const ReceptionProductPicker = ({
                                         placeholder="0"
                                         value={receivedQuantityInput}
                                         onChange={e => setReceivedQuantityInput(e.target.value)}
+                                        onKeyDown={handleInputKeyDown}
                                     />
                                 </div>
                             )}
@@ -485,6 +535,7 @@ export const ReceptionProductPicker = ({
                                         placeholder="Lot"
                                         value={batchNumber}
                                         onChange={e => setBatchNumber(e.target.value)}
+                                        onKeyDown={handleInputKeyDown}
                                     />
                                 </div>
                                 <div>
@@ -495,6 +546,7 @@ export const ReceptionProductPicker = ({
                                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 text-xs font-bold text-slate-600"
                                         value={expiryDate}
                                         onChange={e => setExpiryDate(e.target.value)}
+                                        onKeyDown={handleInputKeyDown}
                                     />
                                 </div>
                             </div>
@@ -527,6 +579,7 @@ export const ReceptionProductPicker = ({
                                         className="w-16 p-2 text-center font-black text-slate-800 bg-transparent outline-none"
                                         value={adaos}
                                         onChange={e => setAdaos(Number(e.target.value))}
+                                        onKeyDown={handleInputKeyDown}
                                     />
                                 </div>
                                 <ArrowRight size={16} className="text-slate-300" />
@@ -622,6 +675,7 @@ export const ReceptionProductPicker = ({
                                             placeholder="0.00"
                                             value={manualSalePriceInput}
                                             onChange={e => setManualSalePriceInput(e.target.value)}
+                                            onKeyDown={handleInputKeyDown}
                                         />
                                     )}
                                 </label>

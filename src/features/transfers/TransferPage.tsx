@@ -6,6 +6,30 @@ import { TransferStockStatusCard } from './components/TransferStockStatusCard';
 import { AlertCircle, Send, RefreshCw } from 'lucide-react';
 import { TransferDirectionSelector } from './components/TransferDirectionSelector';
 
+const TransferSkeleton = () => {
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-pulse">
+            <div className="lg:col-span-2 space-y-8">
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm h-80 flex flex-col justify-between">
+                    <div className="space-y-3">
+                        <div className="h-6 bg-slate-200 rounded w-1/4" />
+                        <div className="h-10 bg-slate-200 rounded-xl w-full" />
+                    </div>
+                    <div className="space-y-4 my-6">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <div key={i} className="flex justify-between items-center h-12 bg-slate-50 rounded-xl px-4" />
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div className="lg:col-span-1 space-y-8">
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm h-64" />
+                <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm h-80" />
+            </div>
+        </div>
+    );
+};
+
 export const TransferPage = () => {
     const {
         allStores,
@@ -15,6 +39,7 @@ export const TransferPage = () => {
         destinationStoreId,
         setDestinationStoreId,
         validationError,
+        loading,
         search,
         setSearch,
         filteredProducts,
@@ -117,95 +142,99 @@ export const TransferPage = () => {
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Left: Product selector */}
-                    <div className="lg:col-span-2 space-y-8">
-                        <TransferProductSelector
-                            search={search}
-                            setSearch={setSearch}
-                            filteredProducts={filteredProducts}
-                            onSelect={setSelectedProductId}
-                            selectedProduct={selectedProduct}
-                        />
-                    </div>
+                {loading ? (
+                    <TransferSkeleton />
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Left: Product selector */}
+                        <div className="lg:col-span-2 space-y-8">
+                            <TransferProductSelector
+                                search={search}
+                                setSearch={setSearch}
+                                filteredProducts={filteredProducts}
+                                onSelect={setSelectedProductId}
+                                selectedProduct={selectedProduct}
+                            />
+                        </div>
 
-                    {/* Right: Stocks and finalization */}
-                    <div className="lg:col-span-1 space-y-8">
-                        <TransferStockStatusCard product={selectedProduct} />
+                        {/* Right: Stocks and finalization */}
+                        <div className="lg:col-span-1 space-y-8">
+                            <TransferStockStatusCard product={selectedProduct} />
 
-                        {/* Summary Preview & Quantity Form */}
-                        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-                            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-indigo-650" />
-                                Sumar & Finalizare Transfer
-                            </h3>
+                            {/* Summary Preview & Quantity Form */}
+                            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                                <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-indigo-650" />
+                                    Sumar & Finalizare Transfer
+                                </h3>
 
-                            {/* Summary Preview Section */}
-                            <div 
-                                data-testid="transfer-summary-preview"
-                                className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/60 space-y-3"
-                            >
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="text-slate-500 font-medium">Magazin Sursă:</span>
-                                    <span className="font-bold text-slate-800">
-                                        {allStores.find(s => s.id === sourceStoreId)?.name || 'Neselectat'}
-                                    </span>
+                                {/* Summary Preview Section */}
+                                <div 
+                                    data-testid="transfer-summary-preview"
+                                    className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/60 space-y-3"
+                                >
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-slate-500 font-medium">Magazin Sursă:</span>
+                                        <span className="font-bold text-slate-800">
+                                            {allStores.find(s => s.id === sourceStoreId)?.name || 'Neselectat'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-slate-500 font-medium">Magazin Destinație:</span>
+                                        <span className="font-bold text-slate-800">
+                                            {allStores.find(s => s.id === destinationStoreId)?.name || 'Neselectat'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-slate-500 font-medium">Produs:</span>
+                                        <span className="font-bold text-slate-850 truncate max-w-[150px]">
+                                            {selectedProduct ? selectedProduct.nume : 'Neselectat'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs pt-2 border-t border-indigo-100/60">
+                                        <span className="text-slate-600 font-bold">Cantitate:</span>
+                                        <span className="font-black text-indigo-700 text-sm">
+                                            {quantity ? `${quantity} ${selectedProduct?.um || 'buc'}` : '0'}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="text-slate-500 font-medium">Magazin Destinație:</span>
-                                    <span className="font-bold text-slate-800">
-                                        {allStores.find(s => s.id === destinationStoreId)?.name || 'Neselectat'}
-                                    </span>
+
+                                {/* Quantity Input */}
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cantitate</label>
+                                    <input
+                                        type="number"
+                                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-mono text-xl font-bold text-center text-slate-800"
+                                        placeholder="0.00"
+                                        value={quantity}
+                                        onChange={e => setQuantity(e.target.value)}
+                                        disabled={!selectedProductId}
+                                    />
                                 </div>
-                                <div className="flex justify-between items-center text-xs">
-                                    <span className="text-slate-500 font-medium">Produs:</span>
-                                    <span className="font-bold text-slate-850 truncate max-w-[150px]">
-                                        {selectedProduct ? selectedProduct.nume : 'Neselectat'}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between items-center text-xs pt-2 border-t border-indigo-100/60">
-                                    <span className="text-slate-600 font-bold">Cantitate:</span>
-                                    <span className="font-black text-indigo-700 text-sm">
-                                        {quantity ? `${quantity} ${selectedProduct?.um || 'buc'}` : '0'}
-                                    </span>
-                                </div>
+
+                                {/* Confirm Button */}
+                                <button
+                                    data-testid="transfer-confirm-button"
+                                    onClick={submitTransfer}
+                                    disabled={!!validationError || !selectedProductId || !quantity || submitting}
+                                    className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white py-4 rounded-xl font-bold text-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
+                                >
+                                    {submitting ? (
+                                        <>
+                                            <RefreshCw size={16} className="animate-spin" />
+                                            Se procesează...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send size={16} />
+                                            Execută Transferul
+                                        </>
+                                    )}
+                                </button>
                             </div>
-
-                            {/* Quantity Input */}
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cantitate</label>
-                                <input
-                                    type="number"
-                                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-mono text-xl font-bold text-center text-slate-800"
-                                    placeholder="0.00"
-                                    value={quantity}
-                                    onChange={e => setQuantity(e.target.value)}
-                                    disabled={!selectedProductId}
-                                />
-                            </div>
-
-                            {/* Confirm Button */}
-                            <button
-                                data-testid="transfer-confirm-button"
-                                onClick={submitTransfer}
-                                disabled={!!validationError || !selectedProductId || !quantity || submitting}
-                                className="w-full bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white py-4 rounded-xl font-bold text-sm transition-all active:scale-[0.98] disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-2 uppercase tracking-wider cursor-pointer"
-                            >
-                                {submitting ? (
-                                    <>
-                                        <RefreshCw size={16} className="animate-spin" />
-                                        Se procesează...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Send size={16} />
-                                        Execută Transferul
-                                    </>
-                                )}
-                            </button>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

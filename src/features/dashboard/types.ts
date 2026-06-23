@@ -9,6 +9,8 @@ export interface DashboardStats {
     criticalExpiryBatchesCount: number;
     wasteEventsThisMonth: number;
     stockValueEstimate: number;
+    zeroStockProductsCount: number;
+    missingPricesCount: number;
 }
 
 export interface RecentSale {
@@ -70,5 +72,7 @@ export interface DashboardData {
     salesChart: SalesChartPoint[];
     wasteSummary: WasteSummary;
     recentReceptions: RecentReception[];
+    productsWithoutPrice: Array<{ id: string; name: string; barcode: string; priceSale: number }>;
+    productsWithZeroStock: Array<{ id: string; name: string; barcode: string; stockTotal: number }>;
 }
 

@@ -36,6 +36,11 @@ export const useReception = () => {
     // --- Products State ---
     const [availableProducts, setAvailableProducts] = useState<ReceptionProduct[]>([]);
     const [loadingProducts, setLoadingProducts] = useState(false);
+
+    const missingPricesCount = useMemo(() => {
+        return availableProducts.filter(p => p.pret_vanzare <= 0).length;
+    }, [availableProducts]);
+
     const [search, setSearch] = useState('');
     const [selectedProduct, setSelectedProduct] = useState<ReceptionProduct | null>(null);
 
@@ -574,6 +579,8 @@ export const useReception = () => {
         loadingDetails,
         xmlStatus, parseXMLInvoice,
         loadingProducts,
+        availableProducts,
+        missingPricesCount,
         calculations: {
             invoiceQty,
             receivedQty,
