@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Users, Mail, User, Shield, CheckCircle2, XCircle, Calendar, Building2, UserPlus, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { OwnerProfile } from '../types';
+import { EmptyState } from '../../../shared/components/ui';
 
 interface OwnerProfilesTableProps {
   profiles: OwnerProfile[];
@@ -66,6 +67,34 @@ export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles
       >
         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" role="status" aria-label="Se încarcă" />
         <p className="text-sm text-gray-500 dark:text-gray-400">Se încarcă lista profilelor...</p>
+      </div>
+    );
+  }
+
+  if (!loading && filteredProfiles.length === 0) {
+    return (
+      <div 
+        data-testid="owner-console-empty-state"
+        className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm border border-gray-100 dark:border-gray-700/60"
+      >
+        <EmptyState
+          title="Nu s-au găsit profile"
+          description={searchTerm || roleFilter !== 'all'
+            ? 'Nu există utilizatori care să corespundă filtrului.'
+            : 'Nu există profile înregistrate în sistem.'
+          }
+          icon={<Users size={40} className="text-slate-400" />}
+          action={
+            (searchTerm || roleFilter !== 'all') && (
+              <button
+                onClick={() => { setSearchTerm(''); setRoleFilter('all'); }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+              >
+                Resetează filtrele
+              </button>
+            )
+          }
+        />
       </div>
     );
   }
@@ -176,28 +205,7 @@ export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 text-sm">
-            {filteredProfiles.length === 0 ? (
-              <tr>
-                <td colSpan={7} data-testid="owner-console-empty-state" className="py-16 px-6 text-center">
-                  <Users className="w-12 h-12 text-gray-200 dark:text-gray-700 mx-auto mb-3" aria-hidden="true" />
-                  <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    {searchTerm || roleFilter !== 'all'
-                      ? 'Nu există utilizatori care să corespundă filtrului.'
-                      : 'Nu există profile înregistrate în sistem.'
-                    }
-                  </p>
-                  {(searchTerm || roleFilter !== 'all') && (
-                    <button
-                      onClick={() => { setSearchTerm(''); setRoleFilter('all'); }}
-                      className="mt-2 text-xs text-indigo-600 dark:text-indigo-400 hover:underline focus:outline-none"
-                    >
-                      Resetează filtrele
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ) : (
-              filteredProfiles.map(profile => {
+            {filteredProfiles.map(profile => {
                 const roleInfo = ROLE_LABELS[profile.globalRole] || { label: profile.globalRole, className: 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300' };
                 return (
                   <tr key={profile.id} className="hover:bg-gray-50/80 dark:hover:bg-gray-700/30 transition-colors group">
@@ -318,8 +326,7 @@ export const OwnerProfilesTable: React.FC<OwnerProfilesTableProps> = ({ profiles
                     </td>
                   </tr>
                 );
-              })
-            )}
+              })}
           </tbody>
         </table>
       </div>

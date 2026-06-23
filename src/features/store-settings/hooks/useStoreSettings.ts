@@ -131,7 +131,7 @@ export const useStoreSettings = (): UseStoreSettingsReturn => {
       const resp = await storeSettingsService.updateStoreSettings(currentStoreId, enforced);
       applyResponse(resp);
       setSaveSuccess(true);
-      toast.success('Setările magazinului au fost salvate cu succes!');
+      toast.success('✓ Setări actualizate');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Eroare la salvarea setărilor.';
       setError(message);

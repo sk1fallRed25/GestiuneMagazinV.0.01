@@ -8,9 +8,10 @@ import {
     ChevronRight,
     Package,
     Hash,
+    Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Modal } from '../../../shared/components/ui';
+import { Modal, EmptyState } from '../../../shared/components/ui';
 import { Product } from '../types';
 import { categoryService } from '../../catalog/categoryService';
 import type { CategoryWithSubs, CategoryOption } from '../../catalog/types';
@@ -81,6 +82,24 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
     const productCounts = useMemo(() => buildProductCountMap(products), [products]);
 
     /* ───────────────── Fetch categories ───────────────── */
+    const handleDeleteCategory = async (categoryId: string) => {
+        if (!navigator.onLine) {
+            toast.error("Nu poți modifica categorii cât timp aplicația este offline.");
+            return;
+        }
+        if (!window.confirm("Ești sigur? Această operație nu poate fi anulată. Confirmați ștergerea acestei categorii? Produsele asociate vor fi decuplate.")) {
+            return;
+        }
+
+        try {
+            await categoryService.deleteCategory(storeId, categoryId);
+            toast.success("✓ Categorie ștearsă");
+            await fetchCategories();
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Eroare la ștergerea categoriei.';
+            toast.error(msg);
+        }
+    };
 
     const fetchCategories = useCallback(async () => {
         if (!storeId) return;
@@ -330,6 +349,13 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                         >
                             <Edit3 size={14} />
                         </button>
+                        <button
+                            onClick={() => handleDeleteCategory(sub.id)}
+                            className="p-1.5 rounded-xl text-slate-300 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                            title="Șterge"
+                        >
+                            <Trash2 size={14} />
+                        </button>
                     </>
                 )}
             </div>
@@ -433,6 +459,13 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                                     <Edit3 size={14} />
                                 </button>
                                 <button
+                                    onClick={() => handleDeleteCategory(cat.id)}
+                                    className="p-1.5 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                                    title="Șterge"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                                <button
                                     data-testid="catalog-create-subcategory-button"
                                     onClick={() => {
                                         setAddingSubTo(cat.id);
@@ -501,17 +534,26 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
     const renderEmpty = () => (
         <div
             data-testid="catalog-category-empty-state"
-            className="flex flex-col items-center justify-center py-16 text-center"
+            className="p-4"
         >
-            <div className="w-16 h-16 rounded-3xl bg-indigo-50 flex items-center justify-center mb-4">
-                <FolderOpen size={28} className="text-indigo-400" />
-            </div>
-            <p className="text-sm font-bold text-slate-900 mb-1">
-                Nicio categorie încă
-            </p>
-            <p className="text-xs text-slate-400 max-w-xs">
-                Creează prima categorie pentru a organiza produsele din magazinul tău.
-            </p>
+            <EmptyState
+                title="Nicio categorie încă"
+                description="Creează prima categorie pentru a organiza produsele din magazinul tău."
+                icon={<FolderOpen size={28} className="text-indigo-500" />}
+                action={
+                    <button
+                        data-testid="catalog-create-main-category-button-empty"
+                        onClick={() => {
+                            setShowNewRoot(true);
+                            setNewRootName('');
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm"
+                    >
+                        <Plus size={14} />
+                        Creează prima categorie
+                    </button>
+                }
+            />
         </div>
     );
 

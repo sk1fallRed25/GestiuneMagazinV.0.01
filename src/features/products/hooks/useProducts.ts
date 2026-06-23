@@ -141,7 +141,7 @@ export const useProducts = () => {
 
             await toast.promise(promise, {
                 loading: 'Se procesează actualizarea...',
-                success: 'Datele produsului au fost modificate.',
+                success: '✓ Produs salvat',
                 error: (err: unknown) => {
                     const message = err instanceof Error ? err.message : "Operațiunea nu a putut fi finalizată.";
                     return message;
@@ -173,7 +173,7 @@ export const useProducts = () => {
 
             await toast.promise(promise, {
                 loading: 'Se elimină produsul...',
-                success: 'Produs eliminat cu succes.',
+                success: '✓ Produs eliminat',
                 error: (err: unknown) => {
                     const message = err instanceof Error ? err.message : "Operațiunea nu a putut fi finalizată.";
                     return message;

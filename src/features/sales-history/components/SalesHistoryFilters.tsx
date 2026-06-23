@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Calendar, CreditCard } from 'lucide-react';
+import { Search, Calendar, CreditCard, X } from 'lucide-react';
 import { SalesHistoryFilters as Filters } from '../types';
 
 interface SalesHistoryFiltersProps {
@@ -18,10 +18,20 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({ filter
                     <input
                         type="text"
                         placeholder="ID sau Casier..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-indigo-500 transition-all text-sm font-bold"
+                        className="w-full pl-10 pr-8 py-2.5 bg-gray-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-indigo-500 transition-all text-sm font-bold"
                         value={filters.search}
                         onChange={e => onFilterChange({ search: e.target.value })}
                     />
+                    {filters.search && (
+                        <button
+                            onClick={() => onFilterChange({ search: '' })}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                            title="Curăță"
+                            type="button"
+                        >
+                            <X size={14} />
+                        </button>
+                    )}
                 </div>
             </div>
 

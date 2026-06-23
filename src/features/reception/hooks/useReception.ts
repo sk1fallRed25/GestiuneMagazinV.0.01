@@ -341,7 +341,7 @@ export const useReception = () => {
             );
             setActiveDraftId(draftId);
             if (!silent) {
-                toast.success("Draft salvat cu succes!");
+                toast.success("✓ Draft salvat cu succes!");
             }
             return draftId;
         } catch (error: any) {
@@ -372,7 +372,7 @@ export const useReception = () => {
         setSubmitting(true);
         try {
             await receptionService.postReception(draftId, currentStoreId!, user!.id);
-            toast.success("Recepție înregistrată. Documentul a fost finalizat cu succes!");
+            toast.success("✓ Recepție înregistrată. Documentul a fost finalizat cu succes!");
             
             // Go to detail view of the posted reception
             await viewDetails(draftId);
@@ -392,7 +392,7 @@ export const useReception = () => {
         }
         try {
             await receptionService.cancelReception(activeDraftId, currentStoreId!);
-            toast.success("Recepția a fost anulată.");
+            toast.success("✓ Recepția a fost anulată.");
             startNewReception();
         } catch (error: any) {
             console.error(error);

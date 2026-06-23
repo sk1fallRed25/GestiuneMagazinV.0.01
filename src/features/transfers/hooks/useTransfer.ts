@@ -169,7 +169,7 @@ export const useTransfer = () => {
             };
 
             await transferService.executeTransfer(payload);
-            toast.success("Transfer înregistrat cu succes!");
+            toast.success("✓ Transfer înregistrat cu succes!");
             
             setQuantity('');
             setSelectedProductId('');

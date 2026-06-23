@@ -12,6 +12,41 @@ import CategoryManagerModal from './components/CategoryManagerModal';
 import BulkMoveCategoryModal from './components/BulkMoveCategoryModal';
 import { PageHeader, LoadingState } from '../../shared/components/ui';
 
+const ProductsSkeleton = () => {
+    return (
+        <div className="p-8 max-w-[1400px] mx-auto min-h-screen bg-slate-50/30 space-y-6 animate-pulse">
+            {/* Header Skeleton */}
+            <div className="flex justify-between items-center mb-8">
+                <div className="space-y-2">
+                    <div className="h-8 bg-slate-200 rounded-xl w-64" />
+                    <div className="h-4 bg-slate-200 rounded-lg w-96" />
+                </div>
+                <div className="h-10 bg-slate-200 rounded-xl w-48" />
+            </div>
+
+            {/* Search and Filters Skeletons */}
+            <div className="h-16 bg-white rounded-2xl border border-slate-300 w-full" />
+            <div className="h-16 bg-white rounded-2xl border border-slate-300 w-full" />
+
+            {/* Table Skeleton */}
+            <div className="bg-white rounded-3xl border border-slate-300 overflow-hidden shadow-sm">
+                <div className="h-12 bg-slate-100 border-b border-slate-200" />
+                <div className="p-4 space-y-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="flex justify-between items-center py-2">
+                            <div className="h-4 bg-slate-200 rounded w-1/4" />
+                            <div className="h-4 bg-slate-200 rounded w-12" />
+                            <div className="h-4 bg-slate-200 rounded w-16" />
+                            <div className="h-4 bg-slate-200 rounded w-20" />
+                            <div className="h-8 bg-slate-200 rounded w-24" />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ProductsPage = () => {
     const { role } = useAuth();
     const { isOnline } = useNetworkStatus();
@@ -134,11 +169,7 @@ const ProductsPage = () => {
             .map(p => p.nume);
     }, [products, selectedIds]);
 
-    if (loading) return (
-        <div className="flex h-screen items-center justify-center bg-slate-50/50">
-            <LoadingState message="Se accesează serverul de baze de date..." size="lg" />
-        </div>
-    );
+    if (loading) return <ProductsSkeleton />;
 
     if (!currentStoreId) {
         return (

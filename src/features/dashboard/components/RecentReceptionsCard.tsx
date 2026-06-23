@@ -2,6 +2,7 @@ import React from 'react';
 import { PackageOpen, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { RecentReception } from '../types';
+import { EmptyState } from '../../../shared/components/ui';
 
 interface RecentReceptionsCardProps {
     receptions: RecentReception[];
@@ -22,7 +23,14 @@ export const RecentReceptionsCard: React.FC<RecentReceptionsCardProps> = ({ rece
             
             <div className="flex-1">
                 {receptions.length === 0 ? (
-                    <div className="p-10 text-center text-gray-400 font-medium italic">Nicio recepție înregistrată recent.</div>
+                    <div className="p-6">
+                        <EmptyState
+                            title="Nicio recepție înregistrată recent"
+                            description="Nu s-au înregistrat documente de recepție în ultima perioadă."
+                            icon={<PackageOpen size={40} className="text-slate-400" />}
+                            compact
+                        />
+                    </div>
                 ) : (
                     <table className="w-full text-left">
                         <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">

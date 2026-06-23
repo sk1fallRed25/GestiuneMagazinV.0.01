@@ -1,7 +1,7 @@
 import React from 'react';
-import { Search, Calendar, FileText, ChevronRight, User } from 'lucide-react';
+import { Search, Calendar, FileText, ChevronRight, User, X } from 'lucide-react';
 import { ReceptionDbRow } from '../types';
-import { EmptyState, Button, LoadingState } from '../../../shared/components/ui';
+import { EmptyState, Button } from '../../../shared/components/ui';
 
 interface ReceptionHistoryProps {
     receptions: ReceptionDbRow[];
@@ -52,13 +52,25 @@ export const ReceptionHistory = ({
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Furnizor (Căutare)</label>
-                        <input
-                            type="text"
-                            value={filters.supplier}
-                            onChange={(e) => onFilterChange({ ...filters, supplier: e.target.value })}
-                            placeholder="Căutare după nume..."
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        />
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={filters.supplier}
+                                onChange={(e) => onFilterChange({ ...filters, supplier: e.target.value })}
+                                placeholder="Căutare după nume..."
+                                className="w-full pl-3 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            />
+                            {filters.supplier && (
+                                <button
+                                    onClick={() => onFilterChange({ ...filters, supplier: '' })}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                    title="Curăță"
+                                    type="button"
+                                >
+                                    <X size={14} />
+                                </button>
+                            )}
+                        </div>
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-gray-400 uppercase mb-2">Status Document</label>
@@ -88,8 +100,36 @@ export const ReceptionHistory = ({
             {/* Listă Recepții */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                 {loading ? (
-                    <div className="p-16 flex justify-center">
-                        <LoadingState message="Se încarcă istoricul recepțiilor..." />
+                    <div className="overflow-x-auto animate-pulse">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-slate-50/50 text-slate-400 text-[10px] uppercase font-bold tracking-widest border-b border-slate-100">
+                                    <th className="p-4 pl-6 w-1/4"><div className="h-3 bg-slate-200 rounded-full w-24"></div></th>
+                                    <th className="p-4 w-1/8"><div className="h-3 bg-slate-200 rounded-full w-16"></div></th>
+                                    <th className="p-4 w-1/4"><div className="h-3 bg-slate-200 rounded-full w-24"></div></th>
+                                    <th className="p-4 text-center w-1/12"><div className="h-3 bg-slate-200 rounded-full w-12 mx-auto"></div></th>
+                                    <th className="p-4 text-right w-1/8"><div className="h-3 bg-slate-200 rounded-full w-16 ml-auto"></div></th>
+                                    <th className="p-4 w-1/8"><div className="h-3 bg-slate-200 rounded-full w-20"></div></th>
+                                    <th className="p-4 text-center w-1/12"><div className="h-3 bg-slate-200 rounded-full w-12 mx-auto"></div></th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {[...Array(5)].map((_, i) => (
+                                    <tr key={i} className="border-b border-slate-100">
+                                        <td className="p-4 pl-6"><div className="h-3.5 bg-slate-100 rounded-full w-36"></div></td>
+                                        <td className="p-4"><div className="h-3.5 bg-slate-100 rounded-full w-20"></div></td>
+                                        <td className="p-4">
+                                            <div className="h-3.5 bg-slate-100 rounded-full w-28 mb-1"></div>
+                                            <div className="h-2.5 bg-slate-50 rounded-full w-16"></div>
+                                        </td>
+                                        <td className="p-4 text-center"><div className="h-5 bg-slate-100 rounded-full w-16 mx-auto"></div></td>
+                                        <td className="p-4 text-right"><div className="h-3.5 bg-slate-100 rounded-full w-16 ml-auto"></div></td>
+                                        <td className="p-4"><div className="h-3.5 bg-slate-100 rounded-full w-24"></div></td>
+                                        <td className="p-4 text-center"><div className="h-7 bg-slate-100 rounded-lg w-12 mx-auto"></div></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 ) : receptions.length === 0 ? (
                     <div className="p-12">

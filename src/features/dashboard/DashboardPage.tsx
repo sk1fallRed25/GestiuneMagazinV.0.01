@@ -13,6 +13,50 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { LoadingState } from '../../shared/components/ui';
 
+const DashboardSkeleton: React.FC = () => {
+    return (
+        <div className="p-8 max-w-7xl mx-auto pb-20 font-sans bg-gray-50/30 min-h-screen space-y-8 animate-pulse">
+            {/* Header Skeleton */}
+            <div className="flex justify-between items-center mb-8">
+                <div className="space-y-2">
+                    <div className="h-8 bg-slate-200 rounded-xl w-64" />
+                    <div className="h-4 bg-slate-200 rounded-lg w-96" />
+                </div>
+                <div className="h-10 bg-slate-200 rounded-xl w-32" />
+            </div>
+
+            {/* Stats Grid Skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm h-32 flex flex-col justify-between">
+                        <div className="flex justify-between">
+                            <div className="space-y-2 flex-1">
+                                <div className="h-4 bg-slate-200 rounded w-1/2" />
+                                <div className="h-7 bg-slate-200 rounded-lg w-3/4" />
+                            </div>
+                            <div className="w-12 h-12 bg-slate-200 rounded-2xl" />
+                        </div>
+                        <div className="h-4 bg-slate-150 rounded w-2/3" />
+                    </div>
+                ))}
+            </div>
+
+            {/* Main Section Skeletons */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 bg-white rounded-[2rem] border border-slate-100 shadow-sm h-80" />
+                <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm h-80" />
+            </div>
+
+            {/* Lists Skeletons */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm h-72" />
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const DashboardPage: React.FC = () => {
     const { data, loading, error, refreshDashboard } = useDashboard();
     const { role } = useAuth();
@@ -80,9 +124,7 @@ const DashboardPage: React.FC = () => {
             )}
 
             {loading && !data && (
-                <div className="py-40 flex items-center justify-center">
-                    <LoadingState message="Se generează sinteza operațională..." size="lg" />
-                </div>
+                <DashboardSkeleton />
             )}
         </div>
     );

@@ -255,5 +255,52 @@ export const categoryService = {
             }
         }
         return counts;
+    },
+
+    /**
+     * Șterge o categorie sau subcategorie din baza de date,
+     * după ce decuplează produsele asociate.
+     */
+    async deleteCategory(storeId: string, categoryId: string): Promise<void> {
+        if (!storeId || !categoryId) throw new Error('Store ID și Category ID sunt obligatorii.');
+
+        // 1. Aflăm dacă există subcategorii pentru a le șterge și pe ele
+        const { data: subcats, error: subError } = await supabase
+            .from('categories')
+            .select('id')
+            .eq('store_id', storeId)
+            .eq('parent_id', categoryId);
+
+        if (subError) throw subError;
+        const subcatIds = (subcats ?? []).map(s => s.id);
+        const allIds = [categoryId, ...subcatIds];
+
+        // 2. Decuplăm toate produsele asociate cu aceste categorii/subcategorii
+        const { error: prodError } = await supabase
+            .from('products')
+            .update({ category_id: null })
+            .eq('store_id', storeId)
+            .in('category_id', allIds);
+
+        if (prodError) throw prodError;
+
+        // 3. Ștergem subcategoriile mai întâi
+        if (subcatIds.length > 0) {
+            const { error: delSubError } = await supabase
+                .from('categories')
+                .delete()
+                .eq('store_id', storeId)
+                .in('id', subcatIds);
+            if (delSubError) throw delSubError;
+        }
+
+        // 4. Ștergem categoria părinte/principală
+        const { error: delError } = await supabase
+            .from('categories')
+            .delete()
+            .eq('store_id', storeId)
+            .eq('id', categoryId);
+
+        if (delError) throw delError;
     }
 };

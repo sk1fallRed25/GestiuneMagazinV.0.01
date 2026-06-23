@@ -2,6 +2,7 @@ import React from 'react';
 import { History, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { RecentSale } from '../types';
+import { EmptyState } from '../../../shared/components/ui';
 
 interface RecentSalesCardProps {
     sales: RecentSale[];
@@ -22,7 +23,14 @@ export const RecentSalesCard: React.FC<RecentSalesCardProps> = ({ sales }) => {
             
             <div className="flex-1">
                 {sales.length === 0 ? (
-                    <div className="p-10 text-center text-gray-400 font-medium italic">Nicio vânzare înregistrată recent.</div>
+                    <div className="p-6">
+                        <EmptyState
+                            title="Nicio vânzare înregistrată recent"
+                            description="Nu s-au înregistrat vânzări în acest magazin în ultima perioadă."
+                            icon={<History size={40} className="text-slate-400" />}
+                            compact
+                        />
+                    </div>
                 ) : (
                     <table className="w-full text-left">
                         <thead className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">

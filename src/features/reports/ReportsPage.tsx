@@ -162,8 +162,43 @@ export const ReportsPage: React.FC = () => {
       {/* Tab Panels content */}
       <div className="transition-all duration-300">
         {loading && !salesSummary && (
-          <div data-testid="reports-loading-state" className="bg-white rounded-3xl border border-gray-100 shadow-sm py-40">
-            <LoadingState message="Se generează raportul comercial..." size="lg" />
+          <div data-testid="reports-loading-state" className="space-y-8 animate-pulse">
+            {/* KPI Stats skeleton */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white p-6 rounded-3xl border border-gray-150 shadow-sm space-y-3">
+                  <div className="h-3.5 bg-slate-200 rounded-full w-24"></div>
+                  <div className="h-7 bg-slate-255 rounded-full w-32"></div>
+                  <div className="h-2.5 bg-slate-100 rounded-full w-16"></div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Main chart and table area skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-gray-150 shadow-sm space-y-4">
+                <div className="h-4 bg-slate-200 rounded-full w-48"></div>
+                <div className="h-64 bg-slate-50 rounded-2xl flex items-end justify-between p-4 pt-10">
+                  {[...Array(12)].map((_, i) => (
+                    <div key={i} className="bg-slate-200 rounded-t w-6 md:w-8" style={{ height: `${20 + (i % 4) * 20}%` }}></div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-gray-150 shadow-sm space-y-4">
+                <div className="h-4 bg-slate-200 rounded-full w-36"></div>
+                <div className="space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
+                      <div className="space-y-1">
+                        <div className="h-3 bg-slate-100 rounded-full w-24"></div>
+                        <div className="h-2 bg-slate-50 rounded-full w-12"></div>
+                      </div>
+                      <div className="h-3.5 bg-slate-150 rounded-full w-16"></div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Users, Mail, User, Calendar, CheckCircle2, XCircle, ShieldAlert, AlertCircle, Loader2 } from 'lucide-react';
 import { OwnerStoreMember, OwnerMemberRole, OwnerStore } from '../types';
 import { MemberRoleBadge } from './MemberRoleBadge';
+import { EmptyState } from '../../../shared/components/ui';
 
 interface StoreMembersTableProps {
   members: OwnerStoreMember[];
@@ -97,6 +98,14 @@ export const StoreMembersTable: React.FC<StoreMembersTableProps> = ({
           <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-3" />
           <p className="text-sm text-gray-500 dark:text-gray-400">Se încarcă membrii magazinului...</p>
         </div>
+      ) : members.length === 0 ? (
+        <div data-testid="owner-console-empty-state" className="p-6">
+          <EmptyState
+            title="Nu există membri asociați"
+            description="Niciun utilizator nu este asociat în prezent cu acest magazin."
+            icon={<Users size={40} className="text-slate-400" />}
+          />
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
@@ -111,14 +120,7 @@ export const StoreMembersTable: React.FC<StoreMembersTableProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 text-sm">
-              {members.length === 0 ? (
-                <tr>
-                  <td colSpan={6} data-testid="owner-console-empty-state" className="py-8 px-6 text-center text-gray-500 dark:text-gray-400">
-                    Nu există membri asociați acestui magazin.
-                  </td>
-                </tr>
-              ) : (
-                members.map(member => {
+              {members.map(member => {
                   const isProcessing = processingId === member.id;
                   return (
                     <tr key={member.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
@@ -193,8 +195,7 @@ export const StoreMembersTable: React.FC<StoreMembersTableProps> = ({
                       </td>
                     </tr>
                   );
-                })
-              )}
+              })}
             </tbody>
           </table>
         </div>

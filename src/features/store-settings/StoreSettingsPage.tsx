@@ -103,10 +103,36 @@ export const StoreSettingsPage: React.FC = () => {
   // ─── Loading skeleton ──────────────────────────────────────
   if (loading) {
     return (
-      <div className="p-8 max-w-5xl mx-auto font-sans">
-        <div className="flex flex-col items-center justify-center py-40">
-          <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-6" />
-          <p className="text-slate-400 font-black uppercase tracking-widest text-sm">Se încarcă setările magazinului...</p>
+      <div className="p-8 max-w-5xl mx-auto font-sans animate-pulse space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between pb-6 border-b border-slate-200">
+          <div>
+            <div className="h-6 bg-slate-200 rounded-full w-48 mb-2"></div>
+            <div className="h-4 bg-slate-100 rounded-full w-80"></div>
+          </div>
+          <div className="h-10 bg-slate-200 rounded-xl w-32"></div>
+        </div>
+
+        {/* Form sections skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white p-6 rounded-3xl border border-slate-200 space-y-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 bg-slate-200 rounded-full"></div>
+                <div className="h-4 bg-slate-200 rounded-full w-32"></div>
+              </div>
+              <div className="space-y-3 pt-2">
+                <div className="space-y-1">
+                  <div className="h-3 bg-slate-100 rounded-full w-24"></div>
+                  <div className="h-9 bg-slate-100/60 rounded-xl w-full"></div>
+                </div>
+                <div className="space-y-1">
+                  <div className="h-3 bg-slate-100 rounded-full w-20"></div>
+                  <div className="h-9 bg-slate-100/60 rounded-xl w-full"></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
