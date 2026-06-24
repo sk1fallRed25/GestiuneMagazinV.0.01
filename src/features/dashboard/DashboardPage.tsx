@@ -8,6 +8,10 @@ import { LowStockCard } from './components/LowStockCard';
 import { ExpirationAlertsCard } from './components/ExpirationAlertsCard';
 import { WasteSummaryCard } from './components/WasteSummaryCard';
 import { SalesChartCard } from './components/SalesChartCard';
+import { QuickActionsCard } from './components/QuickActionsCard';
+import { StockHealthCard } from './components/StockHealthCard';
+import { TopProductsCard } from './components/TopProductsCard';
+import { SlowMoversCard } from './components/SlowMoversCard';
 import { BrainCircuit, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
@@ -63,11 +67,21 @@ const DashboardPage: React.FC = () => {
                 <>
                     <DashboardStatsGrid stats={data.stats} loading={loading} />
 
+                    <div className="mb-8">
+                        <QuickActionsCard />
+                    </div>
+
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
                         <div className="lg:col-span-2">
                             <SalesChartCard data={data.salesChart} />
                         </div>
                         <WasteSummaryCard waste={data.wasteSummary} />
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                        <StockHealthCard stats={data.stockHealth} />
+                        <TopProductsCard today={data.topSellers.today} month={data.topSellers.month} />
+                        <SlowMoversCard slowMovers={data.slowMovers} />
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">

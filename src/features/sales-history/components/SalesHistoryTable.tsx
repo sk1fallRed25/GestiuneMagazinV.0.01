@@ -1,17 +1,20 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronRight, Package } from 'lucide-react';
 import { SaleSummary } from '../types';
 import { SaleStatusBadge } from './SaleStatusBadge';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
-import { LoadingState, EmptyState } from '../../../shared/components/ui';
+import { LoadingState, EmptyState, HighlightText, Button } from '../../../shared/components/ui';
 
 interface SalesHistoryTableProps {
     sales: SaleSummary[];
     loading: boolean;
     onViewDetails: (id: string) => void;
+    searchTerm?: string;
+    onClearFilters?: () => void;
 }
 
-export const SalesHistoryTable: React.FC<SalesHistoryTableProps> = ({ sales, loading, onViewDetails }) => {
+export const SalesHistoryTable: React.FC<SalesHistoryTableProps> = ({ sales, loading, onViewDetails, searchTerm = '', onClearFilters }) => {
     if (loading && sales.length === 0) {
         return (
             <div data-testid="sales-history-loading-state" className="bg-white rounded-3xl border border-gray-100 shadow-sm">
@@ -20,13 +23,32 @@ export const SalesHistoryTable: React.FC<SalesHistoryTableProps> = ({ sales, loa
         );
     }
 
+    const hasFilters = searchTerm || (onClearFilters && sales.length === 0);
+
     if (sales.length === 0) {
         return (
             <div data-testid="sales-history-empty-state" className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
                 <EmptyState 
-                    title="Nu există vânzări pentru criteriile selectate." 
-                    description="Verifică filtrele active sau încearcă o altă perioadă." 
-                    icon={<Package size={48} />} 
+                    title={hasFilters ? "Nicio vânzare găsită" : "Registrul de vânzări este gol"} 
+                    description={
+                        hasFilters
+                            ? "Niciun bon fiscal nu corespunde criteriilor sau căutării tale."
+                            : "Nu s-a înregistrat nicio vânzare în perioada selectată. Deschide POS-ul pentru a vinde."
+                    } 
+                    icon={<Package size={48} />}
+                    action={
+                        hasFilters ? (
+                            <Button size="sm" variant="secondary" onClick={onClearFilters}>
+                                Resetează filtrele
+                            </Button>
+                        ) : (
+                            <Link to="/vanzare">
+                                <Button size="sm" variant="primary">
+                                    Deschide POS / Vinde
+                                </Button>
+                            </Link>
+                        )
+                    }
                 />
             </div>
         );
@@ -53,7 +75,7 @@ export const SalesHistoryTable: React.FC<SalesHistoryTableProps> = ({ sales, loa
                             <tr key={sale.id} data-testid="sales-history-row" className="hover:bg-gray-50/80 transition-colors group">
                                 <td className="p-6">
                                     <span className="font-mono text-xs text-gray-400 group-hover:text-indigo-600 font-bold transition-colors">
-                                        #{sale.id.slice(0, 8)}...
+                                        #<HighlightText text={sale.id} search={searchTerm} />
                                     </span>
                                 </td>
                                 <td className="p-6">
@@ -69,7 +91,9 @@ export const SalesHistoryTable: React.FC<SalesHistoryTableProps> = ({ sales, loa
                                         <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-xs">
                                             {sale.cashierName?.charAt(0) || 'S'}
                                         </div>
-                                        <span className="text-sm font-bold text-gray-600">{sale.cashierName}</span>
+                                        <span className="text-sm font-bold text-gray-600">
+                                            <HighlightText text={sale.cashierName || ''} search={searchTerm} />
+                                        </span>
                                     </div>
                                 </td>
                                 <td className="p-6 text-center font-bold text-gray-500 text-sm">

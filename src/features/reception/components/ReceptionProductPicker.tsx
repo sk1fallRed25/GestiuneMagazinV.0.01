@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Plus, ArrowRight, AlertTriangle, AlertCircle, HelpCircle, X } from 'lucide-react';
 import { ReceptionProduct } from '../types';
+import { HighlightText } from '../../../shared/components/ui';
 
 interface ReceptionProductPickerProps {
     search: string;
@@ -199,23 +200,36 @@ export const ReceptionProductPicker = ({
                         data-testid="reception-product-search-dropdown"
                         className="absolute z-30 w-full bg-white shadow-2xl border border-slate-100 rounded-2xl mt-2 max-h-60 overflow-y-auto"
                     >
-                        {filteredProducts.map((p, idx) => (
-                            <div
-                                key={p.id}
-                                data-testid="reception-product-search-option"
-                                className={`p-4 hover:bg-indigo-50/50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${
-                                    highlightedIndex === idx ? 'bg-indigo-50/50' : ''
-                                }`}
-                                onClick={() => handleSelect(p)}
-                            >
-                                <div className="font-bold text-slate-800">{p.nume}</div>
-                                <div className="flex justify-between mt-1 text-[10px] text-slate-400 font-bold uppercase tracking-widest gap-2 flex-wrap">
-                                    <span>Cod: {p.cod_bare}</span>
-                                    <span>Cat: {p.category_name || 'Necategorizat'}</span>
-                                    <span className="text-indigo-600">Actual: {p.pret_vanzare.toFixed(2)} LEI</span>
-                                </div>
+                        {filteredProducts.length === 0 ? (
+                            <div className="p-4 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">
+                                Nu s-au găsit rezultate
                             </div>
-                        ))}
+                        ) : (
+                            <>
+                                <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">
+                                    {filteredProducts.length} {filteredProducts.length === 1 ? 'rezultat găsit' : 'rezultate găsite'}
+                                </div>
+                                {filteredProducts.map((p, idx) => (
+                                    <div
+                                        key={p.id}
+                                        data-testid="reception-product-search-option"
+                                        className={`p-4 hover:bg-indigo-50/50 cursor-pointer border-b border-slate-50 last:border-0 transition-colors ${
+                                            highlightedIndex === idx ? 'bg-indigo-50/50' : ''
+                                        }`}
+                                        onClick={() => handleSelect(p)}
+                                    >
+                                        <div className="font-bold text-slate-800">
+                                            <HighlightText text={p.nume} search={search} />
+                                        </div>
+                                        <div className="flex justify-between mt-1 text-[10px] text-slate-400 font-bold uppercase tracking-widest gap-2 flex-wrap">
+                                            <span>Cod: <HighlightText text={p.cod_bare} search={search} /></span>
+                                            <span>Cat: {p.category_name || 'Necategorizat'}</span>
+                                            <span className="text-indigo-600">Actual: {p.pret_vanzare.toFixed(2)} LEI</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
+                        )}
                     </div>
                 )}
             </div>

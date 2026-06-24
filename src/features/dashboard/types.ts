@@ -62,6 +62,33 @@ export interface WasteSummary {
     topReasons: Array<{ reason: string; count: number }>;
 }
 
+export interface StockHealthStats {
+    criticalStockCount: number;
+    noPriceCount: number;
+    noCategoryCount: number;
+    noVatCount: number;
+    noSupplierCount: number;
+}
+
+export interface TopSellerProduct {
+    productId: string;
+    productName: string;
+    unit: string;
+    quantity: number;
+    revenue: number;
+    profit: number;
+}
+
+export interface SlowMoverProduct {
+    productId: string;
+    productName: string;
+    barcode: string;
+    unit: string;
+    daysWithoutSale: number;
+    currentStock: number;
+    blockedValue: number;
+}
+
 export interface DashboardData {
     stats: DashboardStats;
     recentSales: RecentSale[];
@@ -70,5 +97,12 @@ export interface DashboardData {
     salesChart: SalesChartPoint[];
     wasteSummary: WasteSummary;
     recentReceptions: RecentReception[];
+    stockHealth: StockHealthStats;
+    topSellers: {
+        today: TopSellerProduct[];
+        month: TopSellerProduct[];
+    };
+    slowMovers: SlowMoverProduct[];
 }
+
 

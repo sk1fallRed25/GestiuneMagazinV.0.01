@@ -34,7 +34,6 @@ const ProductsPage = () => {
         deleteProduct,
         currentStoreId,
         vatConfig,
-        // Categories addition
         categoriesTree,
         categoryFilter,
         setCategoryFilter,
@@ -193,18 +192,18 @@ const ProductsPage = () => {
                 <div 
                     data-testid="products-ai-filter-banner"
                     className={`mb-6 p-5 rounded-3xl border shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-br transition-all duration-300 ${
-                        activeAiFilter === 'no_stock' 
+                        ['no_stock', 'critical_stock'].includes(activeAiFilter) 
                             ? 'from-red-50/80 to-red-100/10 border-red-200 dark:border-red-950/30' 
-                            : activeAiFilter === 'low_stock'
+                            : activeAiFilter === 'low_stock' || activeAiFilter === 'no_price'
                             ? 'from-orange-50/80 to-orange-100/10 border-orange-200 dark:border-orange-950/30'
                             : 'from-indigo-50/80 to-indigo-100/10 border-indigo-200 dark:border-indigo-950/30'
                     }`}
                 >
                     <div className="flex items-start gap-4">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm border ${
-                            activeAiFilter === 'no_stock' 
+                            ['no_stock', 'critical_stock'].includes(activeAiFilter) 
                                 ? 'bg-red-50 border-red-100 text-red-600' 
-                                : activeAiFilter === 'low_stock'
+                                : activeAiFilter === 'low_stock' || activeAiFilter === 'no_price'
                                 ? 'bg-orange-50 border-orange-100 text-orange-600'
                                 : 'bg-indigo-50 border-indigo-100 text-indigo-600'
                         }`}>
@@ -213,36 +212,40 @@ const ProductsPage = () => {
                         <div>
                             <div className="flex flex-wrap items-center gap-2">
                                 <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider border ${
-                                    activeAiFilter === 'no_stock' 
+                                    ['no_stock', 'critical_stock'].includes(activeAiFilter) 
                                         ? 'bg-red-100/50 border-red-200 text-red-700' 
-                                        : activeAiFilter === 'low_stock'
+                                        : activeAiFilter === 'low_stock' || activeAiFilter === 'no_price'
                                         ? 'bg-orange-100/50 border-orange-200 text-orange-700'
                                         : 'bg-indigo-100/50 border-indigo-200 text-indigo-700'
                                 }`}>
-                                    FILTRU AI
+                                    FILTRU INTELIGENT
                                 </span>
                                 <h3 className={`text-base font-black tracking-tight ${
-                                    activeAiFilter === 'no_stock' 
+                                    ['no_stock', 'critical_stock'].includes(activeAiFilter) 
                                         ? 'text-red-950' 
-                                        : activeAiFilter === 'low_stock'
+                                        : activeAiFilter === 'low_stock' || activeAiFilter === 'no_price'
                                         ? 'text-orange-955'
                                         : 'text-indigo-955'
                                 }`}>
-                                    {activeAiFilter === 'low_stock' && (
-                                        <span data-testid="products-ai-filter-low-stock">Filtru AI activ: Stoc scăzut</span>
-                                    )}
-                                    {activeAiFilter === 'no_stock' && (
-                                        <span data-testid="products-ai-filter-no-stock">Filtru AI activ: Produse epuizate</span>
-                                    )}
-                                    {activeAiFilter === 'dead_stock' && (
-                                        <span data-testid="products-ai-filter-dead-stock">Filtru AI activ: Produse fără vânzare</span>
-                                    )}
+                                    {activeAiFilter === 'low_stock' && 'Filtru activ: Stoc scăzut (1-5 buc)'}
+                                    {activeAiFilter === 'critical_stock' && 'Filtru activ: Stoc critic (<= 5 buc)'}
+                                    {activeAiFilter === 'no_stock' && 'Filtru activ: Produse epuizate (0 buc)'}
+                                    {activeAiFilter === 'no_price' && 'Filtru activ: Produse fără preț'}
+                                    {activeAiFilter === 'no_category' && 'Filtru activ: Produse fără categorie'}
+                                    {activeAiFilter === 'no_vat' && 'Filtru activ: Fără TVA configurat'}
+                                    {activeAiFilter === 'no_supplier' && 'Filtru activ: Fără furnizor asociat'}
+                                    {activeAiFilter === 'dead_stock' && 'Filtru activ: Produse fără vânzare'}
                                 </h3>
                             </div>
                             <p className="text-xs font-semibold text-slate-500 mt-1 leading-relaxed max-w-2xl">
-                                {activeAiFilter === 'low_stock' && 'Se afișează produsele active cu stocul total cuprins între 1 și 5 bucăți (sub pragul de siguranță).'}
+                                {activeAiFilter === 'low_stock' && 'Se afișează produsele active cu stocul total cuprins între 1 și 5 bucăți.'}
+                                {activeAiFilter === 'critical_stock' && 'Se afișează produsele active cu stocul total critic (0-5 bucăți).'}
                                 {activeAiFilter === 'no_stock' && 'Se afișează produsele active cu stocul total egal cu 0.'}
-                                {activeAiFilter === 'dead_stock' && 'Filtrul Dead Stock necesită conectarea cu datele AI. Momentan vezi lista generală de produse.'}
+                                {activeAiFilter === 'no_price' && 'Se afișează produsele active care nu au preț de vânzare definit.'}
+                                {activeAiFilter === 'no_category' && 'Se afișează produsele active care nu sunt asociate niciunei categorii.'}
+                                {activeAiFilter === 'no_vat' && 'Se afișează produsele active care nu au cotă sau grupă TVA configurată.'}
+                                {activeAiFilter === 'no_supplier' && 'Se afișează produsele active care nu au fost niciodată recepționate de la un furnizor.'}
+                                {activeAiFilter === 'dead_stock' && 'Se afișează produsele fără rotație sau vânzări în ultimele 30 de zile.'}
                             </p>
                         </div>
                     </div>
@@ -260,9 +263,9 @@ const ProductsPage = () => {
                             data-testid="products-ai-filter-clear"
                             onClick={handleClearFilter}
                             className={`px-4 py-2 text-xs font-bold rounded-xl border shadow-sm transition-all flex items-center gap-1.5 ${
-                                activeAiFilter === 'no_stock'
+                                ['no_stock', 'critical_stock'].includes(activeAiFilter)
                                     ? 'bg-red-600 text-white hover:bg-red-700 border-red-600'
-                                    : activeAiFilter === 'low_stock'
+                                    : activeAiFilter === 'low_stock' || activeAiFilter === 'no_price'
                                     ? 'bg-orange-600 text-white hover:bg-orange-700 border-orange-600'
                                     : 'bg-indigo-600 text-white hover:bg-indigo-700 border-indigo-600'
                             }`}
@@ -284,6 +287,12 @@ const ProductsPage = () => {
                 selectedSubcategoryId={subcategoryFilter}
                 onSubcategoryChange={setSubcategoryFilter}
             />
+
+            <div className="flex justify-between items-center mb-4 mt-2 px-1">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+                    {finalFilteredProducts.length} {finalFilteredProducts.length === 1 ? 'produs găsit' : 'produse găsite'}
+                </span>
+            </div>
 
             {/* Bulk Action Bar */}
             {selectedIds.size > 0 && (
@@ -335,6 +344,7 @@ const ProductsPage = () => {
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
                 onToggleSelectAll={handleToggleSelectAll}
+                searchTerm={searchTerm}
             />
 
             {/* Modal Editare */}

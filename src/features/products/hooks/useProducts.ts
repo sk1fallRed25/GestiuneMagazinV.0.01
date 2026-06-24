@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { Product, ProductUpdateInput, ProductVatConfig } from '../types';
 import { productService } from '../services/productService';
@@ -6,6 +7,7 @@ import { useAuth } from '../../auth/useAuth';
 import { categoryService } from '../../catalog/categoryService';
 import { CategoryWithSubs } from '../../catalog/types';
 import { FILTER_UNCATEGORIZED, FILTER_NO_SUBCATEGORY } from '../components/ProductSearchBar';
+import { supabase } from '../../../shared/supabase/supabaseClient';
 
 export const useProducts = () => {
     const { currentStoreId, user, role } = useAuth();
@@ -14,6 +16,9 @@ export const useProducts = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [vatConfig, setVatConfig] = useState<ProductVatConfig | null>(null);
     const [vatLoading, setVatLoading] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const aiFilter = searchParams.get('aiFilter') || '';
+    const [receivedProductIds, setReceivedProductIds] = useState<Set<string>>(new Set());
 
     // Category filter state
     const [categoriesTree, setCategoriesTree] = useState<CategoryWithSubs[]>([]);
@@ -32,6 +37,16 @@ export const useProducts = () => {
         try {
             const data = await productService.listProducts(currentStoreId);
             setProducts(data);
+
+            const { data: riData, error: riError } = await supabase
+                .from('reception_items')
+                .select('product_id')
+                .eq('store_id', currentStoreId);
+            if (!riError && riData) {
+                setReceivedProductIds(new Set(riData.map((ri: any) => ri.product_id)));
+            } else {
+                setReceivedProductIds(new Set());
+            }
         } catch (error: unknown) {
             toast.error("Nu s-au putut încărca datele.");
         } finally {
@@ -82,6 +97,29 @@ export const useProducts = () => {
      */
     const filteredProducts = useMemo(() => {
         let result = products;
+
+        // AI / Stock Health Filter
+        if (aiFilter) {
+            switch (aiFilter) {
+                case 'critical_stock':
+                    result = result.filter(p => (Number(p.stoc_depozit) + Number(p.stoc_magazin)) <= 5);
+                    break;
+                case 'no_price':
+                    result = result.filter(p => Number(p.pret_vanzare) <= 0);
+                    break;
+                case 'no_category':
+                    result = result.filter(p => !p.category_id);
+                    break;
+                case 'no_vat':
+                    result = result.filter(p => !p.vatGroup);
+                    break;
+                case 'no_supplier':
+                    result = result.filter(p => !receivedProductIds.has(p.id));
+                    break;
+                default:
+                    break;
+            }
+        }
 
         // Text filter
         if (searchTerm) {
@@ -186,6 +224,14 @@ export const useProducts = () => {
         }
     };
 
+    const clearAiFilter = useCallback(() => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            next.delete('aiFilter');
+            return next;
+        });
+    }, [setSearchParams]);
+
     return {
         products,
         loading: loading || vatLoading || categoriesLoading,
@@ -203,6 +249,8 @@ export const useProducts = () => {
         setCategoryFilter,
         subcategoryFilter,
         setSubcategoryFilter,
-        reloadCategories: fetchCategories
+        reloadCategories: fetchCategories,
+        aiFilter,
+        clearAiFilter
     };
 };

@@ -473,6 +473,7 @@ const PosPage: React.FC = () => {
                         <PosProductResults
                             products={searchResults}
                             onProductSelect={addToCart}
+                            searchTerm={query}
                         />
                     )}
                 </div>
