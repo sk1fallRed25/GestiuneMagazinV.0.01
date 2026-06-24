@@ -104,6 +104,9 @@ export const useProducts = () => {
                 case 'critical_stock':
                     result = result.filter(p => (Number(p.stoc_depozit) + Number(p.stoc_magazin)) <= 5);
                     break;
+                case 'no_stock':
+                    result = result.filter(p => (Number(p.stoc_depozit) + Number(p.stoc_magazin)) <= 0);
+                    break;
                 case 'no_price':
                     result = result.filter(p => Number(p.pret_vanzare) <= 0);
                     break;

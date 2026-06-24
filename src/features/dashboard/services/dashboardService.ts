@@ -8,7 +8,10 @@ import {
     SalesChartPoint, 
     WasteSummary,
     TopSellerProduct,
-    SlowMoverProduct
+    SlowMoverProduct,
+    HighMarginProduct,
+    NegativeProfitProduct,
+    ProfitabilityProduct
 } from '../types';
 
 /**
@@ -114,11 +117,13 @@ export const dashboardService = {
         const todaySalesCount = todaySales.length;
 
         let todayProfitTotal = 0;
+        let todayItemsSold = 0;
         todaySales.forEach(s => {
             const items = s.sale_items || [];
             items.forEach((item: any) => {
                 const qty = toNumberSafe(item.quantity, 0);
                 const totalItem = toNumberSafe(item.total_item, 0);
+                todayItemsSold += qty;
                 
                 let purchasePrice = 0;
                 const batch = pickFirst(item.stock_batches);
@@ -137,7 +142,7 @@ export const dashboardService = {
             });
         });
 
-        // B. Vânzări Lună
+        // B. Vânzări Lună & Profit Lună
         const { data: monthSalesRaw, error: msError } = await supabase
             .from('sales')
             .select(`
@@ -167,6 +172,33 @@ export const dashboardService = {
         if (msError) throw msError;
         const monthSales = (monthSalesRaw as any[]) || [];
         const monthSalesTotal = monthSales.reduce((acc, s) => acc + toNumberSafe(s.total, 0), 0);
+        const monthSalesCount = monthSales.length;
+
+        let monthProfitTotal = 0;
+        let monthItemsSold = 0;
+        monthSales.forEach(s => {
+            const items = s.sale_items || [];
+            items.forEach((item: any) => {
+                const qty = toNumberSafe(item.quantity, 0);
+                const totalItem = toNumberSafe(item.total_item, 0);
+                monthItemsSold += qty;
+                
+                let purchasePrice = 0;
+                const batch = pickFirst(item.stock_batches);
+                if (batch && batch.purchase_price !== null) {
+                    purchasePrice = toNumberSafe(batch.purchase_price, 0);
+                } else {
+                    const prod = pickFirst(item.products);
+                    const prices = prod ? (Array.isArray(prod.product_prices) ? prod.product_prices : [prod.product_prices]) : [];
+                    const prodPrice = prices.find((pr: any) => pr && pr.store_id === storeId) || prices[0];
+                    if (prodPrice && prodPrice.price_purchase !== null) {
+                        purchasePrice = toNumberSafe(prodPrice.price_purchase, 0);
+                    }
+                }
+                const cost = purchasePrice * qty;
+                monthProfitTotal += (totalItem - cost);
+            });
+        });
 
         // C. Produse Active
         const { count: activeProductsCount, error: apError } = await supabase
@@ -408,6 +440,7 @@ export const dashboardService = {
                 unit,
                 category_id,
                 status,
+                created_at,
                 product_prices (
                     price_sale,
                     price_purchase,
@@ -429,8 +462,11 @@ export const dashboardService = {
         if (riErr) throw riErr;
         const receivedProductIds = new Set(receptionItemsRaw?.map(ri => ri.product_id) || []);
 
-        // D4. Ultimele vânzări pentru rotație lentă
-        const { data: lastSalesRaw, error: lsError } = await supabase
+        // D4. Vânzări 90 zile pentru calculul exact al stocului mort
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        
+        const { data: salesHistory, error: shError } = await supabase
             .from('sales')
             .select(`
                 created_at,
@@ -440,10 +476,19 @@ export const dashboardService = {
             `)
             .eq('store_id', storeId)
             .eq('status', 'finalized')
-            .order('created_at', { ascending: false })
-            .limit(200);
+            .gte('created_at', ninetyDaysAgo.toISOString());
 
-        if (lsError) throw lsError;
+        if (shError) throw shError;
+
+        const productLastSaleMap: Record<string, string> = {};
+        (salesHistory || []).forEach((s: any) => {
+            const items = s.sale_items || [];
+            items.forEach((item: any) => {
+                if (!productLastSaleMap[item.product_id] || s.created_at > productLastSaleMap[item.product_id]) {
+                    productLastSaleMap[item.product_id] = s.created_at;
+                }
+            });
+        });
 
         // Top Sellers Helper
         const getTopSellers = (salesList: any[]): TopSellerProduct[] => {
@@ -511,27 +556,61 @@ export const dashboardService = {
         const todayTopSellers = getTopSellers(todaySales);
         const monthTopSellers = getTopSellers(monthSales);
 
-        // Stock Health Calculations
+        // Stock Health & Managerial Alerts Calculations
         let criticalStockCount = 0;
         let noPriceCount = 0;
         let noCategoryCount = 0;
         let noVatCount = 0;
         let noSupplierCount = 0;
+        let noStockProductsCount = 0;
+
+        const highMarginProducts: HighMarginProduct[] = [];
+        const negativeProfitProducts: NegativeProfitProduct[] = [];
 
         allProductsList.forEach((p: any) => {
             if (p.status !== 'active') return;
 
-            // 1. Critical stock
+            // 1. Stock total
             const stockTotal = productStockMap[p.id]?.total || 0;
+            if (stockTotal <= 0) {
+                noStockProductsCount++;
+            }
             if (stockTotal <= 5) {
                 criticalStockCount++;
             }
 
-            // 2. Price
+            // 2. Prices & Margins
             const prices = p.product_prices ? (Array.isArray(p.product_prices) ? p.product_prices : [p.product_prices]) : [];
             const priceSale = prices[0] ? toNumberSafe(prices[0].price_sale, 0) : 0;
+            const pricePurchase = prices[0] ? toNumberSafe(prices[0].price_purchase, 0) : 0;
+
             if (priceSale <= 0) {
                 noPriceCount++;
+            }
+
+            const margin = priceSale > 0 ? ((priceSale - pricePurchase) / priceSale) * 100 : 0;
+
+            if (priceSale > 0) {
+                if (margin >= 30) {
+                    highMarginProducts.push({
+                        productId: p.id,
+                        productName: p.name,
+                        barcode: p.barcode,
+                        priceSale,
+                        pricePurchase,
+                        margin
+                    });
+                }
+                if (priceSale < pricePurchase) {
+                    negativeProfitProducts.push({
+                        productId: p.id,
+                        productName: p.name,
+                        barcode: p.barcode,
+                        priceSale,
+                        pricePurchase,
+                        lossPerUnit: pricePurchase - priceSale
+                    });
+                }
             }
 
             // 3. Category
@@ -551,17 +630,46 @@ export const dashboardService = {
             }
         });
 
-        // Slow Movers Calculations
-        const productLastSaleMap: Record<string, string> = {};
-        (lastSalesRaw || []).forEach(s => {
-            const items = s.sale_items || [];
-            items.forEach((item: any) => {
-                if (!productLastSaleMap[item.product_id]) {
-                    productLastSaleMap[item.product_id] = s.created_at;
-                }
+        highMarginProducts.sort((a, b) => b.margin - a.margin);
+        negativeProfitProducts.sort((a, b) => b.lossPerUnit - a.lossPerUnit);
+
+        const profitabilityProducts: ProfitabilityProduct[] = [];
+        allProductsList.forEach((p: any) => {
+            if (p.status !== 'active') return;
+            const prices = p.product_prices ? (Array.isArray(p.product_prices) ? p.product_prices : [p.product_prices]) : [];
+            const priceSale = prices[0] ? toNumberSafe(prices[0].price_sale, 0) : 0;
+            const pricePurchase = prices[0] ? toNumberSafe(prices[0].price_purchase, 0) : 0;
+
+            const margin = priceSale > 0 ? ((priceSale - pricePurchase) / priceSale) * 100 : 0;
+            let profitClass: 'A' | 'B' | 'C' = 'C';
+            if (margin >= 25) {
+                profitClass = 'A';
+            } else if (margin >= 10) {
+                profitClass = 'B';
+            }
+
+            profitabilityProducts.push({
+                productId: p.id,
+                productName: p.name,
+                barcode: p.barcode || '',
+                priceSale,
+                pricePurchase,
+                margin,
+                profitClass
             });
         });
+        profitabilityProducts.sort((a, b) => b.margin - a.margin);
 
+        // Fetch draft receptions
+        const { count: draftReceptionsCount, error: drError } = await supabase
+            .from('receptions')
+            .select('*', { count: 'exact', head: true })
+            .eq('store_id', storeId)
+            .eq('status', 'draft');
+
+        const finalDraftReceptionsCount = drError ? 0 : (draftReceptionsCount || 0);
+
+        // Slow Movers Calculations
         const slowMovers: SlowMoverProduct[] = [];
         allProductsList.forEach((p: any) => {
             if (p.status !== 'active') return;
@@ -594,18 +702,40 @@ export const dashboardService = {
 
         slowMovers.sort((a, b) => b.blockedValue - a.blockedValue);
 
+        // Calculate KPI values
+        const todayMarginPercent = todaySalesTotal > 0 ? (todayProfitTotal / todaySalesTotal) * 100 : 0;
+        const monthMarginPercent = monthSalesTotal > 0 ? (monthProfitTotal / monthSalesTotal) * 100 : 0;
+        const todayReceiptAverage = todaySalesCount > 0 ? todaySalesTotal / todaySalesCount : 0;
+        const monthReceiptAverage = monthSalesCount > 0 ? monthSalesTotal / monthSalesCount : 0;
+
         return {
             stats: {
                 todaySalesTotal,
                 todaySalesCount,
                 todayProfitTotal,
                 monthSalesTotal,
+                monthSalesCount,
+                monthProfitTotal,
+                todayMarginPercent,
+                monthMarginPercent,
+                todayReceiptAverage,
+                monthReceiptAverage,
+                todayItemsSold,
+                monthItemsSold,
                 activeProductsCount: activeProductsCount || 0,
                 lowStockProductsCount: Object.values(productStockMap).filter(p => p.total <= 5).length,
                 expiredBatchesCount: expiredCount,
                 criticalExpiryBatchesCount: criticalCount,
                 wasteEventsThisMonth: wasteCount,
-                stockValueEstimate
+                stockValueEstimate,
+
+                // Alerte Manageriale
+                draftReceptionsCount: finalDraftReceptionsCount,
+                unconfirmedTransfersCount: 0, // Tranzacții sincrone directe
+                noStockProductsCount,
+                noPriceProductsCount: noPriceCount,
+                expiredProductsCount: expiredCount,
+                almostExpiredProductsCount: criticalCount
             },
             recentSales,
             lowStockProducts,
@@ -631,7 +761,11 @@ export const dashboardService = {
                 today: todayTopSellers,
                 month: monthTopSellers
             },
-            slowMovers
+            slowMovers,
+            highMarginProducts,
+            negativeProfitProducts,
+            profitabilityProducts
         };
     }
 };
+

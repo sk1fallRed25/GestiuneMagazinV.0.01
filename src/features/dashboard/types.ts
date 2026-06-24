@@ -3,12 +3,28 @@ export interface DashboardStats {
     todaySalesCount: number;
     todayProfitTotal: number;
     monthSalesTotal: number;
+    monthSalesCount: number;
+    monthProfitTotal: number;
+    todayMarginPercent: number;
+    monthMarginPercent: number;
+    todayReceiptAverage: number;
+    monthReceiptAverage: number;
+    todayItemsSold: number;
+    monthItemsSold: number;
     activeProductsCount: number;
     lowStockProductsCount: number;
     expiredBatchesCount: number;
     criticalExpiryBatchesCount: number;
     wasteEventsThisMonth: number;
     stockValueEstimate: number;
+
+    // Alerte Manageriale
+    draftReceptionsCount: number;
+    unconfirmedTransfersCount: number;
+    noStockProductsCount: number;
+    noPriceProductsCount: number;
+    expiredProductsCount: number;
+    almostExpiredProductsCount: number;
 }
 
 export interface RecentSale {
@@ -89,6 +105,34 @@ export interface SlowMoverProduct {
     blockedValue: number;
 }
 
+export interface HighMarginProduct {
+    productId: string;
+    productName: string;
+    barcode: string;
+    priceSale: number;
+    pricePurchase: number;
+    margin: number;
+}
+
+export interface NegativeProfitProduct {
+    productId: string;
+    productName: string;
+    barcode: string;
+    priceSale: number;
+    pricePurchase: number;
+    lossPerUnit: number;
+}
+
+export interface ProfitabilityProduct {
+    productId: string;
+    productName: string;
+    barcode: string;
+    priceSale: number;
+    pricePurchase: number;
+    margin: number;
+    profitClass: 'A' | 'B' | 'C';
+}
+
 export interface DashboardData {
     stats: DashboardStats;
     recentSales: RecentSale[];
@@ -103,6 +147,7 @@ export interface DashboardData {
         month: TopSellerProduct[];
     };
     slowMovers: SlowMoverProduct[];
+    highMarginProducts: HighMarginProduct[];
+    negativeProfitProducts: NegativeProfitProduct[];
+    profitabilityProducts: ProfitabilityProduct[];
 }
-
-
