@@ -133,6 +133,53 @@ export interface ProfitabilityProduct {
     profitClass: 'A' | 'B' | 'C';
 }
 
+export interface RestockRecommendation {
+    productId: string;
+    productName: string;
+    barcode: string;
+    unit: string;
+    currentStock: number;
+    dailySalesAverage: number;
+    daysUntilDepletion: number;
+    recommendedQty: number;
+}
+
+export interface OverstockItem {
+    productId: string;
+    productName: string;
+    barcode: string;
+    unit: string;
+    currentStock: number;
+    blockedValue: number;
+    daysWithoutSale: number;
+    excessQuantity: number;
+}
+
+export interface BusinessInsight {
+    type: 'warning' | 'success' | 'info' | 'danger';
+    title: string;
+    message: string;
+    actionText: string;
+    actionLink?: string;
+}
+
+export interface TopOpportunity {
+    productId: string;
+    productName: string;
+    metricType: 'sales' | 'profit' | 'margin';
+    growthPercent: number;
+    extraProfitPotential: number;
+}
+
+export interface BusinessHealthScore {
+    globalScore: number;
+    profitability: number;
+    stockRotation: number;
+    stockAvailability: number;
+    priceCompleteness: number;
+    expirationScore: number;
+}
+
 export interface DashboardData {
     stats: DashboardStats;
     recentSales: RecentSale[];
@@ -150,4 +197,9 @@ export interface DashboardData {
     highMarginProducts: HighMarginProduct[];
     negativeProfitProducts: NegativeProfitProduct[];
     profitabilityProducts: ProfitabilityProduct[];
+    healthScore: BusinessHealthScore;
+    restockRecommendations: RestockRecommendation[];
+    overstockItems: OverstockItem[];
+    smartInsights: BusinessInsight[];
+    topOpportunities: TopOpportunity[];
 }

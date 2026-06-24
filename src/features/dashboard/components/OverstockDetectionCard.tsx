@@ -1,0 +1,87 @@
+import React from 'react';
+import { OverstockItem } from '../types';
+import { AlertCircle, TrendingDown, CheckCircle2 } from 'lucide-react';
+
+interface OverstockDetectionCardProps {
+    items: OverstockItem[];
+    loading?: boolean;
+}
+
+export const OverstockDetectionCard: React.FC<OverstockDetectionCardProps> = ({ items, loading }) => {
+    if (loading) {
+        return (
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm animate-pulse h-80" />
+        );
+    }
+
+    const formatCurrency = (val: number) => {
+        return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON' }).format(val);
+    };
+
+    const totalBlockedCapital = items.reduce((acc, i) => acc + i.blockedValue, 0);
+
+    return (
+        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col font-sans h-full">
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-50">
+                <div>
+                    <h3 className="text-base font-black text-gray-900 uppercase tracking-tight">Detecție Supra-stoc</h3>
+                    <p className="text-xs text-gray-500 font-medium mt-0.5">Produse cu stoc excedentar și rotație foarte mică</p>
+                </div>
+                <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            </div>
+
+            {items.length > 0 && (
+                <div className="px-4 py-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                        <TrendingDown className="w-4 h-4 text-rose-600" />
+                        <span className="text-xs font-bold text-rose-900">Capital total blocat</span>
+                    </div>
+                    <span className="text-sm font-black text-rose-950">{formatCurrency(totalBlockedCapital)}</span>
+                </div>
+            )}
+
+            {items.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
+                    <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mb-3">
+                        <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                    <h4 className="text-sm font-bold text-gray-950">Eficientă excelentă stocuri</h4>
+                    <p className="text-xs text-gray-400 mt-1 max-w-[240px]">Nu s-au detectat depășiri majore sau capital semnificativ blocat în stoc.</p>
+                </div>
+            ) : (
+                <div className="flex-1 overflow-y-auto space-y-3 pr-1 max-h-[300px]">
+                    {items.map((item, idx) => (
+                        <div key={idx} className="p-3 bg-gray-50/50 rounded-xl border border-gray-100 hover:border-gray-200 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                                <h4 className="text-xs font-bold text-gray-900">{item.productName}</h4>
+                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                    <span className="text-[10px] font-medium text-gray-400 font-mono">{item.barcode}</span>
+                                    <span className="w-1 h-1 bg-gray-300 rounded-full" />
+                                    <span className="text-[10px] font-bold text-gray-500">
+                                        Stoc actual: {item.currentStock} {item.unit}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-4 shrink-0 justify-between sm:justify-end">
+                                <div className="text-right">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block font-sans">Fără vânzări</span>
+                                    <span className="text-xs font-black text-gray-800 block mt-0.5 font-sans">
+                                        {item.daysWithoutSale} zile
+                                    </span>
+                                </div>
+
+                                <div className="text-right pl-4 border-l border-gray-100">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block font-sans">Valoare Blocată</span>
+                                    <span className="text-xs font-black text-rose-600 block mt-0.5 font-sans">
+                                        {formatCurrency(item.blockedValue)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};

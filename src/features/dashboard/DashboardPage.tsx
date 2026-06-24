@@ -12,7 +12,7 @@ import { QuickActionsCard } from './components/QuickActionsCard';
 import { StockHealthCard } from './components/StockHealthCard';
 import { TopProductsCard } from './components/TopProductsCard';
 import { SlowMoversCard } from './components/SlowMoversCard';
-import { BrainCircuit, AlertTriangle, LayoutDashboard, BarChart3 } from 'lucide-react';
+import { BrainCircuit, AlertTriangle, LayoutDashboard, BarChart3, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { LoadingState } from '../../shared/components/ui';
@@ -24,11 +24,16 @@ import { HighMarginCard } from './components/HighMarginCard';
 import { NegativeProfitCard } from './components/NegativeProfitCard';
 import { DeadStockReport } from './components/DeadStockReport';
 import { ProfitabilityReport } from './components/ProfitabilityReport';
+import { BusinessScoreCard } from './components/BusinessScoreCard';
+import { RestockRecommendationsCard } from './components/RestockRecommendationsCard';
+import { OverstockDetectionCard } from './components/OverstockDetectionCard';
+import { SmartInsightsCard } from './components/SmartInsightsCard';
+import { TopOpportunitiesCard } from './components/TopOpportunitiesCard';
 
 const DashboardPage: React.FC = () => {
     const { data, loading, error, refreshDashboard } = useDashboard();
     const { role } = useAuth();
-    const [activeTab, setActiveTab] = useState<'overview' | 'alerts' | 'profitability'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'alerts' | 'profitability' | 'intelligence'>('overview');
 
     if (error) {
         if (role === 'platform_owner' && error === "Selectează un magazin pentru a vedea dashboard-ul.") {
@@ -74,10 +79,10 @@ const DashboardPage: React.FC = () => {
             {data && (
                 <>
                     {/* Tabs navigation */}
-                    <div className="flex border-b border-gray-200 mb-8 gap-6 font-sans">
+                    <div className="flex border-b border-gray-200 mb-8 gap-6 font-sans overflow-x-auto">
                         <button
                             onClick={() => setActiveTab('overview')}
-                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 ${
+                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${
                                 activeTab === 'overview'
                                     ? 'text-indigo-600'
                                     : 'text-gray-400 hover:text-gray-700'
@@ -91,7 +96,7 @@ const DashboardPage: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setActiveTab('alerts')}
-                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 ${
+                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${
                                 activeTab === 'alerts'
                                     ? 'text-indigo-600'
                                     : 'text-gray-400 hover:text-gray-700'
@@ -105,7 +110,7 @@ const DashboardPage: React.FC = () => {
                         </button>
                         <button
                             onClick={() => setActiveTab('profitability')}
-                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 ${
+                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${
                                 activeTab === 'profitability'
                                     ? 'text-indigo-600'
                                     : 'text-gray-400 hover:text-gray-700'
@@ -114,6 +119,20 @@ const DashboardPage: React.FC = () => {
                             <BarChart3 className="w-4 h-4" />
                             Analiză Profitabilitate & KPIs
                             {activeTab === 'profitability' && (
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('intelligence')}
+                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${
+                                activeTab === 'intelligence'
+                                    ? 'text-indigo-600'
+                                    : 'text-gray-400 hover:text-gray-700'
+                            }`}
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            Inteligență Stocuri & Recomandări
+                            {activeTab === 'intelligence' && (
                                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
                             )}
                         </button>
@@ -176,6 +195,27 @@ const DashboardPage: React.FC = () => {
                                     <HighMarginCard products={data.highMarginProducts} loading={loading} />
                                     <NegativeProfitCard products={data.negativeProfitProducts} loading={loading} />
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'intelligence' && (
+                        <div className="space-y-8">
+                            {/* Score Card & Insights */}
+                            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                                <div className="lg:col-span-2">
+                                    <BusinessScoreCard score={data.healthScore} loading={loading} />
+                                </div>
+                                <div className="lg:col-span-3">
+                                    <SmartInsightsCard insights={data.smartInsights} loading={loading} />
+                                </div>
+                            </div>
+
+                            {/* Recommendations & Overstock */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <RestockRecommendationsCard recommendations={data.restockRecommendations} loading={loading} />
+                                <OverstockDetectionCard items={data.overstockItems} loading={loading} />
+                                <TopOpportunitiesCard opportunities={data.topOpportunities} loading={loading} />
                             </div>
                         </div>
                     )}
