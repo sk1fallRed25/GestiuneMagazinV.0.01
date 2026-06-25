@@ -703,18 +703,57 @@ export function enqueueOfflineSale(sale) {
 
     const now = new Date().toISOString();
 
-    db.prepare(`
-        INSERT INTO local_offline_sales_queue (
+    // 6SEC.1 TASK E: Parse cart items for stock validation
+    const items = JSON.parse(cart_items_json);
+
+    // Wrap entire operation in transaction for atomicity (stock check + decrement + INSERT)
+    const enqueueTransaction = db.transaction(() => {
+        // 6SEC.1: Check and decrement local stock for each item
+        const checkStock = db.prepare(
+            'SELECT total_stock FROM local_stock_snapshot WHERE product_id = ? AND store_id = ?'
+        );
+        const decrementStock = db.prepare(
+            'UPDATE local_stock_snapshot SET total_stock = total_stock - ? WHERE product_id = ? AND store_id = ?'
+        );
+
+        for (const item of items) {
+            const productId = item.product_id || item.id;
+            const qty = item.quantity || 0;
+            if (!productId || qty <= 0) continue;
+
+            const row = checkStock.get(productId, store_id);
+            const available = row ? row.total_stock : 0;
+            if (available < qty) {
+                throw new Error(
+                    `Stoc insuficient local pentru produsul ${item.name || productId}. Disponibil: ${available}, solicitat: ${qty}`
+                );
+            }
+        }
+
+        // Decrement stock after all checks pass
+        for (const item of items) {
+            const productId = item.product_id || item.id;
+            const qty = item.quantity || 0;
+            if (!productId || qty <= 0) continue;
+            decrementStock.run(qty, productId, store_id);
+        }
+
+        // INSERT the offline sale
+        db.prepare(`
+            INSERT INTO local_offline_sales_queue (
+                local_sale_id, store_id, device_fingerprint, shift_id, cashier_profile_id,
+                created_at_local, updated_at_local, status, cart_items_json, payments_json,
+                totals_json, sgr_totals_json, vat_breakdown_json, payload_hash, sync_attempts,
+                last_error, synced_sale_id, fiscal_status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?)
+        `).run(
             local_sale_id, store_id, device_fingerprint, shift_id, cashier_profile_id,
-            created_at_local, updated_at_local, status, cart_items_json, payments_json,
-            totals_json, sgr_totals_json, vat_breakdown_json, payload_hash, sync_attempts,
-            last_error, synced_sale_id, fiscal_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, NULL, ?)
-    `).run(
-        local_sale_id, store_id, device_fingerprint, shift_id, cashier_profile_id,
-        created_at_local, now, 'queued', cart_items_json, payments_json,
-        totals_json, sgr_totals_json, vat_breakdown_json, payload_hash, fiscal_status
-    );
+            created_at_local, now, 'queued', cart_items_json, payments_json,
+            totals_json, sgr_totals_json, vat_breakdown_json, payload_hash, fiscal_status
+        );
+    });
+
+    enqueueTransaction();
 
     return { success: true, local_sale_id, payload_hash };
 }
@@ -761,6 +800,31 @@ export function updateOfflineSaleStatus(localSaleId, status, errorMsg = null, sy
     }
 
     const now = new Date().toISOString();
+
+    // 6SEC.1 TASK E: Restore local stock when a sale is cancelled
+    if (status === 'cancelled') {
+        const saleData = db.prepare(
+            'SELECT cart_items_json, store_id, status AS current_status FROM local_offline_sales_queue WHERE local_sale_id = ?'
+        ).get(localSaleId);
+        
+        if (saleData && saleData.current_status === 'queued' && saleData.cart_items_json) {
+            try {
+                const items = JSON.parse(saleData.cart_items_json);
+                const restoreStock = db.prepare(
+                    'UPDATE local_stock_snapshot SET total_stock = total_stock + ? WHERE product_id = ? AND store_id = ?'
+                );
+                for (const item of items) {
+                    const productId = item.product_id || item.id;
+                    const qty = item.quantity || 0;
+                    if (productId && qty > 0) {
+                        restoreStock.run(qty, productId, saleData.store_id);
+                    }
+                }
+            } catch (e) {
+                console.error('[SQLite Service] Failed to restore stock on cancellation:', e);
+            }
+        }
+    }
 
     if (status === 'synced') {
         db.prepare(`
@@ -939,6 +1003,164 @@ export function listLocalPosCartEvents(storeId) {
 export function getLocalCategories() {
     if (!db) throw new Error('Database not initialized.');
     return db.prepare('SELECT id, parent_id, name FROM local_categories ORDER BY name ASC').all();
+}
+
+/**
+ * Returns the active better-sqlite3 database connection.
+ */
+export function getDb() {
+    return db;
+}
+
+/**
+ * Creates a manual or automated backup of the offline_cache.db file.
+ */
+export async function createBackup() {
+    if (!db) throw new Error('Database not initialized.');
+    const backupsDir = path.join(app.getPath('userData'), 'backups');
+    if (!fs.existsSync(backupsDir)) {
+        fs.mkdirSync(backupsDir, { recursive: true });
+    }
+    const filename = `offline_cache_backup_${getTimestampString()}.db`;
+    const backupPath = path.join(backupsDir, filename);
+    
+    mainLog.info(`[Backup Service] Starting SQLite backup to: ${backupPath}`);
+    await db.backup(backupPath);
+    mainLog.info(`[Backup Service] SQLite backup completed: ${filename}`);
+    
+    purgeOldBackups(backupsDir);
+    return { success: true, filename, path: backupPath };
+}
+
+/**
+ * Compiles and returns statistics about the backup folder.
+ */
+export function getBackupInfo() {
+    try {
+        const backupsDir = path.join(app.getPath('userData'), 'backups');
+        if (!fs.existsSync(backupsDir)) {
+            return { count: 0, totalSize: 0, lastBackup: null };
+        }
+        const files = fs.readdirSync(backupsDir);
+        const backupFiles = files
+            .filter(f => f.startsWith('offline_cache_backup_') && f.endsWith('.db'))
+            .map(f => {
+                const filePath = path.join(backupsDir, f);
+                const stat = fs.statSync(filePath);
+                return {
+                    name: f,
+                    size: stat.size,
+                    mtime: stat.mtime
+                };
+            });
+        
+        if (backupFiles.length === 0) {
+            return { count: 0, totalSize: 0, lastBackup: null };
+        }
+        
+        const count = backupFiles.length;
+        const totalSize = backupFiles.reduce((acc, f) => acc + f.size, 0);
+        
+        // Sort descending to get the latest backup first
+        backupFiles.sort((a, b) => b.name.localeCompare(a.name));
+        const lastBackup = backupFiles[0].mtime.toISOString();
+        
+        return { count, totalSize, lastBackup };
+    } catch (err) {
+        mainLog.error('[Backup Service] Failed to get backup info:', err);
+        return { count: 0, totalSize: 0, lastBackup: null, error: err.message };
+    }
+}
+
+/**
+ * Validates SQLite integrity and expected schema on the chosen backup file.
+ */
+export function validateBackupFile(filePath) {
+    let tempDb = null;
+    try {
+        tempDb = new Database(filePath, { readonly: true });
+        const check = tempDb.pragma('integrity_check');
+        if (check && check.length > 0 && check[0].integrity_check === 'ok') {
+            const tableCheck = tempDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='local_offline_sales_queue'").get();
+            if (!tableCheck) {
+                throw new Error('Structura bazei de date nu este validă pentru Sistem Gestiune Magazin.');
+            }
+            return { valid: true };
+        } else {
+            throw new Error('Verificarea integrității SQLite a eșuat: ' + JSON.stringify(check));
+        }
+    } catch (err) {
+        mainLog.error(`[Restore Service] Backup validation failed for: ${filePath}`, err);
+        return { valid: false, error: err.message };
+    } finally {
+        if (tempDb) {
+            try { tempDb.close(); } catch (e) {}
+        }
+    }
+}
+
+/**
+ * Restores a backup file over the active SQLite database safely.
+ */
+export function restoreBackup(filePath) {
+    try {
+        const dbPath = path.join(app.getPath('userData'), 'offline_cache.db');
+        const walPath = `${dbPath}-wal`;
+        const shmPath = `${dbPath}-shm`;
+        
+        mainLog.info(`[Restore Service] Initiating restore from: ${filePath}`);
+        
+        if (db) {
+            try { db.close(); } catch (e) {}
+            db = null;
+        }
+        
+        if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
+        if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
+        
+        fs.copyFileSync(filePath, dbPath);
+        
+        mainLog.info('[Restore Service] Database file replaced successfully.');
+        
+        return { success: true };
+    } catch (err) {
+        mainLog.error('[Restore Service] Failed to restore backup:', err);
+        return { success: false, error: err.message };
+    }
+}
+
+// Helpers
+function getTimestampString() {
+    const d = new Date();
+    const pad = (num) => String(num).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+}
+
+function purgeOldBackups(backupsDir) {
+    try {
+        if (!fs.existsSync(backupsDir)) return;
+        const files = fs.readdirSync(backupsDir);
+        const backupFiles = files
+            .filter(f => f.startsWith('offline_cache_backup_') && f.endsWith('.db'))
+            .map(f => ({
+                name: f,
+                path: path.join(backupsDir, f),
+                stat: fs.statSync(path.join(backupsDir, f))
+            }));
+        
+        // Sort oldest first
+        backupFiles.sort((a, b) => a.name.localeCompare(b.name));
+        
+        if (backupFiles.length > 30) {
+            const toDelete = backupFiles.slice(0, backupFiles.length - 30);
+            for (const file of toDelete) {
+                fs.unlinkSync(file.path);
+                mainLog.info(`[Backup Service] Purged old backup: ${file.name}`);
+            }
+        }
+    } catch (err) {
+        mainLog.error('[Backup Service] Failed to purge old backups:', err);
+    }
 }
 
 

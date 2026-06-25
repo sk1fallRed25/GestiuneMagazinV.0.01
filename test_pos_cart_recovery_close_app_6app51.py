@@ -56,9 +56,9 @@ def navigate_to_pos(page):
 def get_user_and_store_ids(page):
     """Get current user id and store id from auth state."""
     ids = page.evaluate("""() => {
-        const state = window.authState;
+        const state = window.__debugAuthInfo;
         return {
-            userId: state?.user?.id || null,
+            userId: state?.userId || null,
             storeId: state?.currentStoreId || null
         };
     }""")

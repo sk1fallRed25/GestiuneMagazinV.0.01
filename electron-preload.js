@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electronAPI', {
     writeFiscalNetFile: (args) => ipcRenderer.invoke('write-fiscal-net-file', args),
     readFiscalNetResponse: (args) => ipcRenderer.invoke('read-fiscal-net-response', args),
+    registerAllowedFiscalDir: (args) => ipcRenderer.invoke('fiscal:register-allowed-dir', args),
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     log: (level, ...args) => ipcRenderer.invoke('log:renderer', level, ...args),
     onMainError: (callback) => {
@@ -39,7 +40,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
         logCartEvent: (args) => ipcRenderer.invoke('sqlite:log-cart-event', args),
         listCartEvents: (args) => ipcRenderer.invoke('sqlite:list-cart-events', args),
         getCategories: () => ipcRenderer.invoke('sqlite:get-categories'),
-        getState: () => ipcRenderer.invoke('sqlite:get-state')
+        getState: () => ipcRenderer.invoke('sqlite:get-state'),
+        
+        // 6OPS.3 Backup, Restore & Disaster Recovery APIs
+        createBackup: () => ipcRenderer.invoke('sqlite:create-backup'),
+        getBackupInfo: () => ipcRenderer.invoke('sqlite:get-backup-info'),
+        openBackupFolder: () => ipcRenderer.invoke('sqlite:open-backup-folder'),
+        selectBackupFile: () => ipcRenderer.invoke('sqlite:select-backup-file'),
+        validateBackupFile: (args) => ipcRenderer.invoke('sqlite:validate-backup-file', args),
+        restoreBackup: (args) => ipcRenderer.invoke('sqlite:restore-backup', args),
+        relaunchApp: () => ipcRenderer.invoke('sqlite:relaunch-app'),
+        exportStoreZip: (args) => ipcRenderer.invoke('sqlite:export-store-zip', args)
+    },
+    health: {
+        check: () => ipcRenderer.invoke('health:check')
     },
     updater: {
         checkForUpdates: () => ipcRenderer.invoke('updater:check-for-updates'),

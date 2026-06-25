@@ -58,7 +58,7 @@ def test_lockdown():
 
             # 2. Verify global currentStoreId is null and localStorage contains no selected_store_id
             print("\n2. Se verifică starea contextului global...")
-            auth_state = page.evaluate("window.authState")
+            auth_state = page.evaluate("window.__debugAuthInfo")
             if auth_state:
                 current_store_id = auth_state.get("currentStoreId")
                 if current_store_id is None:
@@ -66,7 +66,7 @@ def test_lockdown():
                 else:
                     fail(f"State global currentStoreId NU este NULL: {current_store_id}")
             else:
-                fail("Nu s-a putut citi window.authState")
+                fail("Nu s-a putut citi window.__debugAuthInfo")
 
             local_storage_store_id = page.evaluate("localStorage.getItem('selected_store_id')")
             if local_storage_store_id is None:

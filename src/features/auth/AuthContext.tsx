@@ -136,9 +136,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, [loadProfileAndStores]);
 
+  // 6SEC.1 TASK C: Safe debug accessor — no JWT/session exposure
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      (window as any).authState = state;
+      (window as any).__debugAuthInfo = {
+        role: state.role,
+        currentStoreId: state.currentStoreId,
+        userId: state.user?.id || null,
+        loading: state.loading,
+      };
     }
   }, [state]);
 

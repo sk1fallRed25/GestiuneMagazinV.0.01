@@ -1,16 +1,16 @@
 # Graph Report - GestiuneMagazinV.0.01-1  (2026-06-25)
 
 ## Corpus Check
-- 675 files · ~488,214 words
+- 699 files · ~505,781 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4327 nodes · 5516 edges · 397 communities (350 shown, 47 thin omitted)
+- 4433 nodes · 5723 edges · 421 communities (370 shown, 51 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e461e304`
+- Built from commit: `9e027fc1`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -381,59 +381,83 @@
 - [[_COMMUNITY_Community 363|Community 363]]
 - [[_COMMUNITY_Community 381|Community 381]]
 - [[_COMMUNITY_Community 382|Community 382]]
+- [[_COMMUNITY_Community 397|Community 397]]
+- [[_COMMUNITY_Community 398|Community 398]]
+- [[_COMMUNITY_Community 399|Community 399]]
+- [[_COMMUNITY_Community 400|Community 400]]
+- [[_COMMUNITY_Community 401|Community 401]]
+- [[_COMMUNITY_Community 402|Community 402]]
+- [[_COMMUNITY_Community 403|Community 403]]
+- [[_COMMUNITY_Community 404|Community 404]]
+- [[_COMMUNITY_Community 405|Community 405]]
+- [[_COMMUNITY_Community 406|Community 406]]
+- [[_COMMUNITY_Community 407|Community 407]]
+- [[_COMMUNITY_Community 408|Community 408]]
+- [[_COMMUNITY_Community 409|Community 409]]
+- [[_COMMUNITY_Community 410|Community 410]]
+- [[_COMMUNITY_Community 411|Community 411]]
+- [[_COMMUNITY_Community 412|Community 412]]
+- [[_COMMUNITY_Community 413|Community 413]]
+- [[_COMMUNITY_Community 414|Community 414]]
+- [[_COMMUNITY_Community 415|Community 415]]
+- [[_COMMUNITY_Community 416|Community 416]]
+- [[_COMMUNITY_Community 417|Community 417]]
+- [[_COMMUNITY_Community 418|Community 418]]
+- [[_COMMUNITY_Community 419|Community 419]]
+- [[_COMMUNITY_Community 420|Community 420]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `useAuth()` - 68 edges
-2. `supabase` - 27 edges
+2. `supabase` - 29 edges
 3. `Etape Arhitecturale și Operaționale` - 21 edges
-4. `useNetworkStatus()` - 19 edges
-5. `OwnerStore` - 18 edges
-6. `EmptyState()` - 17 edges
+4. `EmptyState()` - 20 edges
+5. `useNetworkStatus()` - 19 edges
+6. `OwnerStore` - 18 edges
 7. `compilerOptions` - 17 edges
 8. `4. Formule` - 17 edges
 9. `Raport QA Real Desktop pe Bază Curată — Etapa 6REL.2.1` - 16 edges
 10. `FiscalNet File Bridge Blueprint — Etapa 6G.FN.0` - 15 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `scheduleDailyBackup()` --calls--> `createBackup()`  [EXTRACTED]
+  electron-main.js → electron-sqlite-service.js
+- `checkHealth()` --calls--> `getDb()`  [EXTRACTED]
+  electron-health-service.js → electron-sqlite-service.js
 - `createWindow()` --calls--> `initializeUpdater()`  [EXTRACTED]
   electron-main.js → electron-updater-service.js
-- `OwnerStoreModulesPanelProps` --references--> `OwnerStore`  [EXTRACTED]
-  src/features/owner-console/components/OwnerStoreModulesPanel.tsx → src/features/owner-console/types.ts
-- `SalesHistoryTableProps` --references--> `SaleSummary`  [EXTRACTED]
-  src/features/sales-history/components/SalesHistoryTable.tsx → src/features/sales-history/types.ts
-- `Login()` --calls--> `useAuth()`  [EXTRACTED]
-  src/Login.tsx → src/features/auth/useAuth.ts
 - `App()` --calls--> `useAuth()`  [EXTRACTED]
   src/app/App.tsx → src/features/auth/useAuth.ts
+- `OwnerStoreModulesPanelProps` --references--> `OwnerStore`  [EXTRACTED]
+  src/features/owner-console/components/OwnerStoreModulesPanel.tsx → src/features/owner-console/types.ts
 
 ## Import Cycles
 - 1-file cycle: `src/types/index.ts -> src/types/index.ts`
 
-## Communities (397 total, 47 thin omitted)
+## Communities (421 total, 51 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.06
-Nodes (55): OfflineSaleConfirmModal(), OfflineSaleConfirmModalProps, PosCart(), PosCartProps, PosCartRecoveryDialog(), PosCartRecoveryDialogProps, PosCategoryBrowser(), PosHeader() (+47 more)
+Cohesion: 0.15
+Nodes (19): OfflineSaleConfirmModal(), OfflineSaleConfirmModalProps, PosLockScreen(), PosLockScreenProps, PosPaymentPanel(), PosPaymentPanelProps, isFiscalNetDesktopRuntime(), usePos() (+11 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.09
-Nodes (43): DailyCashPanel(), Props, InventoryValuePanel(), Props, LossesPanel(), Props, ProductPerformancePanel(), Props (+35 more)
+Cohesion: 0.08
+Nodes (45): DailyCashPanel(), Props, InventoryValuePanel(), Props, LossesPanel(), Props, ProductPerformancePanel(), Props (+37 more)
 
 ### Community 2 - "Community 2"
-Cohesion: 0.06
-Nodes (38): DashboardHeader(), DashboardHeaderProps, DashboardStatsGrid(), DashboardStatsGridProps, ExpirationAlertsCard(), ExpirationAlertsCardProps, LowStockCard(), LowStockCardProps (+30 more)
+Cohesion: 0.16
+Nodes (8): DashboardData, ChartSaleRow, dashboardService, ProductJoin, RecentSaleRow, SimpleSaleTotalRow, StockBatchDashboardRow, WasteReasonRow
 
 ### Community 3 - "Community 3"
-Cohesion: 0.18
-Nodes (13): AiConsultantData, AiProductInsight, AiStoreSnapshot, ProductPriceRow, ProductRow, SaleItemRow, SaleRow, StockBatchRow (+5 more)
+Cohesion: 0.08
+Nodes (30): AiConsultantPage(), AiConsultantData, AiProductInsight, AiRecommendation, AiStoreSnapshot, ProductPriceRow, ProductRow, SaleItemRow (+22 more)
 
 ### Community 4 - "Community 4"
-Cohesion: 0.07
-Nodes (34): createWindow(), __dirname, mainLog, rendererLog, updaterLog, createSchemas(), Database, dbState (+26 more)
+Cohesion: 0.06
+Nodes (45): checkHealth(), ALLOWED_FISCAL_DIRS, createWindow(), __dirname, execPromise, mainLog, rendererLog, scheduleDailyBackup() (+37 more)
 
 ### Community 5 - "Community 5"
-Cohesion: 0.09
-Nodes (28): AiConsultantPage(), App(), AppProviders(), AppProvidersProps, AppRoutes(), DefaultLandingRoute(), AuthProvider(), ProtectedRoute() (+20 more)
+Cohesion: 0.14
+Nodes (16): AppRoutes(), DefaultLandingRoute(), ProtectedRoute(), useAuth(), AccessDeniedCard(), DisabledModulePage(), DisabledModulePageProps, useModuleEntitlements() (+8 more)
 
 ### Community 6 - "Community 6"
 Cohesion: 0.11
@@ -452,12 +476,12 @@ Cohesion: 0.05
 Nodes (36): 10. Verificare Reală — Etapa 4H.1 (2026-05-15), 11. Verificare Post-Aplicare — Etapa 4H.2 (2026-05-15), 1. Rezumat Executiv, 2. RLS Table Matrix (Real), 3. Policy Names Reale (Confirmate din pg_policies), 4. Helper Functions Reale (Confirmate din pg_proc), 5. Supabase Security Advisors — Rezultat Real (2026-05-15), 6. Supabase Performance Advisors — Rezultat Real (2026-05-15) (+28 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.09
-Nodes (26): navigationConfig, NavItem, AuthContext, AuthContextType, authService, RawStoreMembership, StoreRow, RouteConfig (+18 more)
+Cohesion: 0.15
+Nodes (17): navigationConfig, NavItem, AuthContext, AuthContextType, authService, RawStoreMembership, StoreRow, RouteConfig (+9 more)
 
 ### Community 11 - "Community 11"
 Cohesion: 0.11
-Nodes (24): ReceptionDetail(), ReceptionDetailProps, ReceptionDocumentForm(), ReceptionDocumentFormProps, ReceptionHeader(), ReceptionHeaderProps, ReceptionHistory(), ReceptionHistoryProps (+16 more)
+Nodes (25): ReceptionDetail(), ReceptionDetailProps, ReceptionDocumentForm(), ReceptionDocumentFormProps, ReceptionHeader(), ReceptionHeaderProps, ReceptionHistory(), ReceptionHistoryProps (+17 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.09
@@ -484,8 +508,8 @@ Cohesion: 0.06
 Nodes (30): 1. Rezumat Executiv, 2. Module existente, 3. Gap-uri operaționale, 4. Prioritizare, 5. Roadmap 6A - 6F, 6. Decizie și Următorul Pas Recomandat, A. Ture casieri / Închidere zi (Shift Management), B. Retur / Anulare vânzare (Sales Returns & Voids) (+22 more)
 
 ### Community 18 - "Community 18"
-Cohesion: 0.08
-Nodes (42): Props, StoreDocumentsSettingsPanel(), Props, StoreFiscalSettingsPanel(), Props, StorePosSettingsPanel(), Props, StoreReportsAlertsPanel() (+34 more)
+Cohesion: 0.07
+Nodes (51): AppUpdatePanel(), PosCartEventsPanel(), PosCartEventsPanelProps, Props, StoreDocumentsSettingsPanel(), Props, StoreFiscalSettingsPanel(), Props (+43 more)
 
 ### Community 19 - "Community 19"
 Cohesion: 0.07
@@ -516,24 +540,24 @@ Cohesion: 0.17
 Nodes (21): OwnerStoreModulesPanel(), OwnerStoreModulesPanelProps, UseModuleEntitlementsResult, useStoreModuleManagement(), COMMERCIAL_PRESETS, CommercialPreset, ModuleAccessMap, ModuleCategory (+13 more)
 
 ### Community 26 - "Community 26"
-Cohesion: 0.14
-Nodes (16): CategoryManagerModalProps, ProductEditModalProps, useProducts(), ProductsPage(), Product, ProductDbRow, ProductPriceDbRow, ProductsPageProps (+8 more)
+Cohesion: 0.15
+Nodes (10): ProductDbRow, ProductVatGroup, getStandardVatRate(), normalizeVatGroupForStore(), ProductCoreUpdate, productService, vatGroupToLegacyPercent(), Tooltip() (+2 more)
 
 ### Community 27 - "Community 27"
-Cohesion: 0.50
-Nodes (4): OwnerAuditLogsPanel(), OwnerAuditLogsPanelProps, OwnerAuditAction, OwnerAuditLogView
+Cohesion: 0.16
+Nodes (13): PosCart(), PosCartProps, ShiftOpenModal(), ShiftOpenModalProps, ActiveShiftTotals, CartItem, CashRegister, CloseShiftPayload (+5 more)
 
 ### Community 28 - "Community 28"
 Cohesion: 0.08
 Nodes (25): 10. Plan 6A.2 (Implementare Efectivă), 11. Decizie, 1. Rezumat, 2. Audit Existent, 3. Model de Date Propus, 4. RPC-uri Propuse, 5. Integrare POS, 6. UX Propus (+17 more)
 
 ### Community 29 - "Community 29"
-Cohesion: 0.15
-Nodes (14): TransferDirectionSelector(), TransferDirectionSelectorProps, TransferHeader(), TransferProductSelector(), TransferProductSelectorProps, TransferStockStatusCard(), TransferStockStatusCardProps, useTransfer() (+6 more)
+Cohesion: 0.12
+Nodes (15): TransferDirectionSelector(), TransferDirectionSelectorProps, TransferHeader(), TransferProductSelector(), TransferProductSelectorProps, TransferStockStatusCard(), TransferStockStatusCardProps, useTransfer() (+7 more)
 
 ### Community 30 - "Community 30"
-Cohesion: 0.07
-Nodes (19): Alert(), AlertProps, ConfirmModal(), ConfirmModalProps, Input, InputProps, Modal(), ModalProps (+11 more)
+Cohesion: 0.08
+Nodes (17): Alert(), AlertProps, ConfirmModal(), ConfirmModalProps, Input, InputProps, Modal(), ModalProps (+9 more)
 
 ### Community 31 - "Community 31"
 Cohesion: 0.08
@@ -556,12 +580,12 @@ Cohesion: 0.09
 Nodes (22): 10. Decizie, 11. Actualizare 6D.6.13 — Visual QA, 1. Rezumat, 2. Data Mapping, 3. ReturnSaleModal UI, 4. Calcul estimativ UI, 5. Istoric retururi anterioare (Previous Returns), 6. Submit Flow (+14 more)
 
 ### Community 36 - "Community 36"
-Cohesion: 0.19
-Nodes (12): categoryService, CategoryOption, CategoryRow, CategoryWithSubs, UseCategoriesOptions, BulkMoveCategoryModalProps, PosCategoryBrowserProps, ProductGridProps (+4 more)
+Cohesion: 0.17
+Nodes (12): categoryService, CategoryOption, CategoryRow, CategoryWithSubs, UseCategoriesOptions, BulkMoveCategoryModalProps, CategoryManagerModalProps, ProductSearchBarProps (+4 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.22
-Nodes (12): OwnerHeader(), OwnerHeaderProps, StoreFormModal(), StoreFormModalProps, StoresWithoutAdminPanel(), StoresWithoutAdminPanelProps, useOwnerConsole(), OwnerConsolePage() (+4 more)
+Cohesion: 0.67
+Nodes (3): StoresWithoutAdminPanel(), StoresWithoutAdminPanelProps, StoreWithoutAdmin
 
 ### Community 38 - "Community 38"
 Cohesion: 0.09
@@ -604,24 +628,24 @@ Cohesion: 0.11
 Nodes (18): compilerOptions, allowJs, allowSyntheticDefaultImports, esModuleInterop, forceConsistentCasingInFileNames, isolatedModules, jsx, lib (+10 more)
 
 ### Community 48 - "Community 48"
-Cohesion: 0.22
-Nodes (10): useCategories(), FastAddPage(), MiniModalProps, formateazaGramaj(), useFastAdd(), calculateEan13CheckDigit(), generateInternalBarcode(), generateInternalBarcodeCandidate() (+2 more)
+Cohesion: 0.21
+Nodes (12): useCategories(), FastAddPage(), MiniModalProps, formateazaGramaj(), useFastAdd(), barcodeExists(), generateUniqueInternalBarcode(), calculateEan13CheckDigit() (+4 more)
 
 ### Community 49 - "Community 49"
-Cohesion: 0.26
-Nodes (9): AssignedStoreInfo, AssignMemberFormState, OwnerAuditLog, StoreDeletionEligibility, StoreFormState, StoreLifecycleActionResult, StoreLifecycleStatus, StoreLifecycleStatusResponse (+1 more)
+Cohesion: 0.18
+Nodes (13): OwnerAuditLogsPanel(), OwnerAuditLogsPanelProps, AssignedStoreInfo, AssignMemberFormState, OwnerAuditAction, OwnerAuditLog, OwnerAuditLogView, StoreDeletionEligibility (+5 more)
 
 ### Community 50 - "Community 50"
 Cohesion: 0.11
 Nodes (18): dependencies, better-sqlite3, dexie, dexie-react-hooks, electron-log, electron-updater, @emotion/react, @emotion/styled (+10 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.20
-Nodes (13): MainLayout(), Notification, isAdminLike(), isCashierLike(), isManagerLike(), isStockOperator(), routeConfigs, routePermissions (+5 more)
+Cohesion: 0.21
+Nodes (12): MainLayout(), Notification, isAdminLike(), isCashierLike(), isManagerLike(), isStockOperator(), routeConfigs, routePermissions (+4 more)
 
 ### Community 52 - "Community 52"
-Cohesion: 0.21
-Nodes (14): FiscalNetStationSettings(), Props, DEFAULT_CONFIG, FiscalNetLocalConfig, getFiscalNetConfig(), isFiscalNetConfigReady(), resetFiscalNetConfig(), saveFiscalNetConfig() (+6 more)
+Cohesion: 0.20
+Nodes (13): FiscalNetStationSettings(), Props, DEFAULT_CONFIG, FiscalNetLocalConfig, getFiscalNetConfig(), isFiscalNetConfigReady(), resetFiscalNetConfig(), saveFiscalNetConfig() (+5 more)
 
 ### Community 53 - "Community 53"
 Cohesion: 0.12
@@ -656,12 +680,12 @@ Cohesion: 0.12
 Nodes (16): 1. Calcul Stoc Agregat, 1. Reparare Matching NULL, 2. Algoritmul de Transfer pe Loturi (FIFO/FEFO), 2. Helper Numeric Defensiv, 3. Creare/Actualizare Loturi Țintă, 3. Validări Runtime, 4. Cleanup Proiect, 4. Trasabilitate (`stock_movements`) (+8 more)
 
 ### Community 61 - "Community 61"
-Cohesion: 0.60
-Nodes (4): OwnerTabs(), OwnerTabsProps, TabItem, OwnerConsoleTab
+Cohesion: 0.31
+Nodes (7): OwnerTabs(), OwnerTabsProps, TabItem, OwnerConsoleTab, useOwnerConsole(), OwnerConsolePage(), ownerConsoleService
 
 ### Community 62 - "Community 62"
-Cohesion: 0.11
-Nodes (20): AppUpdatePanel(), PosCartEventsPanel(), PosCartEventsPanelProps, PosPaymentPanel(), PosPaymentPanelProps, getUpdateStatusLabel(), Props, SQLiteState (+12 more)
+Cohesion: 0.16
+Nodes (10): AttentionAlertsCard(), AttentionAlertsCardProps, DashboardStatsGrid(), DashboardStatsGridProps, KpiGrid(), KpiGridProps, OperationalAlertsCard(), OperationalAlertsCardProps (+2 more)
 
 ### Community 63 - "Community 63"
 Cohesion: 0.12
@@ -712,8 +736,8 @@ Cohesion: 0.35
 Nodes (14): ean13_check_digit(), is_valid_ean13(), log(), main(), Calculeaza check digit EAN-13 (replica algoritmului TS)., read_file(), run_playwright(), test_a2_ean13_algorithm() (+6 more)
 
 ### Community 75 - "Community 75"
-Cohesion: 0.28
-Nodes (6): PaymentMethodBadge(), PaymentMethodBadgeProps, SalesHistoryTable(), SalesHistoryTableProps, SaleStatusBadge(), SaleStatusBadgeProps
+Cohesion: 0.20
+Nodes (9): SaleDetailsModal(), SaleDetailsModalProps, SaleStatusBadge(), SaleStatusBadgeProps, downloadFiscalNetReceiptFile(), FiscalNetConfig, SaleDetails, SaleItemDetails (+1 more)
 
 ### Community 76 - "Community 76"
 Cohesion: 0.14
@@ -748,8 +772,8 @@ Cohesion: 0.14
 Nodes (13): 1. Rezumat, 2. Tabele, 3. Indexuri și Constrângeri, 4. RPC-uri, 5. `finalize_sale` Hardening, 6. Cash Register Seed & Istoric Vânzări, 7. Probleme Găsite, 8. Decizie (+5 more)
 
 ### Community 84 - "Community 84"
-Cohesion: 0.25
-Nodes (10): FastAddForm, FastAddProductPayload, FastAddResult, initialForm, ProductSgrSelection, SgrType, VatGroupKey, barcodeExists() (+2 more)
+Cohesion: 0.17
+Nodes (10): DashboardHeader(), DashboardHeaderProps, ProductsWithoutPriceCard(), ProductsWithoutPriceCardProps, QuickActionsCard(), RecentSalesCard(), RecentSalesCardProps, DashboardPage() (+2 more)
 
 ### Community 85 - "Community 85"
 Cohesion: 0.14
@@ -760,12 +784,12 @@ Cohesion: 0.22
 Nodes (13): build_draft_key(), get_user_and_store_ids(), login_as_admin(), login_as_casier(), navigate_to_pos(), E2E Playwright test for Stage 6APP.5.1: Desktop Close Button + POS Cart Recovery, Login as casier@casier.com (cashier role)., Login as admin@admin.com. (+5 more)
 
 ### Community 87 - "Community 87"
-Cohesion: 0.27
-Nodes (8): AssignMemberModal(), AssignMemberModalProps, ROLE_CONFIG, OwnerProfilesTable(), OwnerProfilesTableProps, ROLE_LABELS, AssignStoreMemberPayload, OwnerProfile
+Cohesion: 0.19
+Nodes (10): AssignMemberModal(), AssignMemberModalProps, ROLE_CONFIG, OwnerProfilesTable(), OwnerProfilesTableProps, ROLE_LABELS, AssignStoreMemberPayload, OwnerProfile (+2 more)
 
 ### Community 88 - "Community 88"
-Cohesion: 0.29
-Nodes (8): ProductSgrSelector(), ProductSgrSelectorProps, formatSgrLabel(), normalizeSgrType(), payloadFromSgrSelection(), selectionFromSgr(), SGR_OPTIONS, SgrSelection
+Cohesion: 0.25
+Nodes (10): ProductEditModalProps, ProductSgrSelector(), ProductSgrSelectorProps, ProductUpdateInput, formatSgrLabel(), normalizeSgrType(), payloadFromSgrSelection(), selectionFromSgr() (+2 more)
 
 ### Community 89 - "Community 89"
 Cohesion: 0.15
@@ -840,12 +864,12 @@ Cohesion: 0.40
 Nodes (12): log(), main(), Execută un snippet JS via playwright-cli și returnează rezultatul., run_playwright(), test_a_quick_add_category_select(), test_b_create_category(), test_build_smoke(), test_c_create_subcategory() (+4 more)
 
 ### Community 107 - "Community 107"
-Cohesion: 0.15
-Nodes (9): ProductTableProps, ProductVatGroupSelector(), ProductVatGroupSelectorProps, ProductVatConfig, normalizeVatGroupForStore(), Button, ButtonProps, EmptyState() (+1 more)
+Cohesion: 0.38
+Nodes (5): DeadStockReport(), DeadStockReportProps, SlowMoversCard(), SlowMoversCardProps, SlowMoverProduct
 
 ### Community 108 - "Community 108"
-Cohesion: 0.26
-Nodes (9): keyLabels, StoreDeletionEligibilityModal(), StoreDeletionEligibilityModalProps, StoreLifecycleActionModal(), StoreLifecycleActionModalProps, StoresTable(), StoresTableProps, useStoreLifecycle() (+1 more)
+Cohesion: 0.19
+Nodes (15): OwnerHeader(), OwnerHeaderProps, keyLabels, StoreDeletionEligibilityModal(), StoreDeletionEligibilityModalProps, StoreFormModal(), StoreFormModalProps, StoreLifecycleActionModal() (+7 more)
 
 ### Community 109 - "Community 109"
 Cohesion: 0.17
@@ -908,8 +932,8 @@ Cohesion: 0.17
 Nodes (9): contextObject, __dirname, helpers, mainFileContent, script, testBonuri, testDir, testRaspuns (+1 more)
 
 ### Community 124 - "Community 124"
-Cohesion: 0.13
-Nodes (19): formatSgrTypeLabel(), ReturnSaleModal(), ReturnSaleModalProps, SalesHistoryFilters(), SalesHistoryFiltersProps, SalesHistoryHeader(), SalesHistoryHeaderProps, VoidSaleModal() (+11 more)
+Cohesion: 0.14
+Nodes (16): PaymentMethodBadge(), PaymentMethodBadgeProps, SalesHistoryFilters(), SalesHistoryFiltersProps, SalesHistoryHeader(), SalesHistoryHeaderProps, SalesHistoryTable(), SalesHistoryTableProps (+8 more)
 
 ### Community 125 - "Community 125"
 Cohesion: 0.18
@@ -1064,8 +1088,8 @@ Cohesion: 0.24
 Nodes (6): accentMap, OwnerGlobalStatsCards(), OwnerGlobalStatsCardsProps, StatCardProps, OwnerStatsCardsProps, OwnerConsoleStats
 
 ### Community 163 - "Community 163"
-Cohesion: 0.25
-Nodes (7): SaleDetailsModal(), SaleDetailsModalProps, downloadFiscalNetReceiptFile(), FiscalNetConfig, SaleDetails, SaleItemDetails, summarizeSgr()
+Cohesion: 0.50
+Nodes (4): getUpdateStatusLabel(), Props, SQLiteState, StoreDiagnosticsPanel()
 
 ### Community 164 - "Community 164"
 Cohesion: 0.20
@@ -1208,12 +1232,12 @@ Cohesion: 0.36
 Nodes (8): build_restore_payload(), fail(), login(), ok(), rpc_bulk_restore(), rpc_set_module(), run(), skip()
 
 ### Community 199 - "Community 199"
-Cohesion: 0.43
+Cohesion: 0.39
 Nodes (6): MemberRoleBadge(), MemberRoleBadgeProps, StoreMembersTable(), StoreMembersTableProps, OwnerMemberRole, OwnerStoreMember
 
 ### Community 200 - "Community 200"
-Cohesion: 0.31
-Nodes (5): StoreAiConsent, StoreAiConsentPatch, AiConsentSettingsCard(), Props, aiConsentService
+Cohesion: 0.23
+Nodes (9): BusinessScoreCard(), BusinessScoreCardProps, OverstockDetectionCard(), OverstockDetectionCardProps, SalesChartCard(), SalesChartCardProps, BusinessHealthScore, OverstockItem (+1 more)
 
 ### Community 201 - "Community 201"
 Cohesion: 0.22
@@ -1568,8 +1592,8 @@ Cohesion: 0.40
 Nodes (5): publish, owner, private, provider, repo
 
 ### Community 291 - "Community 291"
-Cohesion: 0.22
-Nodes (5): OfflineCacheSyncPanel(), OfflineCacheSyncPanelProps, LocalCacheStatus, usePosOfflineCache(), supabase
+Cohesion: 0.47
+Nodes (4): OfflineCacheSyncPanel(), OfflineCacheSyncPanelProps, LocalCacheStatus, usePosOfflineCache()
 
 ### Community 293 - "Community 293"
 Cohesion: 0.70
@@ -1588,8 +1612,8 @@ Cohesion: 0.80
 Nodes (4): get_active_port(), run_teardown(), run_test(), safe_print()
 
 ### Community 297 - "Community 297"
-Cohesion: 0.47
-Nodes (5): AiRecommendation, AiRecommendationCard(), AiRecommendationCardProps, EnrichedDetails, getRecommendationDetails()
+Cohesion: 0.17
+Nodes (11): 1. Rezumatul Modificărilor Realizate, 2. Înainte vs. După: Scor UX (Scară de la 1 la 10), 3. Estimarea Timpului Economisit pentru Operator (ROI), 4. Ghidaj Tehnic pentru Dezvoltări Viitoare, A. Smart Stock Health (Dashboard), Advanced Retail Intelligence & Operator Guidance, B. Best Sellers (Dashboard), C. Slow Movers (Dashboard) (+3 more)
 
 ### Community 298 - "Community 298"
 Cohesion: 0.50
@@ -1687,25 +1711,105 @@ Nodes (3): run_e2e_tests(), run_static_checks(), safe_print()
 Cohesion: 0.83
 Nodes (3): run_e2e_tests(), run_static_checks(), safe_print()
 
+### Community 397 - "Community 397"
+Cohesion: 0.18
+Nodes (14): ProductVatGroupSelector(), ProductVatGroupSelectorProps, FastAddForm, FastAddProductPayload, FastAddResult, initialForm, ProductPriceDbRow, ProductSgrSelection (+6 more)
+
+### Community 398 - "Community 398"
+Cohesion: 0.67
+Nodes (3): RecentReceptionsCard(), RecentReceptionsCardProps, RecentReception
+
+### Community 399 - "Community 399"
+Cohesion: 0.31
+Nodes (7): formatSgrTypeLabel(), ReturnSaleModal(), ReturnSaleModalProps, ReturnEligibility, ReturnEligibilityItem, ReturnSaleItemInput, formatSgrReceiptLabel()
+
+### Community 400 - "Community 400"
+Cohesion: 0.67
+Nodes (3): ExpirationAlertsCard(), ExpirationAlertsCardProps, ExpirationAlert
+
+### Community 401 - "Community 401"
+Cohesion: 0.67
+Nodes (3): LowStockCard(), LowStockCardProps, LowStockProduct
+
+### Community 402 - "Community 402"
+Cohesion: 0.25
+Nodes (14): PosCartRecoveryDialog(), PosCartRecoveryDialogProps, buildStorageKey(), calculateTotals(), CartDraftSummary, clearPosCartDraft(), getAppVersion(), getCartDraftSummary() (+6 more)
+
+### Community 403 - "Community 403"
+Cohesion: 0.67
+Nodes (3): RestockRecommendationsCard(), RestockRecommendationsCardProps, RestockRecommendation
+
+### Community 404 - "Community 404"
+Cohesion: 0.19
+Nodes (7): App(), AppProviders(), AppProvidersProps, AuthProvider(), getSessionErrorCount(), incrementSessionErrorCount(), reportErrorToSupabase()
+
+### Community 405 - "Community 405"
+Cohesion: 0.67
+Nodes (3): SmartInsightsCard(), SmartInsightsCardProps, BusinessInsight
+
+### Community 406 - "Community 406"
+Cohesion: 0.67
+Nodes (3): StockHealthCard(), StockHealthCardProps, StockHealthStats
+
+### Community 407 - "Community 407"
+Cohesion: 0.67
+Nodes (3): TopProductsCard(), TopProductsCardProps, TopSellerProduct
+
+### Community 408 - "Community 408"
+Cohesion: 0.67
+Nodes (3): WasteSummaryCard(), WasteSummaryCardProps, WasteSummary
+
+### Community 409 - "Community 409"
+Cohesion: 0.15
+Nodes (12): 1. Executive Summary, 2. Remediated Problems & Implementation Details, 3. Files Modified, 4. Verification Results, 5. Remaining Minor Risks, Security & Offline Reliability Remediation Report — Stage 6SEC.1, TASK A — Offline Sync UI, TASK B — RPC Identity Validation (+4 more)
+
+### Community 410 - "Community 410"
+Cohesion: 0.23
+Nodes (9): Badge(), BadgeProps, Card, CardContent, CardDescription, CardFooter, CardHeader, CardProps (+1 more)
+
+### Community 411 - "Community 411"
+Cohesion: 0.22
+Nodes (10): PosCategoryBrowser(), PosCategoryBrowserProps, ProductGridProps, PosProductResults(), PosProductResultsProps, includesId(), normalizeId(), sameId() (+2 more)
+
+### Community 412 - "Community 412"
+Cohesion: 0.33
+Nodes (5): ProfitabilityReport(), ProfitabilityReportProps, ProfitabilityProduct, Button, ButtonProps
+
+### Community 413 - "Community 413"
+Cohesion: 0.67
+Nodes (3): HighMarginCard(), HighMarginCardProps, HighMarginProduct
+
+### Community 414 - "Community 414"
+Cohesion: 0.67
+Nodes (3): NegativeProfitCard(), NegativeProfitCardProps, NegativeProfitProduct
+
+### Community 415 - "Community 415"
+Cohesion: 0.67
+Nodes (3): TopOpportunitiesCard(), TopOpportunitiesCardProps, TopOpportunity
+
+### Community 416 - "Community 416"
+Cohesion: 0.29
+Nodes (8): PosHeader(), PosHeaderProps, ShiftActiveBadge(), ShiftActiveBadgeProps, ShiftCloseModal(), ShiftCloseModalProps, ActiveShift, ShiftCloseResult
+
 ## Knowledge Gaps
-- **2298 isolated node(s):** `mainLog`, `rendererLog`, `updaterLog`, `__dirname`, `{ contextBridge, ipcRenderer }` (+2293 more)
+- **2320 isolated node(s):** `execPromise`, `mainLog`, `rendererLog`, `updaterLog`, `__dirname` (+2315 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **47 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **51 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `useAuth()` connect `Community 5` to `Community 0`, `Community 1`, `Community 2`, `Community 6`, `Community 10`, `Community 11`, `Community 18`, `Community 20`, `Community 22`, `Community 26`, `Community 29`, `Community 163`, `Community 36`, `Community 37`, `Community 48`, `Community 51`, `Community 62`, `Community 84`, `Community 124`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
-- **Why does `supabase` connect `Community 291` to `Community 0`, `Community 1`, `Community 2`, `Community 3`, `Community 6`, `Community 10`, `Community 11`, `Community 12`, `Community 18`, `Community 20`, `Community 22`, `Community 25`, `Community 26`, `Community 29`, `Community 36`, `Community 49`, `Community 51`, `Community 62`, `Community 200`, `Community 73`, `Community 84`?**
+- **Why does `useAuth()` connect `Community 5` to `Community 0`, `Community 1`, `Community 2`, `Community 3`, `Community 6`, `Community 11`, `Community 397`, `Community 18`, `Community 404`, `Community 20`, `Community 22`, `Community 410`, `Community 411`, `Community 29`, `Community 36`, `Community 48`, `Community 51`, `Community 61`, `Community 75`, `Community 84`, `Community 124`?**
+  _High betweenness centrality (0.013) - this node is a cross-community bridge._
+- **Why does `supabase` connect `Community 29` to `Community 1`, `Community 2`, `Community 3`, `Community 5`, `Community 6`, `Community 10`, `Community 11`, `Community 12`, `Community 18`, `Community 20`, `Community 404`, `Community 22`, `Community 25`, `Community 26`, `Community 27`, `Community 291`, `Community 36`, `Community 48`, `Community 49`, `Community 51`, `Community 73`?**
   _High betweenness centrality (0.008) - this node is a cross-community bridge._
-- **Why does `SalesHistoryFilters` connect `Community 124` to `Community 12`?**
+- **Why does `EmptyState()` connect `Community 87` to `Community 1`, `Community 36`, `Community 6`, `Community 199`, `Community 107`, `Community 11`, `Community 108`, `Community 398`, `Community 124`, `Community 20`, `Community 84`, `Community 22`, `Community 26`, `Community 27`, `Community 412`, `Community 29`?**
   _High betweenness centrality (0.002) - this node is a cross-community bridge._
-- **What connects `mainLog`, `rendererLog`, `updaterLog` to the rest of the system?**
-  _2319 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `execPromise`, `mainLog`, `rendererLog` to the rest of the system?**
+  _2341 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.05837837837837838 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1452991452991453 - nodes in this community are weakly interconnected._
 - **Should `Community 1` be split into smaller, more focused modules?**
-  _Cohesion score 0.0859538784067086 - nodes in this community are weakly interconnected._
-- **Should `Community 2` be split into smaller, more focused modules?**
-  _Cohesion score 0.06078316773816481 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08246753246753247 - nodes in this community are weakly interconnected._
+- **Should `Community 3` be split into smaller, more focused modules?**
+  _Cohesion score 0.0786308973172988 - nodes in this community are weakly interconnected._

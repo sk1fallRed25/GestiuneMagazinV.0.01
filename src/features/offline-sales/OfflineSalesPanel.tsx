@@ -7,6 +7,7 @@ import {
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../auth/useAuth';
 import { useNetworkStatus } from '../../shared/network/useNetworkStatus';
+import { supabase } from '../../shared/supabase/supabaseClient';
 
 interface OfflineSale {
     local_sale_id: string;
@@ -36,6 +37,8 @@ export const OfflineSalesPanel: React.FC = () => {
     const [sales, setSales] = useState<OfflineSale[]>([]);
     const [loading, setLoading] = useState(false);
     const [summary, setSummary] = useState({ queuedCount: 0, queuedTotal: 0, lastSale: null as any });
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [syncProgress, setSyncProgress] = useState({ current: 0, total: 0 });
     
     // Details Modal State
     const [selectedSale, setSelectedSale] = useState<OfflineSale | null>(null);
@@ -96,6 +99,100 @@ export const OfflineSalesPanel: React.FC = () => {
             console.error('[OfflineSalesPanel] Failed to cancel offline sale:', e);
             toast.error(`Eroare: ${e.message}`);
         }
+    };
+
+    const handleSyncNow = async () => {
+        if (isSyncing) return;
+        if (!window.electronAPI?.sqlite) {
+            toast.error('API-ul SQLite local nu este disponibil.');
+            return;
+        }
+        if (!isOnline) {
+            toast.error('Nu te poți sincroniza cât timp ești offline.');
+            return;
+        }
+
+        const queuedSales = sales.filter(s => s.status === 'queued' || s.status === 'failed');
+        if (queuedSales.length === 0) {
+            toast.error('Nu există vânzări în așteptare pentru sincronizare.');
+            return;
+        }
+
+        setIsSyncing(true);
+        setSyncProgress({ current: 0, total: queuedSales.length });
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < queuedSales.length; i++) {
+            const sale = queuedSales[i];
+            
+            try {
+                // Update local state and sqlite status to 'syncing'
+                await window.electronAPI.sqlite.updateOfflineSaleStatus({
+                    localSaleId: sale.local_sale_id,
+                    status: 'syncing'
+                });
+                
+                const itemsParsed = JSON.parse(sale.cart_items_json);
+                const paymentsParsed = JSON.parse(sale.payments_json);
+
+                const itemsForRpc = itemsParsed.map((item: any) => ({
+                    product_id: item.product_id || item.id,
+                    quantity: item.quantity
+                }));
+
+                const paymentsForRpc = paymentsParsed.map((p: any) => ({
+                    method: p.method,
+                    amount: p.amount
+                }));
+
+                // Execute Supabase RPC call
+                const { data, error } = await supabase.rpc('finalize_sale', {
+                    p_store_id: sale.store_id,
+                    p_profile_id: sale.cashier_profile_id,
+                    p_items: itemsForRpc,
+                    p_payments: paymentsForRpc,
+                    p_shift_id: sale.shift_id || null
+                });
+
+                if (error) {
+                    throw new Error(error.message || 'Eroare RPC.');
+                }
+
+                const result = data as { sale_id?: string } | null;
+                const syncedSaleId = result?.sale_id || null;
+
+                await window.electronAPI.sqlite.updateOfflineSaleStatus({
+                    localSaleId: sale.local_sale_id,
+                    status: 'synced',
+                    syncedSaleId
+                });
+                
+                successCount++;
+            } catch (err: any) {
+                console.error(`[Sync] Failed to sync sale ${sale.local_sale_id}:`, err);
+                await window.electronAPI.sqlite.updateOfflineSaleStatus({
+                    localSaleId: sale.local_sale_id,
+                    status: 'failed',
+                    errorMsg: err.message || 'Eroare RPC'
+                });
+                failCount++;
+            }
+
+            setSyncProgress(prev => ({ ...prev, current: i + 1 }));
+        }
+
+        setIsSyncing(false);
+        if (successCount > 0 && failCount === 0) {
+            toast.success(`Sincronizare finalizată! ${successCount} vânzări sincronizate.`);
+        } else if (successCount > 0 && failCount > 0) {
+            toast.success(`Sincronizare parțială: ${successCount} reușite, ${failCount} eșuate.`);
+        } else {
+            toast.error(`Sincronizarea a eșuat pentru toate cele ${failCount} vânzări.`);
+        }
+
+        await loadData();
     };
 
     const getStatusColor = (status: OfflineSale['status']) => {
@@ -200,21 +297,39 @@ export const OfflineSalesPanel: React.FC = () => {
                     </div>
                     <div>
                         <h4 className="font-bold text-slate-800 text-sm">Sincronizarea tranzacțiilor offline</h4>
-                        <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
-                            Procesul de sincronizare automată și re-fiscalizarea bonurilor prin FiscalNet va fi disponibil în Etapa 6APP.8. În această etapă, tranzacțiile sunt păstrate în siguranță local.
+                        <p className="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed font-medium">
+                            {isSyncing 
+                                ? `Sincronizare în curs: se procesează ${syncProgress.current} din ${syncProgress.total} vânzări.`
+                                : `Sincronizează vânzările salvate offline cu serverul Supabase. Conexiune: ${isOnline ? 'Online 🟢' : 'Offline 🔴'}`}
                         </p>
                     </div>
                 </div>
                 
-                <button
-                    data-testid="offline-sale-sync-now-disabled"
-                    disabled
-                    title="Disponibil în 6APP.8"
-                    className="px-6 py-3 bg-slate-100 text-slate-400 rounded-2xl text-sm font-bold border border-slate-200 cursor-not-allowed uppercase tracking-wider flex items-center gap-2"
-                >
-                    <RefreshCw size={16} />
-                    Sincronizează acum
-                </button>
+                {isSyncing ? (
+                    <button
+                        data-testid="offline-sale-sync-now"
+                        disabled
+                        className="px-6 py-3 bg-indigo-50 text-indigo-600 rounded-2xl text-sm font-bold border border-indigo-100 uppercase tracking-wider flex items-center gap-2"
+                    >
+                        <RefreshCw size={16} className="animate-spin" />
+                        Se sincronizează ({syncProgress.current}/{syncProgress.total})
+                    </button>
+                ) : (
+                    <button
+                        data-testid={isOnline && sales.some(s => s.status === 'queued' || s.status === 'failed') ? "offline-sale-sync-now" : "offline-sale-sync-now-disabled"}
+                        disabled={!isOnline || !sales.some(s => s.status === 'queued' || s.status === 'failed')}
+                        onClick={handleSyncNow}
+                        className={`px-6 py-3 rounded-2xl text-sm font-bold border uppercase tracking-wider flex items-center gap-2 transition-all ${
+                            isOnline && sales.some(s => s.status === 'queued' || s.status === 'failed')
+                                ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 hover:scale-[1.02] active:scale-[0.98]'
+                                : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                        }`}
+                        title={!isOnline ? "Conectează-te la internet" : !sales.some(s => s.status === 'queued' || s.status === 'failed') ? "Nu există vânzări de sincronizat" : "Sincronizează acum"}
+                    >
+                        <RefreshCw size={16} />
+                        Sincronizează acum
+                    </button>
+                )}
             </div>
 
             {/* Sales Table */}

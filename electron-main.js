@@ -1,7 +1,12 @@
-import { app, BrowserWindow, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, ipcMain, screen, shell, dialog } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import os from 'os';
+import { exec } from 'child_process';
+import util from 'util';
+
+const execPromise = util.promisify(exec);
 
 // Configure Structured Logging with electron-log
 import log from 'electron-log/main.js';
@@ -28,10 +33,50 @@ import {
     validateCartItemsLocal, enqueueOfflineSale, listOfflineSales, getOfflineSale, 
     updateOfflineSaleStatus, deleteOfflineSale, getOfflineSalesSummary,
     getAllLocalProducts, logPosCartEvent, listLocalPosCartEvents, getLocalCategories,
-    getDbState
+    getDbState,
+    createBackup, getBackupInfo, validateBackupFile, restoreBackup, getDb
 } from './electron-sqlite-service.js';
+import { checkHealth } from './electron-health-service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// === TASK D 6SEC.1: Fiscal directory whitelist for IPC hardening ===
+const ALLOWED_FISCAL_DIRS = new Set();
+
+function registerAllowedFiscalDir(dirPath) {
+    if (!dirPath || typeof dirPath !== 'string') return;
+    const normalized = path.resolve(dirPath);
+    ALLOWED_FISCAL_DIRS.add(normalized.toLowerCase());
+    mainLog.info(`[FiscalNet Security] Registered allowed directory: ${normalized}`);
+}
+
+function validateFiscalPath(dirPath, label) {
+    if (!dirPath || typeof dirPath !== 'string' || !dirPath.trim()) {
+        throw new Error(`Calea pentru ${label} este obligatorie.`);
+    }
+    // Block path traversal patterns in the raw input
+    if (dirPath.includes('..')) {
+        throw new Error(`Securitate: traversal ('..') interzis in calea ${label}.`);
+    }
+    const normalized = path.resolve(dirPath);
+    // Always allow userData subdirectories
+    const userDataNorm = path.resolve(app.getPath('userData')).toLowerCase();
+    const normalizedLower = normalized.toLowerCase();
+    if (normalizedLower.startsWith(userDataNorm + path.sep) || normalizedLower === userDataNorm) {
+        return normalized;
+    }
+    // Check registered whitelist
+    if (ALLOWED_FISCAL_DIRS.size > 0) {
+        const isAllowed = [...ALLOWED_FISCAL_DIRS].some(allowed =>
+            normalizedLower.startsWith(allowed + path.sep) || normalizedLower === allowed
+        );
+        if (isAllowed) {
+            return normalized;
+        }
+    }
+    throw new Error(`Securitate: directorul ${label} ('${dirPath}') nu este in lista directoarelor aprobate. Inregistrati-l mai intai.`);
+}
+// === END TASK D ===
 
 let win = null;
 
@@ -69,9 +114,69 @@ function createWindow() {
     initializeUpdater(win);
 }
 
+let isQuitting = false;
+
+app.on('before-quit', async (event) => {
+    if (isQuitting) return; // Allow normal exit
+    
+    // Prevent immediate exit to allow async backup to complete
+    event.preventDefault();
+    isQuitting = true;
+    
+    mainLog.info('[App] Running automated backup before quitting...');
+    try {
+        await createBackup();
+        mainLog.info('[App] Automated shutdown backup completed.');
+    } catch (err) {
+        mainLog.error('[App] Automated shutdown backup failed:', err);
+    } finally {
+        app.quit();
+    }
+});
+
+function scheduleDailyBackup() {
+    const backupsDir = path.join(app.getPath('userData'), 'backups');
+    
+    const checkAndRunBackup = async () => {
+        try {
+            if (!fs.existsSync(backupsDir)) {
+                await createBackup();
+                return;
+            }
+            const files = fs.readdirSync(backupsDir);
+            const backupFiles = files
+                .filter(f => f.startsWith('offline_cache_backup_') && f.endsWith('.db'));
+            
+            if (backupFiles.length === 0) {
+                await createBackup();
+                return;
+            }
+            
+            backupFiles.sort((a, b) => b.localeCompare(a));
+            const latestBackup = backupFiles[0];
+            const filePath = path.join(backupsDir, latestBackup);
+            const stats = fs.statSync(filePath);
+            const ageMs = Date.now() - stats.mtimeMs;
+            
+            if (ageMs >= 24 * 60 * 60 * 1000) {
+                mainLog.info('[Backup Scheduler] Latest backup is older than 24h. Running backup...');
+                await createBackup();
+            }
+        } catch (err) {
+            mainLog.error('[Backup Scheduler] Failed check and run backup:', err);
+        }
+    };
+
+    setTimeout(checkAndRunBackup, 5000);
+    setInterval(checkAndRunBackup, 60 * 60 * 1000);
+}
+
 app.whenReady().then(() => {
     try {
         initDb(app.getPath('userData'));
+        // 6OPS.3 Run startup backup and schedule periodic backups
+        createBackup().catch(err => mainLog.error('Startup backup failed:', err));
+        scheduleDailyBackup();
     } catch (err) {
         mainLog.error('Failed to initialize local database:', err);
     }
@@ -185,6 +290,10 @@ ipcMain.handle('write-fiscal-net-file', async (event, { bonuriPath, filename, co
     let tempPath = null;
     let tempWritten = false;
     try {
+        // 6SEC.1: Validate fiscal paths against whitelist
+        validateFiscalPath(bonuriPath, 'Bonuri');
+        if (raspunsPath) validateFiscalPath(raspunsPath, 'Raspuns');
+
         if (!bonuriPath || !filename || !content) {
             return { success: false, error: 'Path, filename sau continut lipsa.' };
         }
@@ -238,6 +347,9 @@ ipcMain.handle('write-fiscal-net-file', async (event, { bonuriPath, filename, co
 
 ipcMain.handle('read-fiscal-net-response', async (event, { raspunsPath, filename }) => {
     try {
+        // 6SEC.1: Validate fiscal path against whitelist
+        validateFiscalPath(raspunsPath, 'Raspuns');
+
         if (!raspunsPath || !filename) {
             return { success: false, error: 'Cale sau filename lipsa.' };
         }
@@ -263,6 +375,20 @@ ipcMain.handle('read-fiscal-net-response', async (event, { raspunsPath, filename
         return { success: true, content };
     } catch (err) {
         console.error('[FiscalNet Pilot] Eroare citire raspuns:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+// 6SEC.1: IPC handler for registering allowed fiscal directories
+ipcMain.handle('fiscal:register-allowed-dir', async (event, { dirPath }) => {
+    try {
+        if (!dirPath || typeof dirPath !== 'string') {
+            return { success: false, error: 'Calea directorului este obligatorie.' };
+        }
+        registerAllowedFiscalDir(dirPath);
+        return { success: true };
+    } catch (err) {
+        mainLog.error('[FiscalNet Security] Error registering allowed dir:', err);
         return { success: false, error: serializeError(err) };
     }
 });
@@ -492,5 +618,169 @@ ipcMain.handle('sqlite:get-categories', async (event) => {
     } catch (err) {
         console.error('[Electron SQLite IPC] Error getting local categories:', err);
         return [];
+    }
+});
+
+// === 6OPS.3 Backup, Restore & Disaster Recovery IPC Handlers ===
+
+ipcMain.handle('sqlite:create-backup', async () => {
+    try {
+        return await createBackup();
+    } catch (err) {
+        mainLog.error('[Backup IPC] Error creating manual backup:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:get-backup-info', async () => {
+    try {
+        return getBackupInfo();
+    } catch (err) {
+        mainLog.error('[Backup IPC] Error getting backup stats:', err);
+        return { count: 0, totalSize: 0, lastBackup: null, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:open-backup-folder', async () => {
+    try {
+        const backupsDir = path.join(app.getPath('userData'), 'backups');
+        if (!fs.existsSync(backupsDir)) {
+            fs.mkdirSync(backupsDir, { recursive: true });
+        }
+        await shell.openPath(backupsDir);
+        return { success: true };
+    } catch (err) {
+        mainLog.error('[Backup IPC] Error opening backup folder:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:select-backup-file', async () => {
+    try {
+        const { canceled, filePaths } = await dialog.showOpenDialog({
+            title: 'Selectează fișierul de backup pentru restaurare',
+            defaultPath: path.join(app.getPath('userData'), 'backups'),
+            filters: [
+                { name: 'Baze de date SQLite Backup', extensions: ['db'] }
+            ],
+            properties: ['openFile']
+        });
+        if (canceled || filePaths.length === 0) {
+            return { success: false, cancelled: true };
+        }
+        return { success: true, filePath: filePaths[0] };
+    } catch (err) {
+        mainLog.error('[Restore IPC] Error selecting backup file:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:validate-backup-file', async (event, { filePath }) => {
+    try {
+        return validateBackupFile(filePath);
+    } catch (err) {
+        mainLog.error('[Restore IPC] Error validating backup file:', err);
+        return { valid: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:restore-backup', async (event, { filePath }) => {
+    try {
+        return restoreBackup(filePath);
+    } catch (err) {
+        mainLog.error('[Restore IPC] Error restoring backup:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:relaunch-app', async () => {
+    try {
+        mainLog.info('[Restore IPC] Relaunching application...');
+        app.relaunch();
+        app.exit(0);
+        return { success: true };
+    } catch (err) {
+        mainLog.error('[Restore IPC] Error relaunching application:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('sqlite:export-store-zip', async (event, { storeId, metadata }) => {
+    try {
+        const { canceled, filePath } = await dialog.showSaveDialog({
+            title: 'Export complet magazin (ZIP)',
+            defaultPath: path.join(app.getPath('downloads'), `export_magazin_${storeId || 'unknown'}_${new Date().toISOString().slice(0, 10)}.zip`),
+            filters: [
+                { name: 'Arhivă ZIP', extensions: ['zip'] }
+            ]
+        });
+
+        if (canceled || !filePath) return { success: false, cancelled: true };
+
+        const tempDir = path.join(app.getPath('temp'), `export_magazin_${Date.now()}`);
+        fs.mkdirSync(tempDir, { recursive: true });
+
+        // 1. Copy SQLite database safely using backup (to avoid lock issues)
+        const tempDbPath = path.join(tempDir, 'offline_cache.db');
+        const localDb = getDb();
+        if (localDb) {
+            await localDb.backup(tempDbPath);
+        } else {
+            const activeDbPath = path.join(app.getPath('userData'), 'offline_cache.db');
+            if (fs.existsSync(activeDbPath)) {
+                fs.copyFileSync(activeDbPath, tempDbPath);
+            }
+        }
+
+        // 2. Copy logs folder
+        const logsSrcDir = path.join(app.getPath('userData'), 'logs');
+        const logsDestDir = path.join(tempDir, 'logs');
+        if (fs.existsSync(logsSrcDir)) {
+            fs.mkdirSync(logsDestDir, { recursive: true });
+            const logFiles = fs.readdirSync(logsSrcDir);
+            for (const file of logFiles) {
+                fs.copyFileSync(path.join(logsSrcDir, file), path.join(logsDestDir, file));
+            }
+        }
+
+        // 3. Write metadata and diagnostics info
+        const diagInfo = {
+            appVersion: app.getVersion(),
+            storeId,
+            exportTimestamp: new Date().toISOString(),
+            os: {
+                platform: process.platform,
+                arch: process.arch,
+                release: os.release(),
+                totalmem: os.totalmem(),
+                freemem: os.freemem()
+            },
+            metadata
+        };
+        fs.writeFileSync(path.join(tempDir, 'diagnostics.json'), JSON.stringify(diagInfo, null, 2), 'utf8');
+
+        // 4. Compress to ZIP using PowerShell
+        const psCommand = `powershell -NoProfile -Command "Compress-Archive -Path '${tempDir}\\*' -DestinationPath '${filePath}' -Force"`;
+        await execPromise(psCommand);
+
+        // 5. Clean up temp directory
+        fs.rmSync(tempDir, { recursive: true, force: true });
+
+        return { success: true, filePath };
+    } catch (err) {
+        mainLog.error('[Export IPC] Export failed:', err);
+        return { success: false, error: serializeError(err) };
+    }
+});
+
+ipcMain.handle('health:check', async () => {
+    try {
+        return checkHealth();
+    } catch (err) {
+        mainLog.error('[Health IPC] Health check failed:', err);
+        return {
+            overallStatus: 'RED',
+            error: serializeError(err)
+        };
     }
 });
