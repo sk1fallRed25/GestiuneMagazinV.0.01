@@ -110,10 +110,18 @@ const SalesHistoryPage: React.FC = () => {
 
             <SalesHistoryFilters filters={filters} onFilterChange={updateFilter} />
 
+            <div className="flex justify-between items-center mb-4 px-1">
+                <span className="text-xs font-black text-slate-550 uppercase tracking-widest">
+                    {sales.length} {sales.length === 1 ? 'vânzare găsită' : 'vânzări găsite'}
+                </span>
+            </div>
+
             <SalesHistoryTable 
                 sales={sales} 
                 loading={loading} 
                 onViewDetails={openSaleDetails} 
+                searchTerm={filters.search}
+                onClearFilters={() => updateFilter({ search: '', paymentMethod: 'all', status: 'all', dateFrom: '', dateTo: '' })}
             />
 
             {/* Pagination Controls */}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDashboard } from './hooks/useDashboard';
 import { DashboardHeader } from './components/DashboardHeader';
 import { DashboardStatsGrid } from './components/DashboardStatsGrid';
@@ -10,7 +10,11 @@ import { WasteSummaryCard } from './components/WasteSummaryCard';
 import { SalesChartCard } from './components/SalesChartCard';
 import { OperationalAlertsCard } from './components/OperationalAlertsCard';
 import { ProductsWithoutPriceCard } from './components/ProductsWithoutPriceCard';
-import { BrainCircuit, AlertTriangle } from 'lucide-react';
+import { QuickActionsCard } from './components/QuickActionsCard';
+import { StockHealthCard } from './components/StockHealthCard';
+import { TopProductsCard } from './components/TopProductsCard';
+import { SlowMoversCard } from './components/SlowMoversCard';
+import { BrainCircuit, AlertTriangle, LayoutDashboard, BarChart3, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
 import { LoadingState } from '../../shared/components/ui';
@@ -59,9 +63,23 @@ const DashboardSkeleton: React.FC = () => {
     );
 };
 
+// New Components
+import { KpiGrid } from './components/KpiGrid';
+import { AttentionAlertsCard } from './components/AttentionAlertsCard';
+import { HighMarginCard } from './components/HighMarginCard';
+import { NegativeProfitCard } from './components/NegativeProfitCard';
+import { DeadStockReport } from './components/DeadStockReport';
+import { ProfitabilityReport } from './components/ProfitabilityReport';
+import { BusinessScoreCard } from './components/BusinessScoreCard';
+import { RestockRecommendationsCard } from './components/RestockRecommendationsCard';
+import { OverstockDetectionCard } from './components/OverstockDetectionCard';
+import { SmartInsightsCard } from './components/SmartInsightsCard';
+import { TopOpportunitiesCard } from './components/TopOpportunitiesCard';
+
 const DashboardPage: React.FC = () => {
     const { data, loading, error, refreshDashboard } = useDashboard();
     const { role } = useAuth();
+    const [activeTab, setActiveTab] = useState<'overview' | 'alerts' | 'profitability' | 'intelligence'>('overview');
 
     if (error) {
         if (role === 'platform_owner' && error === "Selectează un magazin pentru a vedea dashboard-ul.") {
@@ -100,33 +118,157 @@ const DashboardPage: React.FC = () => {
         );
     }
 
-
     return (
         <div className="p-8 max-w-7xl mx-auto pb-20 font-sans bg-gray-50/30 min-h-screen">
             <DashboardHeader loading={loading} onRefresh={refreshDashboard} />
 
             {data && (
                 <>
-                    <DashboardStatsGrid stats={data.stats} loading={loading} />
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                        <OperationalAlertsCard stats={data.stats} />
-                        <ProductsWithoutPriceCard products={data.productsWithoutPrice} />
+                    {/* Tabs navigation */}
+                    <div className="flex border-b border-gray-200 mb-8 gap-6 font-sans overflow-x-auto">
+                        <button
+                            onClick={() => setActiveTab('overview')}
+                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${
+                                activeTab === 'overview'
+                                    ? 'text-indigo-600'
+                                    : 'text-gray-400 hover:text-gray-700'
+                            }`}
+                        >
+                            <LayoutDashboard className="w-4 h-4" />
+                            Sinteză Generală
+                            {activeTab === 'overview' && (
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('alerts')}
+                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${
+                                activeTab === 'alerts'
+                                    ? 'text-indigo-600'
+                                    : 'text-gray-400 hover:text-gray-700'
+                            }`}
+                        >
+                            <AlertTriangle className="w-4 h-4" />
+                            Alerte & Stoc Mort
+                            {activeTab === 'alerts' && (
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('profitability')}
+                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${
+                                activeTab === 'profitability'
+                                    ? 'text-indigo-600'
+                                    : 'text-gray-400 hover:text-gray-700'
+                            }`}
+                        >
+                            <BarChart3 className="w-4 h-4" />
+                            Analiză Profitabilitate & KPIs
+                            {activeTab === 'profitability' && (
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('intelligence')}
+                            className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${
+                                activeTab === 'intelligence'
+                                    ? 'text-indigo-600'
+                                    : 'text-gray-400 hover:text-gray-700'
+                            }`}
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            Inteligență Stocuri & Recomandări
+                            {activeTab === 'intelligence' && (
+                                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full" />
+                            )}
+                        </button>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-                        <div className="lg:col-span-2">
-                            <SalesChartCard data={data.salesChart} />
+                    {/* Tab contents */}
+                    {activeTab === 'overview' && (
+                        <>
+                            <DashboardStatsGrid stats={data.stats} loading={loading} />
+
+                            <div className="mb-8 mt-6">
+                                <QuickActionsCard />
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                                <div className="lg:col-span-2">
+                                    <SalesChartCard data={data.salesChart} />
+                                </div>
+                                <WasteSummaryCard waste={data.wasteSummary} />
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                                <StockHealthCard stats={data.stockHealth} />
+                                <TopProductsCard today={data.topSellers.today} month={data.topSellers.month} />
+                                <SlowMoversCard slowMovers={data.slowMovers} />
+                            </div>
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+                                <RecentSalesCard sales={data.recentSales} />
+                                <RecentReceptionsCard receptions={data.recentReceptions} />
+                                <LowStockCard products={data.lowStockProducts} />
+                                <ExpirationAlertsCard alerts={data.expirationAlerts} />
+                            </div>
+                        </>
+                    )}
+
+                    {activeTab === 'alerts' && (
+                        <div className="space-y-8">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <OperationalAlertsCard stats={data.stats} />
+                                <ProductsWithoutPriceCard products={data.productsWithoutPrice} />
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-1">
+                                    <AttentionAlertsCard stats={data.stats} loading={loading} />
+                                </div>
+                                <div className="lg:col-span-2">
+                                    <DeadStockReport slowMovers={data.slowMovers} loading={loading} />
+                                </div>
+                            </div>
                         </div>
-                        <WasteSummaryCard waste={data.wasteSummary} />
-                    </div>
+                    )}
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-                        <RecentSalesCard sales={data.recentSales} />
-                        <RecentReceptionsCard receptions={data.recentReceptions} />
-                        <LowStockCard products={data.lowStockProducts} />
-                        <ExpirationAlertsCard alerts={data.expirationAlerts} />
-                    </div>
+                    {activeTab === 'profitability' && (
+                        <div className="space-y-8">
+                            {/* KPI Grid */}
+                            <KpiGrid stats={data.stats} loading={loading} />
+
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-2">
+                                    <ProfitabilityReport products={data.profitabilityProducts} loading={loading} />
+                                </div>
+                                <div className="lg:col-span-1 space-y-8">
+                                    <HighMarginCard products={data.highMarginProducts} loading={loading} />
+                                    <NegativeProfitCard products={data.negativeProfitProducts} loading={loading} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'intelligence' && (
+                        <div className="space-y-8">
+                            {/* Score Card & Insights */}
+                            <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                                <div className="lg:col-span-2">
+                                    <BusinessScoreCard score={data.healthScore} loading={loading} />
+                                </div>
+                                <div className="lg:col-span-3">
+                                    <SmartInsightsCard insights={data.smartInsights} loading={loading} />
+                                </div>
+                            </div>
+
+                            {/* Recommendations & Overstock */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <RestockRecommendationsCard recommendations={data.restockRecommendations} loading={loading} />
+                                <OverstockDetectionCard items={data.overstockItems} loading={loading} />
+                                <TopOpportunitiesCard opportunities={data.topOpportunities} loading={loading} />
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
 
@@ -138,4 +280,3 @@ const DashboardPage: React.FC = () => {
 };
 
 export default DashboardPage;
-

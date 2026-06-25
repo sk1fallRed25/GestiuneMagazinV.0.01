@@ -2,7 +2,7 @@ import React from 'react';
 import { Edit3, Trash2, Package, FolderOpen, Tag } from 'lucide-react';
 import { Product, ProductVatConfig } from '../types';
 import { normalizeVatGroupForStore, getStandardVatRate } from '../services/productService';
-import { Tooltip, EmptyState, Button } from '../../../shared/components/ui';
+import { Tooltip, EmptyState, Button, HighlightText } from '../../../shared/components/ui';
 import { CategoryWithSubs } from '../../catalog/types';
 import { Link } from 'react-router-dom';
 
@@ -18,6 +18,7 @@ interface ProductTableProps {
     selectedIds?: Set<string>;
     onToggleSelect?: (id: string) => void;
     onToggleSelectAll?: () => void;
+    searchTerm?: string;
 }
 
 /**
@@ -55,7 +56,8 @@ const ProductTable = ({
     categoriesTree = [],
     selectedIds,
     onToggleSelect,
-    onToggleSelectAll
+    onToggleSelectAll,
+    searchTerm = ''
 }: ProductTableProps) => {
     const canDelete = ['admin', 'platform_owner'].includes(userRole || '');
     const hasBulkSelect = !!onToggleSelect && !!selectedIds;
@@ -66,15 +68,27 @@ const ProductTable = ({
             {products.length === 0 ? (
                 <div data-testid="products-table" className="p-12">
                     <EmptyState
-                        title="Nu există produse"
-                        description={emptyStateDescription || "Nu au fost găsite produse în acest magazin sau căutarea nu a returnat rezultate."}
+                        title={searchTerm ? "Niciun rezultat găsit" : "Nu există produse"}
+                        description={
+                            searchTerm 
+                                ? `Nu am găsit niciun produs care să conțină "${searchTerm}".`
+                                : emptyStateDescription || "Începe prin a adăuga produse în catalogul magazinului tău."
+                        }
                         icon={<Package size={40} className="text-slate-400" />}
                         action={
-                            <Link to="/fast-add">
-                                <Button size="sm" variant="primary">
-                                    Adaugă primul produs
-                                </Button>
-                            </Link>
+                            searchTerm ? (
+                                <Link to="/produse">
+                                    <Button size="sm" variant="secondary">
+                                        Curăță căutarea și filtrele
+                                    </Button>
+                                </Link>
+                            ) : (
+                                <Link to="/fast-add">
+                                    <Button size="sm" variant="primary">
+                                        Adaugă primul produs
+                                    </Button>
+                                </Link>
+                            )
                         }
                     />
                 </div>
@@ -128,10 +142,14 @@ const ProductTable = ({
                                             <div className="bg-indigo-50 p-2 rounded-lg text-indigo-500 group-hover:text-indigo-600 transition-colors">
                                                 <Package size={20} />
                                             </div>
-                                            <div>
-                                                 <p className="font-bold text-slate-900 leading-tight">{produs.nume}</p>
-                                                 <div className="flex flex-wrap items-center gap-2 mt-1">
-                                                     <span className="text-[10px] font-mono text-slate-500">{produs.cod_bare}</span>
+                                             <div>
+                                                  <p className="font-bold text-slate-900 leading-tight">
+                                                      <HighlightText text={produs.nume} search={searchTerm} />
+                                                  </p>
+                                                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                      <span className="text-[10px] font-mono text-slate-500">
+                                                          <HighlightText text={produs.cod_bare} search={searchTerm} />
+                                                      </span>
                                                      {produs.sgrEnabled && produs.sgrType && (
                                                          <span
                                                              data-testid="product-sgr-badge"

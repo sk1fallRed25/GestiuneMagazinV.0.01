@@ -215,7 +215,7 @@ export const productService = {
                 unitate_masura: p.unit,
                 active: p.status === 'active',
                 status: p.status,
-                vatGroup: (price?.vat_group as VatGroupKey) || 'A',
+                vatGroup: price?.vat_group ? (price.vat_group as VatGroupKey) : undefined,
                 vatPercent: price?.vat_percent !== undefined ? Number(price.vat_percent) : 21,
                 sgrEnabled: !!p.sgr_enabled,
                 sgrType: normalizeSgrType(p.sgr_type),

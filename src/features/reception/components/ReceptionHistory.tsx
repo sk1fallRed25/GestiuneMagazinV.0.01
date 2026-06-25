@@ -1,7 +1,7 @@
 import React from 'react';
 import { Search, Calendar, FileText, ChevronRight, User, X } from 'lucide-react';
 import { ReceptionDbRow } from '../types';
-import { EmptyState, Button } from '../../../shared/components/ui';
+import { EmptyState, Button, LoadingState, HighlightText } from '../../../shared/components/ui';
 
 interface ReceptionHistoryProps {
     receptions: ReceptionDbRow[];
@@ -97,7 +97,11 @@ export const ReceptionHistory = ({
             </div>
 
             {/* Listă Recepții */}
-            {/* Listă Recepții */}
+            <div className="flex justify-between items-center mb-4 px-1">
+                <span className="text-xs font-black text-slate-550 uppercase tracking-widest">
+                    {receptions.length} {receptions.length === 1 ? 'recepție găsită' : 'recepții găsite'}
+                </span>
+            </div>
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                 {loading ? (
                     <div className="overflow-x-auto animate-pulse">
@@ -134,14 +138,24 @@ export const ReceptionHistory = ({
                 ) : receptions.length === 0 ? (
                     <div className="p-12">
                         <EmptyState
-                            title="Nu există recepții"
-                            description="Nu au fost găsite recepții care să corespundă criteriilor de căutare în acest magazin."
+                            title={filters.date || filters.supplier || filters.status ? "Nicio recepție găsită" : "Nu există recepții"}
+                            description={
+                                filters.date || filters.supplier || filters.status
+                                    ? "Nicio înregistrare nu se potrivește cu filtrele aplicate."
+                                    : "Înregistrează prima ta recepție de marfă (NIR) pentru a introduce stocuri."
+                            }
                             icon={<FileText size={40} className="text-slate-400" />}
                             action={
-                                onNewReception && (
-                                    <Button size="sm" variant="primary" onClick={onNewReception}>
-                                        Creează prima recepție
+                                filters.date || filters.supplier || filters.status ? (
+                                    <Button size="sm" variant="secondary" onClick={handleClearFilters}>
+                                        Curăță filtrele
                                     </Button>
+                                ) : (
+                                    onNewReception && (
+                                        <Button size="sm" variant="primary" onClick={onNewReception}>
+                                            Înregistrează prima recepție
+                                        </Button>
+                                    )
                                 )
                             }
                         />
@@ -169,7 +183,7 @@ export const ReceptionHistory = ({
                                             <td className="p-4 pl-6 font-bold text-slate-800">
                                                 <div className="flex items-center gap-2">
                                                     <FileText size={14} className="text-slate-400" />
-                                                    {r.document_number} {displayNir}
+                                                    <HighlightText text={r.document_number} search={filters.supplier} /> {displayNir}
                                                 </div>
                                             </td>
                                             <td className="p-4 text-slate-600 font-bold font-mono">
@@ -179,24 +193,28 @@ export const ReceptionHistory = ({
                                                 </div>
                                             </td>
                                             <td className="p-4 font-bold text-slate-700">
-                                                {r.supplier_text || <span className="text-slate-300 italic">Nespecificat</span>}
+                                                {r.supplier_text ? (
+                                                    <HighlightText text={r.supplier_text} search={filters.supplier} />
+                                                ) : (
+                                                    <span className="text-slate-305 italic">Nespecificat</span>
+                                                )}
                                                 {r.supplier_cui && (
-                                                    <div className="text-[10px] text-slate-400 font-normal">CUI: {r.supplier_cui}</div>
+                                                    <div className="text-[10px] text-slate-405 font-normal">CUI: {r.supplier_cui}</div>
                                                 )}
                                             </td>
                                             <td className="p-4 text-center">
                                                 {r.status === 'draft' && (
-                                                    <span data-testid="reception-status-draft" className="px-2.5 py-1 text-[10px] font-black uppercase rounded-full bg-amber-50 text-amber-600 border border-amber-100">
+                                                    <span data-testid="reception-status-draft" className="px-2.5 py-1 text-[10px] font-black uppercase rounded-full bg-amber-50 text-amber-700 border border-amber-100">
                                                         Draft
                                                     </span>
                                                 )}
                                                 {r.status === 'posted' && (
-                                                    <span data-testid="reception-status-posted" className="px-2.5 py-1 text-[10px] font-black uppercase rounded-full bg-green-50 text-green-600 border border-green-100">
+                                                    <span data-testid="reception-status-posted" className="px-2.5 py-1 text-[10px] font-black uppercase rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
                                                         Confirmată
                                                     </span>
                                                 )}
                                                 {r.status === 'cancelled' && (
-                                                    <span className="px-2.5 py-1 text-[10px] font-black uppercase rounded-full bg-rose-50 text-rose-600 border border-rose-100">
+                                                    <span className="px-2.5 py-1 text-[10px] font-black uppercase rounded-full bg-red-50 text-red-700 border border-red-100">
                                                         Anulată
                                                     </span>
                                                 )}

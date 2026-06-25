@@ -1,15 +1,21 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Calendar, Package, ChevronRight, Loader2 } from 'lucide-react';
 import { LossHistoryItem } from '../types';
 import { LossReasonBadge } from './LossReasonBadge';
+import { EmptyState, Button, HighlightText } from '../../../shared/components/ui';
 
 interface Props {
     items: LossHistoryItem[];
     loading: boolean;
     onViewDetails: (eventId: string) => void;
+    searchTerm?: string;
+    onClearFilters?: () => void;
 }
 
-export const LossHistoryTable: React.FC<Props> = ({ items, loading, onViewDetails }) => {
+export const LossHistoryTable: React.FC<Props> = ({ items, loading, onViewDetails, searchTerm = '', onClearFilters }) => {
+    const hasFilters = searchTerm || (onClearFilters && items.length === 0);
+
     return (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden">
             <div className="overflow-x-auto">
@@ -37,12 +43,29 @@ export const LossHistoryTable: React.FC<Props> = ({ items, loading, onViewDetail
                             </tr>
                         ) : items.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="p-16 text-center">
-                                    <div className="p-4 bg-gray-50 rounded-2xl text-gray-300 w-16 h-16 flex items-center justify-center mx-auto mb-3">
-                                        <Package size={32} />
-                                    </div>
-                                    <p className="text-sm font-bold text-gray-700 mb-1">Nu există înregistrări disponibile</p>
-                                    <p className="text-xs text-gray-400 max-w-sm mx-auto">Nu există înregistrări de pierderi sau casări conform filtrelor selectate.</p>
+                                <td colSpan={7} className="p-8">
+                                    <EmptyState
+                                        title={hasFilters ? "Nicio înregistrare găsită" : "Nu există pierderi înregistrate"}
+                                        description={
+                                            hasFilters
+                                                ? "Nicio înregistrare de pierderi nu se potrivește cu filtrele aplicate."
+                                                : "Înregistrează prima ta pierdere sau casare pentru a menține stocurile corecte."
+                                        }
+                                        icon={<Package size={40} className="text-slate-400" />}
+                                        action={
+                                            hasFilters ? (
+                                                <Button size="sm" variant="secondary" onClick={onClearFilters}>
+                                                    Resetează filtrele
+                                                </Button>
+                                            ) : (
+                                                <Link to="/pierderi">
+                                                    <Button size="sm" variant="primary">
+                                                        Înregistrează pierdere
+                                                    </Button>
+                                                </Link>
+                                            )
+                                        }
+                                    />
                                 </td>
                             </tr>
                         ) : (
@@ -60,15 +83,17 @@ export const LossHistoryTable: React.FC<Props> = ({ items, loading, onViewDetail
                                                 <Package size={16} />
                                             </div>
                                             <div>
-                                                <p className="font-bold text-slate-800 text-sm leading-tight">{item.productName}</p>
+                                                <p className="font-bold text-slate-800 text-sm leading-tight">
+                                                    <HighlightText text={item.productName} search={searchTerm} />
+                                                </p>
                                                 <p className="text-[10px] font-bold text-slate-400 tracking-wider">
-                                                    {item.barcode} {item.batchNumber ? ` | LOT: ${item.batchNumber}` : ''}
+                                                    <HighlightText text={item.barcode} search={searchTerm} /> {item.batchNumber ? ` | LOT: ${item.batchNumber}` : ''}
                                                 </p>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="p-4 text-center">
-                                        <span className="px-2.5 py-1 bg-red-50 text-red-600 rounded-lg font-black text-xs border border-red-100">
+                                        <span className="px-2.5 py-1 bg-red-50 text-red-650 rounded-lg font-black text-xs border border-red-100">
                                             -{item.quantity} {item.unit}
                                         </span>
                                     </td>
@@ -88,13 +113,13 @@ export const LossHistoryTable: React.FC<Props> = ({ items, loading, onViewDetail
                                     </td>
                                     <td className="p-4">
                                         <p className="text-sm font-bold text-slate-600 truncate max-w-[120px]" title={item.operatorName || ''}>
-                                            {item.operatorName}
+                                            <HighlightText text={item.operatorName || ''} search={searchTerm} />
                                         </p>
                                     </td>
                                     <td className="p-4 text-right">
                                         <button 
                                             onClick={() => onViewDetails(item.eventId)}
-                                            className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            className="p-2 text-indigo-650 hover:bg-indigo-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                                             title="Vezi tot evenimentul"
                                         >
                                             <ChevronRight size={20} />

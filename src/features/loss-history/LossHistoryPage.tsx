@@ -28,11 +28,25 @@ export default function LossHistoryPage() {
                 onFilterChange={updateFilter} 
                 onRefresh={refreshLossHistory} 
             />
+
+            <div className="flex justify-between items-center mb-4 px-1">
+                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                    {items.length} {items.length === 1 ? 'înregistrare găsită' : 'înregistrări găsite'}
+                </span>
+            </div>
             
             <LossHistoryTable 
                 items={items} 
                 loading={loading} 
                 onViewDetails={openLossDetails} 
+                searchTerm={filters.search}
+                onClearFilters={() => {
+                    updateFilter('search', '');
+                    updateFilter('zone', 'all');
+                    updateFilter('reason', 'all');
+                    updateFilter('dateFrom', '');
+                    updateFilter('dateTo', '');
+                }}
             />
 
             {showDetailsModal && (
