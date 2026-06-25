@@ -127,9 +127,77 @@ const pickFirst = <T>(value: T | T[] | null | undefined): T | null =>
     Array.isArray(value) ? value[0] ?? null : value ?? null;
 
 export const salesHistoryService = {
-    async listSales(storeId: string, filters?: SalesHistoryFilters): Promise<SaleSummary[]> {
-        if (!storeId) return [];
+    async listSales(
+        storeId: string, 
+        filters?: SalesHistoryFilters, 
+        page = 1, 
+        pageSize = 50
+    ): Promise<{ sales: SaleSummary[]; totalCount: number; summary: SalesHistorySummary }> {
+        if (!storeId) {
+            return {
+                sales: [],
+                totalCount: 0,
+                summary: {
+                    salesCount: 0,
+                    totalRevenue: 0,
+                    cashTotal: 0,
+                    cardTotal: 0,
+                    averageSale: 0
+                }
+            };
+        }
 
+        let profileIds: string[] = [];
+        if (filters?.search) {
+            const searchClean = filters.search.trim();
+            if (searchClean) {
+                const { data: profilesData } = await supabase
+                    .from('profiles')
+                    .select('id')
+                    .ilike('full_name', `%${searchClean}%`);
+                if (profilesData) {
+                    profileIds = profilesData.map(p => p.id);
+                }
+            }
+        }
+
+        const applyFilters = (q: any) => {
+            let filteredQ = q;
+            if (filters) {
+                if (filters.dateFrom) {
+                    filteredQ = filteredQ.gte('created_at', `${filters.dateFrom}T00:00:00`);
+                }
+                if (filters.dateTo) {
+                    filteredQ = filteredQ.lte('created_at', `${filters.dateTo}T23:59:59.999`);
+                }
+                if (filters.paymentMethod !== 'all' && filters.paymentMethod) {
+                    filteredQ = filteredQ.eq('payment_method', filters.paymentMethod);
+                }
+                if (filters.status !== 'all' && filters.status) {
+                    filteredQ = filteredQ.eq('status', filters.status);
+                }
+            }
+            if (filters?.search) {
+                const searchClean = filters.search.trim();
+                if (searchClean) {
+                    const orConditions: string[] = [];
+                    if (/^[0-9a-fA-F-]+$/.test(searchClean)) {
+                        orConditions.push(`id.ilike.%${searchClean}%`);
+                    }
+                    if (profileIds.length > 0) {
+                        orConditions.push(`profile_id.in.(${profileIds.map(id => `"${id}"`).join(',')})`);
+                    }
+                    if (orConditions.length > 0) {
+                        filteredQ = filteredQ.or(orConditions.join(','));
+                    } else {
+                        filteredQ = filteredQ.eq('id', '00000000-0000-0000-0000-000000000000');
+                    }
+                }
+            }
+            return filteredQ;
+        };
+
+        // 1. Fetch paginated sales
         let query = supabase
             .from('sales')
             .select(`
@@ -141,31 +209,19 @@ export const salesHistoryService = {
                 profiles (full_name),
                 sale_items (id),
                 payments (amount, method)
-            `)
-            .eq('store_id', storeId)
-            .order('created_at', { ascending: false });
+            `, { count: 'exact' })
+            .eq('store_id', storeId);
 
-        if (filters) {
-            if (filters.dateFrom) {
-                query = query.gte('created_at', `${filters.dateFrom}T00:00:00`);
-            }
-            if (filters.dateTo) {
-                query = query.lte('created_at', `${filters.dateTo}T23:59:59.999`);
-            }
-            if (filters.paymentMethod !== 'all' && filters.paymentMethod) {
-                query = query.eq('payment_method', filters.paymentMethod);
-            }
-            if (filters.status !== 'all' && filters.status) {
-                query = query.eq('status', filters.status);
-            }
-        }
+        query = applyFilters(query);
+        query = query
+            .order('created_at', { ascending: false })
+            .range((page - 1) * pageSize, page * pageSize - 1);
 
-        const { data, error } = await query;
+        const { data, error, count } = await query;
         if (error) throw error;
 
         const rawData = (data as unknown as SaleListRow[]) || [];
-
-        let results: SaleSummary[] = rawData.map((s) => {
+        const sales: SaleSummary[] = rawData.map((s) => {
             const salePayments = s.payments || [];
             const cashAmount = salePayments
                 .filter((p) => p.method === 'cash')
@@ -191,15 +247,52 @@ export const salesHistoryService = {
             };
         });
 
-        if (filters?.search) {
-            const searchLower = filters.search.toLowerCase();
-            results = results.filter(r => 
-                r.id.toLowerCase().includes(searchLower) || 
-                (r.cashierName && r.cashierName.toLowerCase().includes(searchLower))
-            );
-        }
+        // 2. Fetch all matching sales (totals only) for accurate summary calculation
+        let summaryQuery = supabase
+            .from('sales')
+            .select(`
+                total,
+                payment_method,
+                payments (amount, method)
+            `)
+            .eq('store_id', storeId);
 
-        return results;
+        summaryQuery = applyFilters(summaryQuery);
+        const { data: summaryData, error: summaryError } = await summaryQuery;
+        if (summaryError) throw summaryError;
+
+        const rawSummaryData = (summaryData as unknown as { total: number | string; payment_method: string; payments: PaymentJoin[] | null }[]) || [];
+        const summarySalesList: SaleSummary[] = rawSummaryData.map((s) => {
+            const salePayments = s.payments || [];
+            const cashAmount = salePayments
+                .filter((p) => p.method === 'cash')
+                .reduce((acc: number, p) => acc + toNumberSafe(p.amount, 0), 0);
+            
+            const cardAmount = salePayments
+                .filter((p) => p.method === 'card')
+                .reduce((acc: number, p) => acc + toNumberSafe(p.amount, 0), 0);
+
+            return {
+                id: '',
+                createdAt: '',
+                total: toNumberStrict(s.total, 'total'),
+                paymentMethod: s.payment_method,
+                status: '',
+                cashierName: '',
+                itemsCount: 0,
+                paymentsTotal: cashAmount + cardAmount,
+                cashPart: cashAmount,
+                cardPart: cardAmount
+            };
+        });
+
+        const summary = salesHistoryService.getSalesSummary(summarySalesList);
+
+        return {
+            sales,
+            totalCount: count || 0,
+            summary
+        };
     },
 
     async getSaleDetails(storeId: string, saleId: string): Promise<SaleDetails> {

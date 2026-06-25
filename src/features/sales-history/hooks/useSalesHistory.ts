@@ -21,6 +21,10 @@ export const useSalesHistory = () => {
         dateTo: today
     });
 
+    const [page, setPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const pageSize = 50;
+
     const [selectedSale, setSelectedSale] = useState<SaleDetails | null>(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -41,31 +45,44 @@ export const useSalesHistory = () => {
     const [returnModalOpen, setReturnModalOpen] = useState(false);
     const [selectedSaleForReturn, setSelectedSaleForReturn] = useState<SaleSummary | null>(null);
 
+    const totalPages = Math.ceil(totalCount / pageSize);
+
     const fetchSales = useCallback(async () => {
         if (!currentStoreId) {
             setSales([]);
             setSummary(null);
+            setTotalCount(0);
             setLoading(false);
             return;
         }
 
         setLoading(true);
         try {
-            const data = await salesHistoryService.listSales(currentStoreId, filters);
-            const summ = salesHistoryService.getSalesSummary(data);
-            setSales(data);
-            setSummary(summ);
+            const { sales: fetchedSales, totalCount: count, summary: fetchedSummary } = 
+                await salesHistoryService.listSales(currentStoreId, filters, page, pageSize);
+            setSales(fetchedSales);
+            setTotalCount(count);
+            setSummary(fetchedSummary);
         } catch (err: unknown) {
             console.error("Error fetching sales history:", err);
             toast.error("Nu s-au putut încărca datele.");
         } finally {
             setLoading(false);
         }
-    }, [currentStoreId, filters]);
+    }, [currentStoreId, filters, page]);
+
+    // Reset page to 1 on filter changes
+    useEffect(() => {
+        setPage(1);
+    }, [filters.search, filters.paymentMethod, filters.status, filters.dateFrom, filters.dateTo]);
 
     useEffect(() => {
         fetchSales();
     }, [fetchSales]);
+
+    const nextPage = () => setPage(prev => Math.min(prev + 1, totalPages));
+    const prevPage = () => setPage(prev => Math.max(prev - 1, 1));
+    const goToPage = (p: number) => setPage(Math.min(Math.max(p, 1), totalPages));
 
     const openSaleDetails = async (saleId: string) => {
         if (!currentStoreId) return;
@@ -289,6 +306,12 @@ export const useSalesHistory = () => {
         updateFilter,
         openSaleDetails,
         closeDetailsModal,
+        page,
+        totalPages,
+        totalCount,
+        nextPage,
+        prevPage,
+        goToPage,
 
         // Void state & actions
         voidEligibility,

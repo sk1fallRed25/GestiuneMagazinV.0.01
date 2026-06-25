@@ -11,3 +11,5 @@ export * from './Tabs';
 export * from './PageHeader';
 export * from './EmptyState';
 export * from './LoadingState';
+export * from './ConfirmModal';
+

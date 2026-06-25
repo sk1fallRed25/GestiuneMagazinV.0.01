@@ -21,6 +21,12 @@ const SalesHistoryPage: React.FC = () => {
         updateFilter,
         openSaleDetails,
         closeDetailsModal,
+        page,
+        totalPages,
+        totalCount,
+        nextPage,
+        prevPage,
+        goToPage,
 
         // Void state & actions
         voidEligibility,
@@ -109,6 +115,69 @@ const SalesHistoryPage: React.FC = () => {
                 loading={loading} 
                 onViewDetails={openSaleDetails} 
             />
+
+            {/* Pagination Controls */}
+            {!loading && sales.length > 0 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 bg-white px-6 py-4 rounded-3xl border border-slate-200 shadow-sm animate-in fade-in duration-200">
+                    <div className="text-xs font-semibold text-slate-500">
+                        Se afișează <span className="font-bold text-slate-800">{Math.min(totalCount, (page - 1) * 50 + 1)}</span> - <span className="font-bold text-slate-800">{Math.min(totalCount, page * 50)}</span> din <span className="font-bold text-slate-800">{totalCount}</span> vânzări
+                    </div>
+                    
+                    {totalPages > 1 && (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={prevPage}
+                                disabled={page === 1}
+                                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-all shadow-sm"
+                            >
+                                Anterior
+                            </button>
+                            
+                            <div className="flex items-center gap-1.5">
+                                {Array.from({ length: totalPages }).map((_, idx) => {
+                                    const pageNum = idx + 1;
+                                    if (
+                                        totalPages > 7 &&
+                                        pageNum !== 1 &&
+                                        pageNum !== totalPages &&
+                                        Math.abs(pageNum - page) > 1
+                                    ) {
+                                        if (pageNum === 2 && page > 3) {
+                                            return <span key="dots-start" className="text-slate-400 px-1 text-xs">...</span>;
+                                        }
+                                        if (pageNum === totalPages - 1 && page < totalPages - 2) {
+                                            return <span key="dots-end" className="text-slate-400 px-1 text-xs">...</span>;
+                                        }
+                                        return null;
+                                    }
+                                    
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => goToPage(pageNum)}
+                                            className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
+                                                page === pageNum
+                                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150'
+                                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-transparent'
+                                            }`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            
+                            <button
+                                onClick={nextPage}
+                                disabled={page === totalPages}
+                                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-all shadow-sm"
+                            >
+                                Următor
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {showDetailsModal && (
                 <SaleDetailsModal 

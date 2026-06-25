@@ -164,10 +164,6 @@ export const useProducts = () => {
             return;
         }
 
-        if (!window.confirm("Ești sigur? Această operație nu poate fi anulată. Confirmi ștergerea (arhivarea) acestui produs?")) {
-            return;
-        }
-
         try {
             const promise = productService.archiveProduct(currentStoreId, productId);
 

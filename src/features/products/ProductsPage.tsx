@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Database, RefreshCw, AlertCircle, Sparkles, X, ArrowLeft, FolderOpen, ArrowRightCircle } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useNetworkStatus } from '../../shared/network/useNetworkStatus';
@@ -10,7 +10,7 @@ import ProductTable from './components/ProductTable';
 import ProductEditModal from './components/ProductEditModal';
 import CategoryManagerModal from './components/CategoryManagerModal';
 import BulkMoveCategoryModal from './components/BulkMoveCategoryModal';
-import { PageHeader, LoadingState } from '../../shared/components/ui';
+import { PageHeader, LoadingState, ConfirmModal } from '../../shared/components/ui';
 
 const ProductsSkeleton = () => {
     return (
@@ -116,14 +116,31 @@ const ProductsPage = () => {
     const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
     const [isBulkMoveOpen, setIsBulkMoveOpen] = useState(false);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [currentPage, setCurrentPage] = useState(1);
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+    const ITEMS_PER_PAGE = 50;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, categoryFilter, subcategoryFilter, activeAiFilter]);
+
+    const totalPages = Math.ceil(finalFilteredProducts.length / ITEMS_PER_PAGE);
+
+    const paginatedProducts = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return finalFilteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [finalFilteredProducts, currentPage]);
 
     const handleEdit = (product: Product) => {
         setEditingProduct(product);
         setIsEditModalOpen(true);
     };
 
-    const handleDelete = async (id: string) => {
-        await deleteProduct(id);
+    const handleDelete = (id: string) => {
+        const prod = products.find(p => p.id === id);
+        if (prod) {
+            setProductToDelete(prod);
+        }
     };
 
     // Selection handlers
@@ -356,7 +373,7 @@ const ProductsPage = () => {
 
             {/* Tabel Central */}
             <ProductTable 
-                products={finalFilteredProducts} 
+                products={paginatedProducts} 
                 onEdit={handleEdit} 
                 onDelete={handleDelete}
                 userRole={userRole}
@@ -367,6 +384,69 @@ const ProductsPage = () => {
                 onToggleSelect={handleToggleSelect}
                 onToggleSelectAll={handleToggleSelectAll}
             />
+
+            {/* Pagination Controls */}
+            {finalFilteredProducts.length > 0 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 bg-white px-6 py-4 rounded-3xl border border-slate-300 shadow-sm animate-in fade-in duration-200">
+                    <div className="text-xs font-semibold text-slate-500">
+                        Se afișează <span className="font-bold text-slate-800">{Math.min(finalFilteredProducts.length, (currentPage - 1) * ITEMS_PER_PAGE + 1)}</span> - <span className="font-bold text-slate-800">{Math.min(finalFilteredProducts.length, currentPage * ITEMS_PER_PAGE)}</span> din <span className="font-bold text-slate-800">{finalFilteredProducts.length}</span> produse
+                    </div>
+                    
+                    {totalPages > 1 && (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-all shadow-sm"
+                            >
+                                Anterior
+                            </button>
+                            
+                            <div className="flex items-center gap-1.5">
+                                {Array.from({ length: totalPages }).map((_, idx) => {
+                                    const pageNum = idx + 1;
+                                    if (
+                                        totalPages > 7 &&
+                                        pageNum !== 1 &&
+                                        pageNum !== totalPages &&
+                                        Math.abs(pageNum - currentPage) > 1
+                                    ) {
+                                        if (pageNum === 2 && currentPage > 3) {
+                                            return <span key="dots-start" className="text-slate-400 px-1 text-xs">...</span>;
+                                        }
+                                        if (pageNum === totalPages - 1 && currentPage < totalPages - 2) {
+                                            return <span key="dots-end" className="text-slate-400 px-1 text-xs">...</span>;
+                                        }
+                                        return null;
+                                    }
+                                    
+                                    return (
+                                        <button
+                                            key={pageNum}
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            className={`w-8 h-8 rounded-xl text-xs font-bold transition-all ${
+                                                currentPage === pageNum
+                                                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-150'
+                                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-transparent'
+                                            }`}
+                                        >
+                                            {pageNum}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-all shadow-sm"
+                            >
+                                Următor
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Modal Editare */}
             <ProductEditModal 
@@ -394,6 +474,23 @@ const ProductsPage = () => {
                 selectedProductIds={Array.from(selectedIds)}
                 selectedProductNames={selectedProductNames}
                 onSuccess={handleBulkMoveSuccess}
+            />
+
+            {/* Confirmare Arhivare Produs */}
+            <ConfirmModal
+                open={!!productToDelete}
+                title="Arhivare Produs"
+                message={`Sigur doriți să arhivați produsul "${productToDelete?.nume || ''}"? Această acțiune va elimina produsul din catalog și nu poate fi anulată.`}
+                confirmText="Arhivează"
+                cancelText="Anulează"
+                variant="danger"
+                onConfirm={async () => {
+                    if (productToDelete) {
+                        await deleteProduct(productToDelete.id);
+                        setProductToDelete(null);
+                    }
+                }}
+                onCancel={() => setProductToDelete(null)}
             />
         </div>
     );

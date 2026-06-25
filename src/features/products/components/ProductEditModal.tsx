@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Save, FolderOpen, Tag } from 'lucide-react';
+import { Save, FolderOpen, Tag, Loader2 } from 'lucide-react';
 import { Product, ProductUpdateInput, ProductVatConfig, VatGroupKey } from '../types';
 import { ProductVatGroupSelector } from './ProductVatGroupSelector';
 import { ProductSgrSelector } from './ProductSgrSelector';
@@ -73,6 +73,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
     const [hasRealBatches, setHasRealBatches] = useState(false);
     const [categoriesTree, setCategoriesTree] = useState<CategoryWithSubs[]>([]);
     const [categoriesLoading, setCategoriesLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     // Load categories when modal opens
     const loadCategories = useCallback(async () => {
@@ -158,6 +159,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setSubmitting(true);
 
         const pret_vanzare = parseFloat(localState.pret_vanzare) || 0;
         const pret_achizitie = parseFloat(localState.pret_achizitie) || 0;
@@ -173,6 +175,7 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
 
         if (stockWasChanged && hasRealBatches) {
             toast.error("Stocul acestui produs este gestionat pe loturi reale. Modifică stocul prin Recepție/Transfer, nu direct din Produse.");
+            setSubmitting(false);
             return;
         }
 
@@ -208,6 +211,8 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : "Eroare la actualizarea produsului.";
             toast.error(message);
+        } finally {
+            setSubmitting(false);
         }
     };
 
@@ -224,7 +229,8 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
                         type="button"
                         data-testid="product-edit-cancel-button"
                         onClick={onClose}
-                        className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-slate-300"
+                        disabled={submitting}
+                        className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
                     >
                         Anulează
                     </button>
@@ -232,9 +238,11 @@ const ProductEditModal = ({ product, isOpen, onClose, onSubmit, vatConfig, store
                         type="submit"
                         data-testid="product-edit-save-button"
                         form="product-edit-form"
-                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-indigo-150 flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        disabled={submitting || categoriesLoading}
+                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-indigo-150 flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Save size={16} /> Salvează
+                        {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        {submitting ? 'Se salvează...' : 'Salvează'}
                     </button>
                 </div>
             }
