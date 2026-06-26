@@ -54,6 +54,11 @@ const ProductSearchBar = ({
                     className="w-full outline-none text-slate-800 placeholder-slate-400 font-semibold bg-transparent"
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            onChange('');
+                        }
+                    }}
                     autoFocus
                 />
                 {value && (

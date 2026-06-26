@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/useAuth';
 import { lossHistoryService } from '../services/lossHistoryService';
 import { LossHistoryItem, LossHistorySummary, LossHistoryFilters, LossDetails } from '../types';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
 
 const initialFilters: LossHistoryFilters = {
     search: '',
@@ -23,6 +24,8 @@ export const useLossHistory = () => {
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
 
+    const debouncedFilters = useDebounce(filters, 300);
+
     const refreshLossHistory = useCallback(async () => {
         if (!currentStoreId) {
             setItems([]);
@@ -33,7 +36,7 @@ export const useLossHistory = () => {
 
         setLoading(true);
         try {
-            const data = await lossHistoryService.listLossHistory(currentStoreId, filters);
+            const data = await lossHistoryService.listLossHistory(currentStoreId, debouncedFilters);
             setItems(data);
             setSummary(lossHistoryService.getLossSummary(data));
         } catch (err: unknown) {
@@ -42,7 +45,7 @@ export const useLossHistory = () => {
         } finally {
             setLoading(false);
         }
-    }, [currentStoreId, filters]);
+    }, [currentStoreId, debouncedFilters]);
 
     useEffect(() => {
         refreshLossHistory();

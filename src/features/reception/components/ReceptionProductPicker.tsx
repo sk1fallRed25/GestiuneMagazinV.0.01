@@ -147,6 +147,7 @@ export const ReceptionProductPicker = ({
         }
 
         if (e.key === 'Escape') {
+            setSearch('');
             setIsOpen(false);
             searchInputRef.current?.blur();
         } else if (e.key === 'ArrowDown') {
@@ -163,6 +164,8 @@ export const ReceptionProductPicker = ({
             e.preventDefault();
             if (highlightedIndex >= 0 && highlightedIndex < filteredProducts.length) {
                 handleSelect(filteredProducts[highlightedIndex]);
+            } else if (filteredProducts.length > 0) {
+                handleSelect(filteredProducts[0]);
             }
         }
     };

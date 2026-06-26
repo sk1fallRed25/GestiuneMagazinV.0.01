@@ -21,6 +21,9 @@ export const SalesHistoryFilters: React.FC<SalesHistoryFiltersProps> = ({ filter
                         className="w-full pl-10 pr-8 py-2.5 bg-gray-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-indigo-500 transition-all text-sm font-bold"
                         value={filters.search}
                         onChange={e => onFilterChange({ search: e.target.value })}
+                        onKeyDown={e => {
+                            if (e.key === 'Escape') onFilterChange({ search: '' });
+                        }}
                     />
                     {filters.search && (
                         <button

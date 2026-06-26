@@ -335,10 +335,16 @@ const PosPage: React.FC = () => {
             const val = query.trim();
             if (!val) return;
 
-            await handleBarcodeEnter(val);
+            const found = await handleBarcodeEnter(val);
+            if (!found && searchResults.length > 0) {
+                addToCart(searchResults[0]);
+            }
             setTimeout(() => {
                 inputRef.current?.focus();
             }, 50);
+        } else if (e.key === 'Escape') {
+            setQuery('');
+            setBarcodeNotFound(null);
         }
     };
 

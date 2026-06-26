@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Calendar, Filter } from 'lucide-react';
+import { Search, Calendar, Filter, X } from 'lucide-react';
 import { LossHistoryFilters as FilterType } from '../types';
 
 interface Props {
@@ -18,12 +18,25 @@ export const LossHistoryFilters: React.FC<Props> = ({ filters, onFilterChange, o
                 <div className="relative">
                     <input
                         type="text"
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
                         placeholder="Produs, cod bare, motiv..."
                         value={filters.search}
                         onChange={(e) => onFilterChange('search', e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') onFilterChange('search', '');
+                        }}
                     />
                     <Search className="absolute left-3 top-3 text-slate-400" size={18} />
+                    {filters.search && (
+                        <button
+                            type="button"
+                            onClick={() => onFilterChange('search', '')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-200/50 rounded-full text-slate-400 hover:text-slate-650 transition-colors"
+                            aria-label="Șterge căutarea"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
                 </div>
             </div>
 

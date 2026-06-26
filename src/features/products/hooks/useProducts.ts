@@ -8,12 +8,15 @@ import { categoryService } from '../../catalog/categoryService';
 import { CategoryWithSubs } from '../../catalog/types';
 import { FILTER_UNCATEGORIZED, FILTER_NO_SUBCATEGORY } from '../components/ProductSearchBar';
 import { supabase } from '../../../shared/supabase/supabaseClient';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
+import { matchSearch } from '../../../shared/utils/search';
 
 export const useProducts = () => {
     const { currentStoreId, user, role } = useAuth();
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [vatConfig, setVatConfig] = useState<ProductVatConfig | null>(null);
     const [vatLoading, setVatLoading] = useState(false);
     const [searchParams, setSearchParams] = useSearchParams();
@@ -125,12 +128,27 @@ export const useProducts = () => {
         }
 
         // Text filter
-        if (searchTerm) {
-            const lowerSearch = searchTerm.toLowerCase();
-            result = result.filter(p =>
-                p.nume.toLowerCase().includes(lowerSearch) ||
-                (p.cod_bare && p.cod_bare.includes(searchTerm))
-            );
+        if (debouncedSearchTerm) {
+            result = result.filter(p => {
+                let mainCategory = '';
+                let subcategory = '';
+                if (p.category_id && categoriesTree.length > 0) {
+                    const asRoot = categoriesTree.find(c => c.id === p.category_id);
+                    if (asRoot) {
+                        mainCategory = asRoot.name;
+                    } else {
+                        for (const root of categoriesTree) {
+                            const asSub = root.subcategories.find(s => s.id === p.category_id);
+                            if (asSub) {
+                                mainCategory = root.name;
+                                subcategory = asSub.name;
+                                break;
+                            }
+                        }
+                    }
+                }
+                return matchSearch([p.nume, p.cod_bare, mainCategory, subcategory], debouncedSearchTerm);
+            });
         }
 
         // Category filter
@@ -163,7 +181,7 @@ export const useProducts = () => {
         }
 
         return result;
-    }, [products, searchTerm, categoryFilter, subcategoryFilter, categoriesTree]);
+    }, [products, debouncedSearchTerm, categoryFilter, subcategoryFilter, categoriesTree]);
 
     const updateProduct = async (productId: string, input: ProductUpdateInput) => {
         if (!navigator.onLine) {
@@ -236,6 +254,7 @@ export const useProducts = () => {
         loading: loading || vatLoading || categoriesLoading,
         searchTerm,
         setSearchTerm,
+        debouncedSearchTerm,
         filteredProducts,
         refreshProducts: fetchProducts,
         updateProduct,

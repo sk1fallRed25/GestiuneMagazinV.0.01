@@ -4,6 +4,8 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../auth/useAuth';
 import { expirationService } from '../services/expirationService';
 import { ExpirationItem, ExpirationFilter, ExpirationSummary } from '../types';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
+import { matchSearch } from '../../../shared/utils/search';
 
 export const useExpirations = () => {
     const navigate = useNavigate();
@@ -34,16 +36,17 @@ export const useExpirations = () => {
         refreshExpirations();
     }, [refreshExpirations]);
 
+    const debouncedSearch = useDebounce(filters.search, 300);
+
     const filteredItems = useMemo(() => {
         return items.filter(item => {
-            const matchesSearch = item.productName.toLowerCase().includes(filters.search.toLowerCase()) ||
-                                 item.barcode.includes(filters.search);
+            const matchesSearch = matchSearch([item.productName, item.barcode], debouncedSearch);
             const matchesStatus = filters.status === 'all' || item.status === filters.status;
             const matchesZone = filters.zone === 'all' || item.zone === filters.zone;
 
             return matchesSearch && matchesStatus && matchesZone;
         });
-    }, [items, filters]);
+    }, [items, filters.status, filters.zone, debouncedSearch]);
 
     const summary = useMemo((): ExpirationSummary => {
         return items.reduce((acc, item) => {

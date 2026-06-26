@@ -160,7 +160,7 @@ def run_e2e_tests():
 
             # Scenario A: Barcode Paste + Enter
             safe_print("\n--- Running Scenario A: Barcode paste + Enter ---")
-            input_locator = page.locator('[data-testid="pos-barcode-input"]')
+            input_locator = page.locator('[data-testid="pos-scan-input"]')
             input_locator.wait_for(state="visible", timeout=10000)
             input_locator.fill(norm_barcode)
             input_locator.press("Enter")
@@ -215,10 +215,15 @@ def run_e2e_tests():
             safe_print("\n--- Running Scenario C: SGR scan ---")
             # Reload to clear cart React state
             page.reload()
-            page.locator('[data-testid="pos-barcode-input"]').wait_for(state="visible")
+            page.wait_for_timeout(500)
+            discard_btn = page.locator('[data-testid="pos-cart-recovery-discard-button"]').first
+            if discard_btn.is_visible():
+                discard_btn.click()
+                page.wait_for_timeout(500)
+            page.locator('[data-testid="pos-scan-input"]').wait_for(state="visible")
             
             # Scan SGR product twice
-            input_locator = page.locator('[data-testid="pos-barcode-input"]')
+            input_locator = page.locator('[data-testid="pos-scan-input"]')
             
             input_locator.fill(sgr_barcode)
             input_locator.press("Enter")
@@ -258,7 +263,7 @@ def run_e2e_tests():
             safe_print("[PASS] Not found error banner displayed correctly.")
             
             # Verify focus is still on input
-            is_focused = page.evaluate("document.activeElement === document.querySelector('[data-testid=\"pos-barcode-input\"]')")
+            is_focused = page.evaluate("document.activeElement === document.querySelector('[data-testid=\"pos-scan-input\"]')")
             assert is_focused, "Input should remain focused"
             safe_print("[PASS] Focus remains on barcode input.")
 
@@ -266,10 +271,15 @@ def run_e2e_tests():
             safe_print("\n--- Running Scenario E: FiscalNet regression ---")
             # Reload to clear cart
             page.reload()
-            page.locator('[data-testid="pos-barcode-input"]').wait_for(state="visible")
+            page.wait_for_timeout(500)
+            discard_btn = page.locator('[data-testid="pos-cart-recovery-discard-button"]').first
+            if discard_btn.is_visible():
+                discard_btn.click()
+                page.wait_for_timeout(500)
+            page.locator('[data-testid="pos-scan-input"]').wait_for(state="visible")
             
             # Add normal product again
-            input_locator = page.locator('[data-testid="pos-barcode-input"]')
+            input_locator = page.locator('[data-testid="pos-scan-input"]')
             input_locator.fill(norm_barcode)
             input_locator.press("Enter")
             page.locator(f'[data-testid="pos-cart-line-{norm_id}"]').wait_for(state="visible")
@@ -278,7 +288,7 @@ def run_e2e_tests():
             page.locator("button:has-text('ÎNCASEAZĂ')").click(no_wait_after=True)
             
             # Wait for cart to clear
-            page.locator("span.text-5xl:has-text('0.00')").wait_for(state="visible", timeout=10000)
+            page.locator("[data-testid='pos-cart-total']:has-text('0.00')").wait_for(state="visible", timeout=10000)
             safe_print("[PASS] Checkout finalized.")
             
             # Verify FiscalNet write was called

@@ -4,6 +4,7 @@ import { salesHistoryService } from '../services/salesHistoryService';
 import { SaleSummary, SaleDetails, SalesHistoryFilters, SalesHistorySummary, VoidEligibility, ReturnEligibility, ReturnSaleItemInput } from '../types';
 
 import { toast } from 'react-hot-toast';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
 
 export const useSalesHistory = () => {
     const { user, currentStoreId } = useAuth();
@@ -47,6 +48,8 @@ export const useSalesHistory = () => {
 
     const totalPages = Math.ceil(totalCount / pageSize);
 
+    const debouncedFilters = useDebounce(filters, 300);
+
     const fetchSales = useCallback(async () => {
         if (!currentStoreId) {
             setSales([]);
@@ -59,7 +62,7 @@ export const useSalesHistory = () => {
         setLoading(true);
         try {
             const { sales: fetchedSales, totalCount: count, summary: fetchedSummary } = 
-                await salesHistoryService.listSales(currentStoreId, filters, page, pageSize);
+                await salesHistoryService.listSales(currentStoreId, debouncedFilters, page, pageSize);
             setSales(fetchedSales);
             setTotalCount(count);
             setSummary(fetchedSummary);
@@ -69,7 +72,7 @@ export const useSalesHistory = () => {
         } finally {
             setLoading(false);
         }
-    }, [currentStoreId, filters, page]);
+    }, [currentStoreId, debouncedFilters, page]);
 
     // Reset page to 1 on filter changes
     useEffect(() => {

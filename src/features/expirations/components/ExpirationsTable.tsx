@@ -2,14 +2,15 @@ import React from 'react';
 import { Trash2, Warehouse, Store, Hash, Package } from 'lucide-react';
 import { ExpirationItem } from '../types';
 import { ExpirationStatusBadge } from './ExpirationStatusBadge';
-import { EmptyState } from '../../../shared/components/ui';
+import { EmptyState, HighlightText } from '../../../shared/components/ui';
 
 interface ExpirationsTableProps {
     items: ExpirationItem[];
     onReportLoss: (item: ExpirationItem) => void;
+    searchTerm?: string;
 }
 
-export const ExpirationsTable: React.FC<ExpirationsTableProps> = ({ items, onReportLoss }) => {
+export const ExpirationsTable: React.FC<ExpirationsTableProps> = ({ items, onReportLoss, searchTerm = '' }) => {
     if (items.length === 0) {
         return (
             <div className="bg-white rounded-3xl p-12 text-center border border-gray-150 shadow-sm">
@@ -41,8 +42,12 @@ export const ExpirationsTable: React.FC<ExpirationsTableProps> = ({ items, onRep
                             <tr key={item.batchId} className="hover:bg-slate-50/50 transition-colors group">
                                 <td className="px-6 py-5">
                                     <div className="flex flex-col">
-                                        <span className="font-bold text-gray-800 group-hover:text-red-600 transition-colors">{item.productName}</span>
-                                        <span className="text-[10px] font-mono text-gray-400 uppercase">COD: {item.barcode}</span>
+                                        <span className="font-bold text-gray-800 group-hover:text-red-600 transition-colors">
+                                            <HighlightText text={item.productName} search={searchTerm} />
+                                        </span>
+                                        <span className="text-[10px] font-mono text-gray-400 uppercase">
+                                            COD: <HighlightText text={item.barcode} search={searchTerm} />
+                                        </span>
                                     </div>
                                 </td>
                                 <td className="px-6 py-5">

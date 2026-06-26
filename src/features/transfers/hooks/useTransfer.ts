@@ -8,6 +8,8 @@ import {
     TransferPayload 
 } from '../types';
 import { transferService } from '../services/transferService';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
+import { matchSearch } from '../../../shared/utils/search';
 
 export const useTransfer = () => {
     const { currentStoreId, availableStores, user } = useAuth();
@@ -123,13 +125,14 @@ export const useTransfer = () => {
         loadProducts();
     }, [loadProducts]);
 
+    const debouncedSearch = useDebounce(search, 300);
+
     const filteredProducts = useMemo(() => {
-        if (search.length < 2) return [];
+        if (debouncedSearch.length < 2) return [];
         return products.filter(p => 
-            p.nume.toLowerCase().includes(search.toLowerCase()) || 
-            p.cod_bare.includes(search)
+            matchSearch([p.nume, p.cod_bare], debouncedSearch)
         ).slice(0, 10);
-    }, [products, search]);
+    }, [products, debouncedSearch]);
 
     const selectedProduct = useMemo(() => 
         products.find(p => p.id === selectedProductId) || null

@@ -41,6 +41,7 @@ const LossesPage: React.FC = () => {
                     products={filteredProducts} 
                     onSelectProduct={openScrapModal} 
                     loading={loading && !showModal} 
+                    searchTerm={search}
                 />
 
                 <LossReportModal

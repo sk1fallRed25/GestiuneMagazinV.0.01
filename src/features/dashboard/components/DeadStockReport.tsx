@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { SlowMoverProduct } from '../types';
-import { Search, Calendar, PackageMinus, TrendingDown } from 'lucide-react';
-import { EmptyState, Button } from '../../../shared/components/ui';
+import { Search, Calendar, PackageMinus, TrendingDown, X } from 'lucide-react';
+import { EmptyState, Button, HighlightText } from '../../../shared/components/ui';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
+import { matchSearch } from '../../../shared/utils/search';
 
 interface DeadStockReportProps {
     slowMovers: SlowMoverProduct[];
@@ -16,18 +18,18 @@ export const DeadStockReport: React.FC<DeadStockReportProps> = ({ slowMovers, lo
         return new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON' }).format(value);
     };
 
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
     // Filter and search
     const filteredMovers = useMemo(() => {
         return slowMovers
             .filter(item => {
                 const matchesDays = item.daysWithoutSale >= daysFilter;
-                const matchesSearch = 
-                    item.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    item.barcode.includes(searchTerm);
+                const matchesSearch = matchSearch([item.productName, item.barcode], debouncedSearchTerm);
                 return matchesDays && matchesSearch;
             })
             .sort((a, b) => b.blockedValue - a.blockedValue);
-    }, [slowMovers, daysFilter, searchTerm]);
+    }, [slowMovers, daysFilter, debouncedSearchTerm]);
 
     const totalBlockedValue = useMemo(() => {
         return filteredMovers.reduce((acc, item) => acc + item.blockedValue, 0);
@@ -77,15 +79,28 @@ export const DeadStockReport: React.FC<DeadStockReportProps> = ({ slowMovers, lo
             </div>
 
             {/* Search Bar */}
-            <div className="relative mb-4">
-                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+            <div className="relative mb-4 flex items-center">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                     type="text"
                     placeholder="Caută după nume sau cod bare..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 font-medium"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') setSearchTerm('');
+                    }}
+                    className="w-full pl-9 pr-9 py-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 placeholder-gray-400 font-medium"
                 />
+                {searchTerm && (
+                    <button
+                        type="button"
+                        onClick={() => setSearchTerm('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-150 rounded-full text-gray-400 hover:text-gray-650 transition-colors"
+                        aria-label="Șterge căutarea"
+                    >
+                        <X size={14} />
+                    </button>
+                )}
             </div>
 
             {/* Data Table */}
@@ -121,8 +136,12 @@ export const DeadStockReport: React.FC<DeadStockReportProps> = ({ slowMovers, lo
                         <tbody className="divide-y divide-gray-50 text-xs font-medium text-gray-700">
                             {filteredMovers.map((item) => (
                                 <tr key={item.productId} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="p-4 font-bold text-gray-900">{item.productName}</td>
-                                    <td className="p-4 text-gray-400 font-mono">{item.barcode}</td>
+                                    <td className="p-4 font-bold text-gray-900">
+                                        <HighlightText text={item.productName} search={searchTerm} />
+                                    </td>
+                                    <td className="p-4 text-gray-400 font-mono">
+                                        <HighlightText text={item.barcode} search={searchTerm} />
+                                    </td>
                                     <td className="p-4 text-center">
                                         <span className="px-2 py-1 bg-amber-50 text-amber-700 rounded-md border border-amber-100 font-black">
                                             {item.daysWithoutSale} zile

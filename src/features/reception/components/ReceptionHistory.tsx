@@ -57,6 +57,11 @@ export const ReceptionHistory = ({
                                 type="text"
                                 value={filters.supplier}
                                 onChange={(e) => onFilterChange({ ...filters, supplier: e.target.value })}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                        onFilterChange({ ...filters, supplier: '' });
+                                    }
+                                }}
                                 placeholder="Căutare după nume..."
                                 className="w-full pl-3 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20"
                             />

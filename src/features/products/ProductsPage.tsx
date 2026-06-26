@@ -64,6 +64,7 @@ const ProductsPage = () => {
         loading,
         searchTerm,
         setSearchTerm,
+        debouncedSearchTerm,
         filteredProducts,
         updateProduct,
         deleteProduct,
@@ -392,7 +393,7 @@ const ProductsPage = () => {
                 selectedIds={selectedIds}
                 onToggleSelect={handleToggleSelect}
                 onToggleSelectAll={handleToggleSelectAll}
-                searchTerm={searchTerm}
+                searchTerm={debouncedSearchTerm}
             />
 
             {/* Pagination Controls */}

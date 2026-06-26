@@ -8,6 +8,8 @@ import {
     ReceptionDbRow
 } from '../types';
 import { receptionService } from '../services/receptionService';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
+import { matchSearch } from '../../../shared/utils/search';
 
 export const useReception = () => {
     const { currentStoreId, user } = useAuth();
@@ -100,11 +102,13 @@ export const useReception = () => {
         loadProducts();
     }, [loadProducts]);
 
+    const debouncedHistoryFilters = useDebounce(historyFilters, 300);
+
     const loadHistory = useCallback(async () => {
         if (!currentStoreId) return;
         setLoadingHistory(true);
         try {
-            const data = await receptionService.listReceptions(currentStoreId, historyFilters);
+            const data = await receptionService.listReceptions(currentStoreId, debouncedHistoryFilters);
             setReceptionsHistory(data);
         } catch (error) {
             console.error(error);
@@ -112,7 +116,7 @@ export const useReception = () => {
         } finally {
             setLoadingHistory(false);
         }
-    }, [currentStoreId, historyFilters]);
+    }, [currentStoreId, debouncedHistoryFilters]);
 
     useEffect(() => {
         if (view === 'history') {
@@ -120,13 +124,14 @@ export const useReception = () => {
         }
     }, [view, loadHistory]);
 
+    const debouncedSearch = useDebounce(search, 300);
+
     const filteredProducts = useMemo(() => {
-        if (search.length < 2) return [];
+        if (debouncedSearch.length < 2) return [];
         return availableProducts.filter(p => 
-            p.nume.toLowerCase().includes(search.toLowerCase()) || 
-            p.cod_bare.includes(search)
+            matchSearch([p.nume, p.cod_bare, p.category_name, p.parent_category_name], debouncedSearch)
         ).slice(0, 10);
-    }, [availableProducts, search]);
+    }, [availableProducts, debouncedSearch]);
 
     const handleSetSearch = (val: string) => {
         setSearch(val);

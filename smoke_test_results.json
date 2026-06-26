@@ -1,0 +1,76 @@
+{
+    "scenarios": {
+        "scenario_1": {
+            "status": "PASS",
+            "stock_depozit": 100.0,
+            "stock_magazin": 0,
+            "stock_value_lei": 500.0
+        },
+        "scenario_2": {
+            "status": "PASS",
+            "stock_after": 97.0,
+            "sale_total_db": 31.5,
+            "payment_method": "cash"
+        },
+        "scenario_3": {
+            "status": "PASS",
+            "stock_after": 90.0,
+            "sale_total_db": 73.5,
+            "payment_method": "card"
+        },
+        "scenario_4": {
+            "status": "PASS",
+            "stock_depozit": 50.0,
+            "stock_magazin": 90.0,
+            "total_stock": 140.0,
+            "stock_value_lei": 750.0
+        },
+        "scenario_5": {
+            "status": "PASS",
+            "stock_depozit": 20.0,
+            "stock_magazin": 120.0,
+            "total_stock": 140.0
+        },
+        "scenario_6": {
+            "status": "PASS",
+            "stock_magazin": 115.0,
+            "total_stock": 135.0,
+            "waste_event_id": "c4624b7f-3618-40ef-b5ef-11d31b3ee7e1"
+        },
+        "scenario_7": {
+            "status": "PASS",
+            "stock_magazin": 113.0,
+            "sync_status_ui": "SYNCED"
+        },
+        "scenario_8": {
+            "status": "PASS",
+            "before": "5 fi\u0219iere",
+            "after": "6 fi\u0219iere"
+        },
+        "scenario_9": {
+            "status": "PASS",
+            "relaunch_triggered": true,
+            "total_sales_count": 27
+        },
+        "scenario_10": {
+            "status": "PASS",
+            "db_sales_sum_lei": 849.78,
+            "has_nans_in_ui": false
+        }
+    },
+    "discrepancies": [
+        {
+            "severity": "MEDIUM",
+            "message": "Losses page search by barcode is case-sensitive (cannot find uppercase barcode TEST-SMOKE-001 when query is lowercased).",
+            "scenario": 6
+        }
+    ],
+    "scores": {
+        "commercial_integrity": 90,
+        "inventory_consistency": 100,
+        "financial_consistency": 90,
+        "offline_reliability": 100,
+        "backup_restore": 100
+    },
+    "verdict": "GO LIVE"
+}

@@ -4,6 +4,8 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '../../auth/useAuth';
 import { lossService } from '../services/lossService';
 import { LossProduct, LossLocationState, LossStockSource } from '../types';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
+import { matchSearch } from '../../../shared/utils/search';
 
 export const useLosses = () => {
     const location = useLocation();
@@ -72,13 +74,13 @@ export const useLosses = () => {
         setSubmitting(false);
     };
 
+    const debouncedSearch = useDebounce(search, 300);
+
     const filteredProducts = useMemo(() => {
-        const query = search.toLowerCase();
         return products.filter(p =>
-            p.nume.toLowerCase().includes(query) ||
-            p.cod_bare.includes(query)
+            matchSearch([p.nume, p.cod_bare], debouncedSearch)
         );
-    }, [products, search]);
+    }, [products, debouncedSearch]);
 
     const submitLoss = async () => {
         if (!currentStoreId || !user) {

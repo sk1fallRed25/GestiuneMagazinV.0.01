@@ -28,6 +28,9 @@ export const TransferProductSelector = ({
                     placeholder="Caută după nume sau cod bare..."
                     value={search}
                     onChange={e => setSearch(e.target.value)}
+                    onKeyDown={e => {
+                        if (e.key === 'Escape') setSearch('');
+                    }}
                     autoComplete="off"
                     autoFocus
                 />

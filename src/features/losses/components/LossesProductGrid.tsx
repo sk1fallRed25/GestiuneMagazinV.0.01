@@ -1,12 +1,13 @@
 import React from 'react';
 import { Package, Warehouse, Store } from 'lucide-react';
 import { LossProduct } from '../types';
-import { EmptyState } from '../../../shared/components/ui';
+import { EmptyState, HighlightText } from '../../../shared/components/ui';
 
 interface LossesProductGridProps {
     products: LossProduct[];
     onSelectProduct: (product: LossProduct) => void;
     loading: boolean;
+    searchTerm?: string;
 }
 
 const LossesSkeleton: React.FC = () => {
@@ -32,7 +33,8 @@ const LossesSkeleton: React.FC = () => {
 export const LossesProductGrid: React.FC<LossesProductGridProps> = ({ 
     products, 
     onSelectProduct, 
-    loading 
+    loading,
+    searchTerm = ''
 }) => {
     if (loading) {
         return <LossesSkeleton />;
@@ -63,8 +65,12 @@ export const LossesProductGrid: React.FC<LossesProductGridProps> = ({
                     </div>
 
                     <div>
-                        <h3 className="font-bold text-gray-800 text-lg leading-tight pr-10 group-hover:text-red-600 transition-colors">{prod.nume}</h3>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">COD: {prod.cod_bare}</p>
+                        <h3 className="font-bold text-gray-800 text-lg leading-tight pr-10 group-hover:text-red-600 transition-colors">
+                            <HighlightText text={prod.nume} search={searchTerm} />
+                        </h3>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">
+                            COD: <HighlightText text={prod.cod_bare} search={searchTerm} />
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 mt-auto">

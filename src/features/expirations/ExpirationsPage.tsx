@@ -57,6 +57,7 @@ const ExpirationsPage: React.FC = () => {
                     <ExpirationsTable 
                         items={filteredItems} 
                         onReportLoss={goToLossReport} 
+                        searchTerm={filters.search}
                     />
                 )}
             </div>

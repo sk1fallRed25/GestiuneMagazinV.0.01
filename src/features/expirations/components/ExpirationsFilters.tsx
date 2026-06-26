@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, Warehouse, Store, LayoutGrid } from 'lucide-react';
+import { Search, Filter, Warehouse, Store, LayoutGrid, X } from 'lucide-react';
 import { ExpirationFilter } from '../types';
 
 interface ExpirationsFiltersProps {
@@ -15,10 +15,23 @@ export const ExpirationsFilters: React.FC<ExpirationsFiltersProps> = ({ filters,
                 <input
                     type="text"
                     placeholder="Căutare produs sau cod bare..."
-                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-red-500 transition-all text-gray-700"
+                    className="w-full pl-12 pr-10 py-3 bg-gray-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-red-500 transition-all text-gray-700"
                     value={filters.search}
                     onChange={(e) => onFilterChange({ search: e.target.value })}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') onFilterChange({ search: '' });
+                    }}
                 />
+                {filters.search && (
+                    <button
+                        type="button"
+                        onClick={() => onFilterChange({ search: '' })}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200/50 rounded-full text-slate-400 hover:text-slate-650 transition-colors"
+                        aria-label="Șterge căutarea"
+                    >
+                        <X size={16} />
+                    </button>
+                )}
             </div>
 
             <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-2xl">

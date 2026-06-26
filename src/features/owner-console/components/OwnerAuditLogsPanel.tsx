@@ -1,6 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { History, Search, Filter, RefreshCw, Eye, X, ArrowRight, ShieldCheck } from 'lucide-react';
 import { OwnerAuditLogView, OwnerAuditAction } from '../types';
+import { HighlightText } from '../../../shared/components/ui';
+import { useDebounce } from '../../../shared/hooks/useDebounce';
+import { matchSearch } from '../../../shared/utils/search';
 
 interface OwnerAuditLogsPanelProps {
   logs: OwnerAuditLogView[];
@@ -14,6 +17,7 @@ export const OwnerAuditLogsPanel: React.FC<OwnerAuditLogsPanelProps> = ({
   onRefresh
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [actionFilter, setActionFilter] = useState<string>('all');
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [selectedLog, setSelectedLog] = useState<OwnerAuditLogView | null>(null);
@@ -24,17 +28,13 @@ export const OwnerAuditLogsPanel: React.FC<OwnerAuditLogsPanelProps> = ({
 
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
-      const matchSearch =
-        log.storeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.actorEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.summary.toLowerCase().includes(searchTerm.toLowerCase());
-
+      const matchesSearch = matchSearch([log.storeName, log.actorEmail, log.summary], debouncedSearchTerm);
       const matchAction = actionFilter === 'all' || log.action === actionFilter;
       const matchStore = storeFilter === 'all' || log.storeName === storeFilter;
 
-      return matchSearch && matchAction && matchStore;
+      return matchesSearch && matchAction && matchStore;
     });
-  }, [logs, searchTerm, actionFilter, storeFilter]);
+  }, [logs, debouncedSearchTerm, actionFilter, storeFilter]);
 
   const getActionBadge = (action: OwnerAuditAction) => {
     switch (action) {
@@ -92,15 +92,28 @@ export const OwnerAuditLogsPanel: React.FC<OwnerAuditLogsPanelProps> = ({
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           {/* Search Input */}
-          <div className="relative flex-1 md:w-64">
+          <div className="relative flex-1 md:w-64 flex items-center">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Caută după magazin, actor, detalii..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSearchTerm('');
+              }}
+              className="w-full pl-9 pr-9 py-2 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-medium text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-150 dark:hover:bg-gray-700 rounded-full text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 transition-colors"
+                aria-label="Șterge căutarea"
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
 
           {/* Action Filter */}
@@ -205,13 +218,13 @@ export const OwnerAuditLogsPanel: React.FC<OwnerAuditLogsPanelProps> = ({
                         </span>
                       </td>
                       <td className="py-4 px-6 font-bold text-gray-900 dark:text-white">
-                        {log.storeName}
+                        <HighlightText text={log.storeName} search={searchTerm} />
                       </td>
                       <td className="py-4 px-6 text-xs font-mono text-gray-600 dark:text-gray-300">
-                        {log.actorEmail}
+                        <HighlightText text={log.actorEmail} search={searchTerm} />
                       </td>
                       <td className="py-4 px-6 text-gray-700 dark:text-gray-200 max-w-md truncate">
-                        {log.summary}
+                        <HighlightText text={log.summary} search={searchTerm} />
                       </td>
                       <td className="py-4 px-6 text-right">
                         <button
