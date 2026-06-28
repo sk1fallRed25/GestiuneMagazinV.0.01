@@ -253,7 +253,7 @@ def run_tests():
             safe_print("Simulating network OFFLINE state.")
             
             # Enter barcode in the POS input and press Enter
-            input_locator = page.locator('[data-testid="pos-barcode-input"]')
+            input_locator = page.locator('[data-testid="pos-scan-input"]')
             input_locator.wait_for(state="visible", timeout=5000)
             input_locator.fill(barcode)
             input_locator.press("Enter")

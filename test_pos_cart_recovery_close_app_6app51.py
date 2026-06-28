@@ -163,7 +163,7 @@ def run_tests():
             }}""")
 
             # Search for a product and add to cart
-            search_input = page.locator("input[data-testid='pos-barcode-input']")
+            search_input = page.locator("input[data-testid='pos-scan-input']")
             search_input.fill(product_name)
             time.sleep(1)
 

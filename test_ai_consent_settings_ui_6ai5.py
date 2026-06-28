@@ -19,7 +19,7 @@ def run_consent_ui_tests():
         # 1. SETUP: Reset consent states and ensure test admin has correct role
         setup_context = browser.new_context()
         setup_page = setup_context.new_page()
-        store_id = '00000000-0000-0000-0000-000000000001' # Magazin Principal
+        store_id = None  # Will be resolved dynamically
         
         try:
             safe_print("--- Setup: Initialize consent state and user roles ---")
@@ -30,27 +30,35 @@ def run_consent_ui_tests():
             setup_page.locator("button[type='submit']").click()
             setup_page.locator("span:has-text('Consolă Proprietar')").wait_for(state="visible", timeout=15000)
             
-            setup_res = setup_page.evaluate(f"""async () => {{
+            setup_res = setup_page.evaluate("""async () => {
                 const supabase = window.supabase;
                 
+                // Resolve actual store ID for 'Magazin Principal'
+                const { data: stores } = await supabase.from('stores').select('id').eq('name', 'Magazin Principal').limit(1);
+                if (!stores || stores.length === 0) throw new Error('Store Magazin Principal not found');
+                const storeId = stores[0].id;
+                
                 // Ensure AI Consultant module is enabled for store
-                await supabase.rpc('set_store_module_access', {{
-                    p_store_id: '{store_id}',
+                await supabase.rpc('set_store_module_access', {
+                    p_store_id: storeId,
                     p_module_key: 'ai_consultant',
                     p_enabled: true,
                     p_reason: 'Setup AI Consent UI Test'
-                }});
+                });
                 
                 // Force admin@admin.com profile role to 'admin'
-                await supabase.from('profiles').update({{ role: 'admin' }}).eq('email', 'admin@admin.com');
+                await supabase.from('profiles').update({ role: 'admin' }).eq('email', 'admin@admin.com');
                 
-                return {{ success: true }};
-            }}""")
+                return { success: true, storeId: storeId };
+            }""")
 
             
             if 'error' in setup_res:
                 raise Exception(f"Setup failed: {setup_res['error']}")
-            safe_print("[PASS] AI Consent state reset and test admin role verified.")
+            store_id = setup_res.get('storeId')
+            if not store_id:
+                raise Exception("Failed to resolve store_id from setup_res")
+            safe_print(f"[PASS] AI Consent state reset and test admin role verified. store_id: {store_id}")
             
         except Exception as e:
             safe_print(f"[FAIL] Setup failed: {e}")

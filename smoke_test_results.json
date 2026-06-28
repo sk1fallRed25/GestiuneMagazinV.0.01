@@ -35,7 +35,7 @@
             "status": "PASS",
             "stock_magazin": 115.0,
             "total_stock": 135.0,
-            "waste_event_id": "c4624b7f-3618-40ef-b5ef-11d31b3ee7e1"
+            "waste_event_id": "c2aa24ac-42dd-465a-933e-da9243c2bf1c"
         },
         "scenario_7": {
             "status": "PASS",
@@ -50,11 +50,11 @@
         "scenario_9": {
             "status": "PASS",
             "relaunch_triggered": true,
-            "total_sales_count": 27
+            "total_sales_count": 40
         },
         "scenario_10": {
             "status": "PASS",
-            "db_sales_sum_lei": 849.78,
+            "db_sales_sum_lei": 1163.78,
             "has_nans_in_ui": false
         }
     },

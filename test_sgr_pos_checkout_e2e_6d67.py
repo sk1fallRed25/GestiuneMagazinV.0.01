@@ -203,7 +203,7 @@ def run_test():
 
             # Accept confirmation dialog
             # (Dialog handler is set up by Playwright browser default to accept dialogs, but let's confirm cart was cleared)
-            final_total_text = page.locator("span.text-5xl").inner_text()
+            final_total_text = page.locator('[data-testid="pos-cart-total"]').inner_text()
             assert "0.00" in final_total_text, f"Expected cart to clear, got: {final_total_text}"
             safe_print("[PASS] SGR Cash sale finalized successfully, cart reset.")
 
@@ -273,7 +273,7 @@ def run_test():
             page.wait_for_timeout(2000)
             
             # Verify cart cleared
-            assert "0.00" in page.locator("span.text-5xl").inner_text()
+            assert "0.00" in page.locator('[data-testid="pos-cart-total"]').inner_text()
             safe_print("[PASS] SGR Mixed sale finalized successfully.")
 
             # Verify DB records for mixed sale
@@ -315,14 +315,14 @@ def run_test():
             
             # SGR total should be hidden, total = 5.00
             assert page.locator("[data-testid='pos-sgr-total']").count() == 0, "SGR summary should be hidden for normal products"
-            assert "5.00" in page.locator("span.text-5xl").inner_text()
+            assert "5.00" in page.locator('[data-testid="pos-cart-total"]').inner_text()
             
             # Checkout cash
             checkout_btn.click(no_wait_after=True)
             page.wait_for_timeout(2000)
             
             # Verify cart cleared
-            assert "0.00" in page.locator("span.text-5xl").inner_text()
+            assert "0.00" in page.locator('[data-testid="pos-cart-total"]').inner_text()
             safe_print("[PASS] Normal product sale finalized successfully.")
 
             # 7. Scenario: Sales History minimal check

@@ -5,7 +5,7 @@ import json
 import time
 from playwright.sync_api import sync_playwright
 
-BASE_URL = "http://localhost:5173"
+BASE_URL = "http://localhost:5174"
 
 def safe_print(msg):
     try:

@@ -127,7 +127,7 @@ def run_e2e_tests():
             # SCENARIO A: Auto-focus on POS load
             # ============================================================
             safe_print("\n--- Scenario A: Auto-focus on POS load ---")
-            input_locator = page.locator('[data-testid="pos-barcode-input"]')
+            input_locator = page.locator('[data-testid="pos-scan-input"]')
             input_locator.wait_for(state="visible", timeout=10000)
             
             # Wait for the scanner focus hook to kick in
@@ -135,7 +135,7 @@ def run_e2e_tests():
             
             # Verify input is focused
             is_focused = page.evaluate(
-                "document.activeElement === document.querySelector('[data-testid=\"pos-barcode-input\"]')"
+                "document.activeElement === document.querySelector('[data-testid=\"pos-scan-input\"]')"
             )
             assert is_focused, "Barcode input should be auto-focused on POS load"
             safe_print("[PASS] Barcode input is auto-focused on POS load.")
@@ -144,7 +144,7 @@ def run_e2e_tests():
             # SCENARIO B: Scanner Ready badge is visible when focused
             # ============================================================
             safe_print("\n--- Scenario B: Scanner Ready badge visible ---")
-            ready_badge = page.locator('[data-testid="pos-scanner-ready-badge"]')
+            ready_badge = page.locator('[data-testid="pos-scan-status-badge"]')
             ready_badge.wait_for(state="visible", timeout=5000)
             badge_text = ready_badge.inner_text()
             badge_lower = badge_text.lower()
@@ -153,7 +153,7 @@ def run_e2e_tests():
             
             # Verify green border on input
             border_color = page.evaluate("""() => {
-                const input = document.querySelector('[data-testid="pos-barcode-input"]');
+                const input = document.querySelector('[data-testid="pos-scan-input"]');
                 return window.getComputedStyle(input).borderColor;
             }""")
             safe_print(f"[INFO] Input border color when focused: {border_color}")
@@ -181,7 +181,7 @@ def run_e2e_tests():
             safe_print("[PASS] Input cleared after scan.")
             
             is_focused_after = page.evaluate(
-                "document.activeElement === document.querySelector('[data-testid=\"pos-barcode-input\"]')"
+                "document.activeElement === document.querySelector('[data-testid=\"pos-scan-input\"]')"
             )
             assert is_focused_after, "Input should be refocused after successful scan"
             safe_print("[PASS] Input is refocused after successful scan.")
@@ -200,7 +200,7 @@ def run_e2e_tests():
             page.wait_for_timeout(400)  # wait for refocus delay
             
             is_focused_after_click = page.evaluate(
-                "document.activeElement === document.querySelector('[data-testid=\"pos-barcode-input\"]')"
+                "document.activeElement === document.querySelector('[data-testid=\"pos-scan-input\"]')"
             )
             assert is_focused_after_click, "Input should refocus after clicking non-interactive area"
             safe_print("[PASS] Input refocuses after clicking non-interactive area.")
@@ -225,7 +225,7 @@ def run_e2e_tests():
                     
                     # The focus should NOT be on the barcode input
                     is_input_focused_in_modal = page.evaluate(
-                        "document.activeElement === document.querySelector('[data-testid=\"pos-barcode-input\"]')"
+                        "document.activeElement === document.querySelector('[data-testid=\"pos-scan-input\"]')"
                     )
                     # It's acceptable if it IS focused initially, as long as clicks in the modal work
                     safe_print(f"[INFO] Input focused during modal: {is_input_focused_in_modal}")
@@ -256,7 +256,7 @@ def run_e2e_tests():
             # After modal closes, scanner should refocus
             page.wait_for_timeout(500)
             is_focused_after_modal = page.evaluate(
-                "document.activeElement === document.querySelector('[data-testid=\"pos-barcode-input\"]')"
+                "document.activeElement === document.querySelector('[data-testid=\"pos-scan-input\"]')"
             )
             assert is_focused_after_modal, "Input should refocus after modal closes"
             safe_print("[PASS] Input refocuses after modal closes.")
@@ -311,7 +311,7 @@ def run_e2e_tests():
             page.locator("button:has-text('ÎNCASEAZĂ')").click(no_wait_after=True)
             
             # Wait for cart to clear
-            page.locator("span.text-5xl:has-text('0.00')").wait_for(state="visible", timeout=10000)
+            page.locator('[data-testid="pos-cart-total"]:has-text("0.00")').wait_for(state="visible", timeout=10000)
             safe_print("[PASS] Checkout finalized.")
             
             # Verify FiscalNet write was called
@@ -323,7 +323,7 @@ def run_e2e_tests():
             # After checkout, scanner should refocus
             page.wait_for_timeout(500)
             is_focused_final = page.evaluate(
-                "document.activeElement === document.querySelector('[data-testid=\"pos-barcode-input\"]')"
+                "document.activeElement === document.querySelector('[data-testid=\"pos-scan-input\"]')"
             )
             assert is_focused_final, "Input should refocus after checkout completes"
             safe_print("[PASS] Input refocuses after checkout.")
