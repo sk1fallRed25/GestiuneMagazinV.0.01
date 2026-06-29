@@ -64,6 +64,7 @@
       "electron-preload.js",
       "electron-updater-service.js",
       "electron-sqlite-service.js",
+      "electron-health-service.js",
       "package.json"
     ],
     "publish": {
